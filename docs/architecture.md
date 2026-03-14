@@ -1,6 +1,8 @@
-# Architecture
+# \# Architecture
 
-## Current Stack
+
+
+## \## Current Stack
 
 | Component | Purpose |
 
@@ -18,18 +20,29 @@
 
 | Visual Studio Code | Development environment |
 
-## Current Flow
+## 
 
-Developer change
+## \## Current Flow
 
-→ Git commit
+## 
 
-→ Git push
+## ```mermaid
 
-→ GitHub Actions
+## graph TD
 
-→ npm install
+## A\[Developer Change] --> B\[Git Commit]
 
-→ npm test
+## B --> C\[Git Push]
 
-→ pass/fail result
+## C --> D\[GitHub Actions CI]
+
+## D --> E\[npm install]
+
+## E --> F\[Run Vitest Tests]
+
+## F --> G\[Pass / Fail]
+
+## G --> H\[Update Run History]
+
+## ```
+
