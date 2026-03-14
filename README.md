@@ -1,17 +1,20 @@
-![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
 # CareerOps Platform
 
-## Test-Driven Career Operations
-
-Applying CI/CD, automation, and quality engineering principles to employment search workflows.
-
----
+![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
 
 ## Overview
 
 The CareerOps Platform demonstrates how modern engineering practices can be applied to personal operational workflows such as managing recruiter relationships, tracking job opportunities, and maintaining compliance reporting.
 
 This project showcases a CI/CD-driven automation architecture using modern developer tooling.
+
+---
+
+## Project Documentation
+
+- Architecture → docs/architecture.md
+- Run History → docs/run-history.md
+- Roadmap → docs/roadmap.md
 
 ---
 
