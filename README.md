@@ -1,3 +1,4 @@
+![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
 # CareerOps Platform
 
 ## Test-Driven Career Operations
