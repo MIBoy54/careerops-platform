@@ -1,7 +1,5 @@
 # \# Architecture
 
-
-
 ## \## Current Stack
 
 | Component | Purpose |
@@ -20,13 +18,9 @@
 
 | Visual Studio Code | Development environment |
 
-## 
-
 ## \## Current Flow
 
-## 
-
-## ```mermaid
+ ```mermaid
 
 ## graph TD
 
@@ -44,5 +38,4 @@
 
 ## G --> H\[Update Run History]
 
-## ```
-
+```
