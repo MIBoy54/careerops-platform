@@ -1,17 +1,16 @@
 <h1 align="center">CareerOps Platform</h1>
+<hr>
 <p align="left">
 DevOps-driven automation platform demonstrating CI-first engineering practices for operational workflow management.
 Automation-driven operational platform demonstrating modern engineering practices for managing recruiter relationships, opportunity tracking, and compliance reporting.
 The project showcases a CI/CD-driven automation architecture using modern developer tooling and testing frameworks.</p>
 <hr>
-
-## Build Status
-
+<h2>Build Status</h2>
 ![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
 ![Node](https://img.shields.io/badge/node-20.x-green)
 ![Tests](https://img.shields.io/badge/tests-vitest%20passing-brightgreen)
----
-## Overview
+<hr>
+<h2>Overview</h2>h2>
 CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
  - Managing recruiter contacts
  - Tracking job opportunities
