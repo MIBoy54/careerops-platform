@@ -24,9 +24,10 @@
 graph TD
 A[Developer Change] --> B[Git Commit]
 B --> C[Git Push]
-C --> D[GitHub Actions CI]
-D --> E[npm install]
-E --> F[Run Vitest Tests]
-F --> G[Pass / Fail]
-G --> H[Update Run History]
+C --> D[GitHub Actions Trigger]
+D --> E[npm install Dependencies]
+E --> F[Run Vitest Unit Tests]
+F --> G{Tests Pass?}
+G -->|Yes| H[Record Success]
+G -->|No| I[Record Failure]
 ```
