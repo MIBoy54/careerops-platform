@@ -7,7 +7,7 @@ The project showcases a CI/CD-driven automation architecture using modern develo
 <hr>
 
 <h2>Build Status</h2>
-<p align="left">
+<p align="center">
 <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
 <img src="https://img.shields.io/badge/node-20.x-green"/>
 <img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
