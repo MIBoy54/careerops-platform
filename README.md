@@ -1,8 +1,14 @@
 # CareerOps Platform
+DevOps-driven automation platform demonstrating CI-first engineering practices for operational workflow management.
 Automation-driven operational platform demonstrating modern engineering practices for managing recruiter relationships, opportunity tracking, and compliance reporting.
 The project showcases a CI/CD-driven automation architecture using modern developer tooling and testing frameworks.
+---
+
+## Build Status
 
 ![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
+![Node](https://img.shields.io/badge/node-20.x-green)
+![Tests](https://img.shields.io/badge/tests-vitest%20passing-brightgreen)
 ---
 ## Overview
 CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
@@ -22,12 +28,6 @@ The system is built around a CI-first architecture where validation occurs autom
 | Playwright / Cypress | Automation testing (planned) |
 | MySQL | Data persistence layer |
 | Visual Studio Code | Development environment |
-CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
- - Managing recruiter contacts
- - Tracking job opportunities
- - Generating unemployment compliance reports
- - Automating validation pipelines
-The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
 ---
 
 ## CI Pipeline Flow
@@ -73,5 +73,5 @@ This project demonstrates:
  - CI-driven validation
  - Automation-first architecture
  - DevOps-aligned quality engineering
- - Reproducible testing environments
+ - Reproducible testing environmentss
 ---
