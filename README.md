@@ -44,9 +44,9 @@ G -->|No| I[Record Failure]
 ```
 ---
 ## Project Documentation
-Architecture → docs/architecture.md
-Run History → docs/run-history.md
-Roadmap → docs/roadmap.md
+ - Architecture → docs/architecture.md
+ - Run History → docs/run-history.md
+ - Roadmap → docs/roadmap.md
 ---
 
 ## Roadmap
