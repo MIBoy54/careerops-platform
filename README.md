@@ -22,15 +22,56 @@ The system is built around a CI-first architecture where validation occurs autom
 | Playwright / Cypress | Automation testing (planned) |
 | MySQL | Data persistence layer |
 | Visual Studio Code | Development environment |
-
+CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
+ - Managing recruiter contacts
+ - Tracking job opportunities
+ - Generating unemployment compliance reports
+ - Automating validation pipelines
+The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
 ---
 
-## Current Capabilities
-
-- Recruiter record validation using unit tests
-- CI pipeline automatically executing tests
-- GitHub Issues + Projects used for backlog tracking
-
+## CI Pipeline Flow
+```mermaid
+graph TD
+A[Developer Change] --> B[Git Commit]
+B --> C[Git Push]
+C --> D[GitHub Actions Trigger]
+D --> E[npm install Dependencies]
+E --> F[Run Vitest Unit Tests]
+F --> G{Tests Pass?}
+G -->|Yes| H[Record Success]
+G -->|No| I[Record Failure]
+```
+---
+## Project Documentation
+Architecture → docs/architecture.md
+Run History → docs/run-history.md
+Roadmap → docs/roadmap.md
 ---
 
-## Example Test
+## Roadmap
+### Phase 1
+ - Repository setup
+ - Vitest test framework
+ - GitHub Actions CI pipeline
+ - Documentation and project board
+### Phase 2
+ - Playwright automation testing
+ - Expanded validation coverage
+ - Run history automation
+### Phase 3
+ - MySQL schema
+ - API service layer
+ - Recruiter contact management
+### Phase 4
+ - Reporting dashboard
+ - Compliance automation workflows
+---
+
+## Engineering Goals
+This project demonstrates:
+ - CI-driven validation
+ - Automation-first architecture
+ - DevOps-aligned quality engineering
+ - Reproducible testing environments
+---
