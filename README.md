@@ -5,20 +5,28 @@ DevOps-driven automation platform demonstrating CI-first engineering practices f
 Automation-driven operational platform demonstrating modern engineering practices for managing recruiter relationships, opportunity tracking, and compliance reporting.
 The project showcases a CI/CD-driven automation architecture using modern developer tooling and testing frameworks.</p>
 <hr>
+
 <h2>Build Status</h2>
 <p align="left">
-![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
-![Node](https://img.shields.io/badge/node-20.x-green)
-![Tests](https://img.shields.io/badge/tests-vitest%20passing-brightgreen)</p>
+<img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
+<img src="https://img.shields.io/badge/node-20.x-green"/>
+<img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
+</p>
 <hr>
+
 <h2>Overview</h2>
-<p align="left">
+<p>
 CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
- - Managing recruiter contacts
- - Tracking job opportunities
- - Generating unemployment compliance reports
- - Automating validation pipelines
-The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.</p>
+</p>
+<ul>
+<li>Managing recruiter contacts</li>
+<li>Tracking job opportunities</li>
+<li>Generating unemployment compliance reports</li>
+<li>Automating validation pipelines</li>
+</ul>
+<p>
+The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
+</p>
 <hr>
 
 ## Architecture
