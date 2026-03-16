@@ -1,6 +1,6 @@
-# \# Architecture
+# Architecture
 
-## \## Current Stack
+## Current Stack
 
 | Component | Purpose |
 
@@ -18,9 +18,9 @@
 
 | Visual Studio Code | Development environment |
 
-## \## Current Flow
+## Current Flow
 
- ```mermaid
+```mermaid
 
 ## graph TD
 
