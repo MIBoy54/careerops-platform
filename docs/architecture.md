@@ -21,21 +21,12 @@
 ## Current Flow
 
 ```mermaid
-
-## graph TD
-
-## A\[Developer Change] --> B\[Git Commit]
-
-## B --> C\[Git Push]
-
-## C --> D\[GitHub Actions CI]
-
-## D --> E\[npm install]
-
-## E --> F\[Run Vitest Tests]
-
-## F --> G\[Pass / Fail]
-
-## G --> H\[Update Run History]
-
+graph TD
+A[Developer Change] --> B[Git Commit]
+B --> C[Git Push]
+C --> D[GitHub Actions CI]
+D --> E[npm install]
+E --> F[Run Vitest Tests]
+F --> G[Pass / Fail]
+G --> H[Update Run History]
 ```
