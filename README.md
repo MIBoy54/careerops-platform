@@ -1,4 +1,5 @@
 # CareerOps Platform
+
 DevOps-driven automation platform demonstrating CI-first engineering practices for operational workflow management.
 Automation-driven operational platform demonstrating modern engineering practices for managing recruiter relationships, opportunity tracking, and compliance reporting.
 The project showcases a CI/CD-driven automation architecture using modern developer tooling and testing frameworks.
