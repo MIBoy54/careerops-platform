@@ -1,25 +1,19 @@
 # CareerOps Platform
+Automation-driven operational platform demonstrating modern engineering practices for managing recruiter relationships, opportunity tracking, and compliance reporting.
+The project showcases a CI/CD-driven automation architecture using modern developer tooling and testing frameworks.
 
 ![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
-
-## Overview
-
-The CareerOps Platform demonstrates how modern engineering practices can be applied to personal operational workflows such as managing recruiter relationships, tracking job opportunities, and maintaining compliance reporting.
-
-This project showcases a CI/CD-driven automation architecture using modern developer tooling.
-
 ---
-
-## Project Documentation
-
-- Architecture → docs/architecture.md
-- Run History → docs/run-history.md
-- Roadmap → docs/roadmap.md
-
+## Overview
+CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
+ - Managing recruiter contacts
+ - Tracking job opportunities
+ - Generating unemployment compliance reports
+ - Automating validation pipelines
+The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
 ---
 
 ## Architecture
-
 | Component | Purpose |
 | --- | --- |
 | GitHub | Source control and project management |
