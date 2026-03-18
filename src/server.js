@@ -1,17 +1,21 @@
 import cors from "cors";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import { validateWeeklyReport } from "./validateWeeklyReport.js";
 
 const app = express();
 const PORT = 3000;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "../ui")));
 
 app.get("/", (req, res) => {
-  res.json({
-    message: "CareerOps API is running"
-  });
+  res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
 app.post("/validate-weekly-report", (req, res) => {

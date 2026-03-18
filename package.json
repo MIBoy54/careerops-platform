@@ -11,11 +11,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "vitest": "^4.1.0"
-  },
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
   }
 }
