@@ -1,9 +1,11 @@
+import cors from "cors";
 import express from "express";
 import { validateWeeklyReport } from "./validateWeeklyReport.js";
 
 const app = express();
 const PORT = 3000;
 
+app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -31,4 +33,4 @@ app.post("/validate-weekly-report", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`CareerOps API listening on http://localhost:${PORT}`);
-})
+});
