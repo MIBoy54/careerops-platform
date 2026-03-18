@@ -166,8 +166,7 @@ This platform enforces business rules through automated validation and testing.
 <pre><code>✓ 2 tests passed</code></pre>
 
 <p>
-This demonstrates how compliance rules can be programmatically enforced and verified through CI.
-</p>
+This demonstrates how compliance rules are programmatically enforced and continuously verified through CI pipelines.
 <hr>
 <h2>Perspective</h2>
 <p>
