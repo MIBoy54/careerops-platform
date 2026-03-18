@@ -1,15 +1,33 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 
-describe('CareerOps Validation', () => {
-  it('should validate recruiter record', () => {
+describe("Data Validation", () => {
+  it("passes when required recruiter fields are present", () => {
     const recruiter = {
-      name: 'Jane Smith',
-      company: 'TechCorp',
-      status: 'Active'
-    }
+      name: "Bruce Lewis",
+      company: "CloudBees",
+      email: "hr@cloudbees.com"
+    };
 
-    expect(recruiter.name).toBeTruthy()
-    expect(recruiter.company).toBeTruthy()
-    expect(recruiter.status).toBe('Active')
-  })
-})
+    const isValid =
+      !!recruiter.name &&
+      !!recruiter.company &&
+      !!recruiter.email;
+
+    expect(isValid).toBe(true);
+  });
+
+  it("fails when recruiter email is missing", () => {
+    const recruiter = {
+      name: "Bruce Lewis",
+      company: "CloudBees",
+      email: ""
+    };
+
+    const isValid =
+      !!recruiter.name &&
+      !!recruiter.company &&
+      !!recruiter.email;
+
+    expect(isValid).toBe(false);
+  });
+});
