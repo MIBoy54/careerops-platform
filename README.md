@@ -1,42 +1,157 @@
-# CareerOps Platform
+<h1 align="center">CareerOps Platform</h1>
+<p align="center"><i>CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</i></p>
+<hr>
 
-![CI](https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg)
+<p align="left">
+A system-level Quality Engineering showcase demonstrating how CI-driven architectures, data design, and operational workflows integrate to enforce quality at scale.
 
-## Overview
+This platform moves beyond traditional test automation to illustrate how engineering systems can be designed for:
+<ul>
+<li>End-to-end workflow validation</li>
+<li>Real-time operational visibility</li>
+<li>Auditability and compliance support</li>
+<li>CI-integrated quality enforcement</li>
+</ul>
 
-The CareerOps Platform demonstrates how modern engineering practices can be applied to personal operational workflows such as managing recruiter relationships, tracking job opportunities, and maintaining compliance reporting.
+Rather than focusing on tools alone, this project emphasizes how quality is embedded into the system architecture itself.
+</p>
 
-This project showcases a CI/CD-driven automation architecture using modern developer tooling.
+<hr>
 
----
+<h2>Build Status</h2>
+<p align="center">
+<img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
+<img src="https://img.shields.io/badge/node-20.x-green"/>
+<img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
+</p>
+<hr>
 
-## Project Documentation
+<h2>Overview</h2>
+<p>
+CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
+</p>
+<ul>
+<li>Managing recruiter contacts</li>
+<li>Tracking job opportunities</li>
+<li>Generating unemployment compliance reports</li>
+<li>Automating validation pipelines</li>
+</ul>
+<p>
+The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
+</p>
+<hr>
 
-- Architecture → docs/architecture.md
-- Run History → docs/run-history.md
-- Roadmap → docs/roadmap.md
+<h2>System Architecture Layers</h2>
+<p>This platform is structured as a multi-layered quality engineering system:</p>
 
----
+<ul>
+<li><b>Data Layer</b> → Audit-ready MySQL schema supporting recruiter and opportunity tracking</li>
+<li><b>API Layer</b> → Service layer enabling CI-integrated validation and workflow orchestration</li>
+<li><b>UI Layer</b> → Recruiter contact management interface supporting operational workflows</li>
+<li><b>Metrics Layer</b> → Dashboard providing pipeline visibility and performance insights</li>
+<li><b>Compliance Layer</b> → Weekly unemployment reporting with audit and traceability support</li>
+</ul>
+<hr>
 
-## Architecture
+<h2>Architecture</h2>
+<table>
+  <tr>
+    <th>Component</th>
+    <th>Purpose</th>
+  </tr>
+  <tr>
+    <td>GitHub</td>
+    <td>Source control and project management</td>
+  </tr>
+  <tr>
+    <td>GitHub Actions</td>
+    <td>Continuous Integration pipeline</td>
+  </tr>
+  <tr>
+    <td>Vitest</td>
+    <td>Unit testing framework</td>
+  </tr>
+  <tr>
+    <td>Playwright / Cypress</td>
+    <td>Automation testing (planned)</td>
+  </tr>
+  <tr>
+    <td>MySQL</td>
+    <td>Data persistence layer</td>
+  </tr>
+  <tr>
+    <td>Visual Studio Code</td>
+    <td>Development environment</td>
+  </tr>
+</table>
+<hr>
 
-| Component | Purpose |
-| --- | --- |
-| GitHub | Source control and project management |
-| GitHub Actions | Continuous Integration pipeline |
-| Vitest | Unit testing framework |
-| Playwright / Cypress | Automation testing (planned) |
-| MySQL | Data persistence layer |
-| Visual Studio Code | Development environment |
+<h2 align="center">CI Pipeline Flow</h2>
 
----
+```mermaid
+graph TD
+A[Developer Change] --> B[Git Commit]
+B --> C[Git Push]
+C --> D[GitHub Actions Trigger]
+D --> E[npm install Dependencies]
+E --> F[Run Vitest Unit Tests]
+F --> G{Tests Pass?}
+G -->|Yes| H[Record Success]
+G -->|No| I[Record Failure]
+```
+<hr>
 
-## Current Capabilities
+<h2>Project Documentation</h2> 
+<ul>
+ <li>Architecture → docs/architecture.md</li>
+ <li>Run History → docs/run-history.md</li>
+ <li>Roadmap → docs/roadmap.md</li>
+</ul>
+<hr>
 
-- Recruiter record validation using unit tests
-- CI pipeline automatically executing tests
-- GitHub Issues + Projects used for backlog tracking
-
----
-
-## Example Test
+<h2>Roadmap</h2>
+<h3>Phase 1</h3>
+<ul>
+<li>Repository setup</li>
+<li>Vitest test framework</li>
+<li>GitHub Actions CI pipeline</li>
+<li>Documentation and project board</li>
+ </ul>
+<h3>Phase 2</h3>
+<ul>
+ <li>Playwright automation testing</li>
+ <li>Expanded validation coverage</li>
+ <li>Run history automation</li>
+</ul>
+<h3>Phase 3</h3>
+<ul>
+<li>MySQL schema</li>
+<li>API service layer</li>
+<li>Recruiter contact management</li>
+  </ul>
+<h3>Phase 4</h3>
+ <ul>
+<li>Reporting dashboard</li>
+<li>Compliance automation workflows</li>
+</ul>
+<hr>
+<h2>Engineering Goals</h2>
+<ul>
+<li>CI-driven validation embedded into the development lifecycle</li>  
+<li>Automation as a system capability, not a standalone function</li>  
+<li>Data integrity and auditability for real-world compliance scenarios</li>
+<li>Observability and metrics for operational decision-making</li>  
+<li>Reproducible, scalable quality architecture aligned with DevOps practices</li> 
+<li>Automation-first architecture</li>
+<li>DevOps-aligned quality engineering</li>
+<li>Reproducible testing environments</li>   
+</ul>
+<hr>
+<h2>Perspective</h2>
+<p>
+Automation frameworks don’t scale.<br>
+Engineering systems do.<br><br>
+Quality is not something tested at the end —<br>
+it is designed into the system.
+</p>
+<hr>
