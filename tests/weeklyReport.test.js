@@ -9,7 +9,10 @@ describe("Weekly Report Validation", () => {
       job_contacts: []
     };
 
-    expect(validateWeeklyReport(report)).toBe(false);
+    const result = validateWeeklyReport(report);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("At least one job contact is required.");
   });
 
   it("passes when job contacts exist", () => {
@@ -19,6 +22,9 @@ describe("Weekly Report Validation", () => {
       job_contacts: [{ id: 1 }]
     };
 
-    expect(validateWeeklyReport(report)).toBe(true);
+    const result = validateWeeklyReport(report);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 });

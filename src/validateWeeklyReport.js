@@ -1,11 +1,16 @@
 export function validateWeeklyReport(report) {
+  const errors = [];
+
   if (!report.week_start || !report.week_end) {
-    return false;
+    errors.push("Missing reporting window.");
   }
 
   if (!report.job_contacts || report.job_contacts.length === 0) {
-    return false;
+    errors.push("At least one job contact is required.");
   }
 
-  return true;
+  return {
+    valid: errors.length === 0,
+    errors
+  };
 }

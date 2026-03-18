@@ -4,12 +4,17 @@
   "description": "Test-Driven Career Operations — applying CI/CD, automation, and quality engineering principles to employment search workflows.",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "api": "node src/server.js"
   },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
