@@ -160,10 +160,11 @@ This platform enforces business rules through automated validation and testing.
 <li>Validation logic implemented in <code>src/validateWeeklyReport.js</code></li>
 <li>Verified with automated tests using Vitest</li>
 <li>Invalid reports and incomplete data are rejected before submission</li>
+<li>Exposed via API endpoint /validate-weekly-report for real-time validation and system integration</li>
 </ul>
 
 <h3>Result</h3>
-<pre><code>✓ 4 tests passed</code></pre>
+<pre><code>✓ 4 automated tests passed (CI-validated)</code></pre>
 
 <p>
 This demonstrates how compliance rules and data quality requirements are programmatically enforced and continuously verified through CI pipelines.
