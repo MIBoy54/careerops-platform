@@ -142,10 +142,32 @@ G -->|No| I[Record Failure]
 <li>Data integrity and auditability for real-world compliance scenarios</li>
 <li>Observability and metrics for operational decision-making</li>  
 <li>Reproducible, scalable quality architecture aligned with DevOps practices</li> 
-<li>Automation-first architecture</li>
-<li>DevOps-aligned quality engineering</li>
-<li>Reproducible testing environments</li>   
 </ul>
+<hr>
+<h2>Validation Example (Working Proof)</h2>
+<p>
+This platform enforces business rules through automated validation and testing.
+</p>
+
+<h3>Weekly Report Rule</h3>
+<ul>
+<li>A weekly unemployment report must include a valid reporting window (start + end date)</li>
+<li>A weekly unemployment report must contain at least one associated job contact</li>
+</ul>
+
+<h3>Enforcement</h3>
+<ul>
+<li>Validation logic implemented in <code>src/validateWeeklyReport.js</code></li>
+<li>Verified with automated tests using Vitest</li>
+<li>Invalid reports are rejected before submission</li>
+</ul>
+
+<h3>Result</h3>
+<pre><code>✓ 2 tests passed</code></pre>
+
+<p>
+This demonstrates how compliance rules can be programmatically enforced and verified through CI.
+</p>
 <hr>
 <h2>Perspective</h2>
 <p>
