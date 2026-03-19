@@ -68,6 +68,18 @@ describe("Weekly Report Validation", () => {
     expect(result.errors).toContain("Week end date is required.");
   });
 
+it("passes when reporting window is exactly 7 days", () => {
+  const report = {
+    week_start: "2026-03-01",
+    week_end: "2026-03-07",
+    job_contacts: [{ id: 1 }]
+  };
+
+  const result = validateWeeklyReport(report);
+
+  expect(result.valid).toBe(true);
+  expect(result.errors).toHaveLength(0);
+});
 it("fails when week end is an invalid date", () => {
   const report = {
     week_start: "2026-03-08",
@@ -79,6 +91,18 @@ it("fails when week end is an invalid date", () => {
 
   expect(result.valid).toBe(false);
   expect(result.errors).toContain("Week end date is invalid.");
+});
+it("fails when reporting window is more than exactly 7 days", () => {
+  const report = {
+    week_start: "2026-03-01",
+    week_end: "2026-03-08",
+    job_contacts: [{ id: 1 }]
+  };
+
+  const result = validateWeeklyReport(report);
+
+  expect(result.valid).toBe(false);
+  expect(result.errors).toContain("Reporting window must be 7 days or less.");
 });
   it("fails when week start is an invalid date", () => {
     const report = {
