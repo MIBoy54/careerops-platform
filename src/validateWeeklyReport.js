@@ -17,14 +17,27 @@ export function validateWeeklyReport(report) {
     const start = new Date(report.week_start);
     const end = new Date(report.week_end);
 
-    if (end < start) {
-      errors.push("Week end date cannot be before week start date.");
-    } else {
-      const diffInMs = end - start;
-      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+    const startInvalid = Number.isNaN(start.getTime());
+    const endInvalid = Number.isNaN(end.getTime());
 
-      if (diffInDays > 6) {
-        errors.push("Reporting window must be 7 days or less.");
+    if (startInvalid) {
+      errors.push("Week start date is invalid.");
+    }
+
+    if (endInvalid) {
+      errors.push("Week end date is invalid.");
+    }
+
+    if (!startInvalid && !endInvalid) {
+      if (end < start) {
+        errors.push("Week end date cannot be before week start date.");
+      } else {
+        const diffInMs = end - start;
+        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+
+        if (diffInDays > 6) {
+          errors.push("Reporting window must be 7 days or less.");
+        }
       }
     }
   }

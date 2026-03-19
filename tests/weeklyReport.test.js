@@ -67,4 +67,29 @@ describe("Weekly Report Validation", () => {
     expect(result.errors).toContain("Week start date is required.");
     expect(result.errors).toContain("Week end date is required.");
   });
+
+it("fails when week end is an invalid date", () => {
+  const report = {
+    week_start: "2026-03-08",
+    week_end: "invalid-date",
+    job_contacts: [{ id: 1 }]
+  };
+
+  const result = validateWeeklyReport(report);
+
+  expect(result.valid).toBe(false);
+  expect(result.errors).toContain("Week end date is invalid.");
+});
+  it("fails when week start is an invalid date", () => {
+    const report = {
+      week_start: "invalid-date",
+      week_end: "2026-03-14",
+      job_contacts: [{ id: 1 }]
+    };
+
+    const result = validateWeeklyReport(report);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("Week start date is invalid.");
+  });
 });
