@@ -39,6 +39,16 @@ The system is built around a CI-first architecture where validation occurs autom
 </p>
 
 <hr>
+<h2>What This Demonstrates</h2>
+<ul>
+<li>End-to-end workflow design from UI → API → database</li>
+<li>Relational data modeling for audit and traceability</li>
+<li>CI-enforced validation integrated into development lifecycle</li>
+<li>Separation of concerns across UI, service, and data layers</li>
+<li>Compliance-aware system design with historical reconstruction</li>
+</ul>
+
+<hr>
 <h2>System Architecture Layers</h2>
 <p>This platform is structured as a multi-layered quality engineering system:</p>
 
@@ -282,9 +292,10 @@ This demonstrates how compliance rules and data quality requirements are program
 <hr>
 <h2>Perspective</h2>
 <p>
-Automation frameworks don’t scale.<br>
-Engineering systems do.<br><br>
-Quality is not something tested at the end —<br>
-it is designed into the system.
+Automation frameworks don’t scale. Engineering systems do.<br><br>
+Quality is not validated at the end of delivery — <br> 
+it is enforced throughout the system.<br><br>
+The future of Quality Engineering is not more tests.<br>  
+It is better system design.<br>
 </p>
 <hr>
