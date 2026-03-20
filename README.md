@@ -1,7 +1,6 @@
 <h1 align="center">CareerOps Platform</h1>
 <p align="center"><i>CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</i></p>
 <hr>
-
 <p align="left">
 A system-level Quality Engineering showcase demonstrating how CI-driven architectures, data design, and operational workflows integrate to enforce quality at scale.
 
@@ -17,15 +16,14 @@ Rather than focusing on tools alone, this project emphasizes how quality is embe
 </p>
 
 <hr>
-
 <h2>Build Status</h2>
 <p align="center">
 <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
 <img src="https://img.shields.io/badge/node-20.x-green"/>
 <img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
 </p>
-<hr>
 
+<hr>
 <h2>Overview</h2>
 <p>
 CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
@@ -39,8 +37,8 @@ CareerOps demonstrates how modern engineering practices can be applied to operat
 <p>
 The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
 </p>
-<hr>
 
+<hr>
 <h2>System Architecture Layers</h2>
 <p>This platform is structured as a multi-layered quality engineering system:</p>
 
@@ -51,8 +49,8 @@ The system is built around a CI-first architecture where validation occurs autom
 <li><b>Metrics Layer</b> → Dashboard providing pipeline visibility and performance insights</li>
 <li><b>Compliance Layer</b> → Weekly unemployment reporting with audit and traceability support</li>
 </ul>
-<hr>
 
+<hr>
 <h2>Architecture</h2>
 <table>
   <tr>
@@ -84,8 +82,8 @@ The system is built around a CI-first architecture where validation occurs autom
     <td>Development environment</td>
   </tr>
 </table>
-<hr>
 
+<hr>
 <h2 align="center">CI Pipeline Flow</h2>
 
 ```mermaid
@@ -100,15 +98,124 @@ G -->|Yes| H[Record Success]
 G -->|No| I[Record Failure]
 ```
 <hr>
+<h2>Project Structure</h2>
+<pre><code>
+careerops-platform/
+│
+├── .github/
+│   └── workflows/
+│       └── careerops-ci.yml
+│
+├── docs/
+│   ├── architecture.md
+│   ├── roadmap.md
+│   └── run-history.md
+│
+├── src/
+│   ├── components/
+│   │   ├── App.jsx
+│   │   └── EmployerContactForm.jsx
+│   │
+│   ├── server.js
+│   ├── validateContact.js
+│   └── validateWeeklyReport.js
+│
+├── tests/
+│   ├── contactValidation.test.js
+│   ├── dataValidation.test.js
+│   └── weeklyReport.test.js
+│
+├── ui/
+│   ├── app.js
+│   ├── index.html
+│   └── styles.css
+│
+├── .gitignore
+├── LICENSE
+├── package.json
+├── package-lock.json
+└── README.md
+</code></pre>
 
-<h2>Project Documentation</h2> 
-<ul>
- <li>Architecture → docs/architecture.md</li>
- <li>Run History → docs/run-history.md</li>
- <li>Roadmap → docs/roadmap.md</li>
-</ul>
 <hr>
+<h3>Structure Overview</h3>
+<ul>
+<li><b>CI/CD</b> → GitHub Actions pipeline enforcing validation and build quality</li>
+<li><b>docs/</b> → Architecture, roadmap, and execution history documentation</li>
+<li><b>src/</b> → Backend services and validation logic</li>
+<li><b>src/components/</b> → React-based UI components</li>
+<li><b>tests/</b> → Vitest unit tests validating business rules and data integrity</li>
+<li><b>ui/</b> → Frontend interface (HTML, JS, CSS)</li>
+<li><b>Root</b> → Configuration, dependencies, and project metadata</li>
+</ul>
 
+<hr>
+<h2>API Endpoints</h2>
+<p>
+The CareerOps platform exposes RESTful endpoints to support operational workflows, validation enforcement, and data management.
+</p>
+
+<table>
+  <tr>
+    <th>Endpoint</th>
+    <th>Method</th>
+    <th>Purpose</th>
+  </tr>
+
+  <tr>
+    <td>/api/contacts</td>
+    <td>GET</td>
+    <td>Retrieve all recruiter contact records</td>
+  </tr>
+
+  <tr>
+    <td>/api/contacts</td>
+    <td>POST</td>
+    <td>Create a new recruiter contact</td>
+  </tr>
+
+  <tr>
+    <td>/validate-weekly-report</td>
+    <td>POST</td>
+    <td>Validate weekly unemployment report data against business rules</td>
+  </tr>
+</table>
+
+<hr>
+<h3>Validation Integration</h3>
+<ul>
+<li>All validation logic is enforced server-side to ensure consistency and reliability</li>
+<li>Endpoints are designed to support both UI workflows and external system integration</li>
+<li>Invalid data is rejected prior to persistence, ensuring data integrity and auditability</li>
+</ul>
+
+<hr>
+<h3>Sample Request Payload</h3>
+<p>
+Example request for validating a weekly unemployment report:
+</p>
+
+<pre><code>
+POST /validate-weekly-report
+
+{
+  "week_start": "2026-03-01",
+  "week_end": "2026-03-07",
+  "job_contacts": [
+    { "id": 1 }
+  ]
+}
+</code></pre>
+
+<h3>Expected Behavior</h3>
+
+<ul>
+<li>Validates reporting window does not exceed 7 days</li>
+<li>Ensures at least one associated job contact exists</li>
+<li>Returns structured validation response indicating pass/fail</li>
+</ul>
+
+<hr>
 <h2>Roadmap</h2>
 <h3>Phase 1</h3>
 <ul>
@@ -134,6 +241,7 @@ G -->|No| I[Record Failure]
 <li>Reporting dashboard</li>
 <li>Compliance automation workflows</li>
 </ul>
+
 <hr>
 <h2>Engineering Goals</h2>
 <ul>
@@ -143,6 +251,7 @@ G -->|No| I[Record Failure]
 <li>Observability and metrics for operational decision-making</li>  
 <li>Reproducible, scalable quality architecture aligned with DevOps practices</li> 
 </ul>
+
 <hr>
 <h2>Validation Example (Working Proof)</h2>
 <p>
@@ -169,6 +278,7 @@ This platform enforces business rules through automated validation and testing.
 <p>
 This demonstrates how compliance rules and data quality requirements are programmatically enforced and continuously verified through CI pipelines.
 </p>
+
 <hr>
 <h2>Perspective</h2>
 <p>

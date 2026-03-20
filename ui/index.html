@@ -1,30 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareerOps Weekly Report Validation</title>
-    <link rel="stylesheet" href="./styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareerOps Platform</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
 <body>
-  <div class="container">
-    <h1>CareerOps Weekly Report Validation</h1>
-    <p>Validate a weekly unemployment report before submission.</p>
+  <div class="page">
+    <div class="card">
+      <h1>Employer Contact Form</h1>
+      <p class="subtitle">Create or update recruiter and employer contact information.</p>
 
-    <form id="reportForm">
-      <label for="week_start">Week Start</label>
-      <input type="date" id="week_start" required />
+      <div id="message"></div>
+      <div id="errors"></div>
 
-      <label for="week_end">Week End</label>
-      <input type="date" id="week_end" required />
+      <form id="contactForm">
+        <div class="grid">
+          <div class="field">
+            <label for="date_contacted">Date Contacted</label>
+            <input id="date_contacted" name="date_contacted" type="date" />
+          </div>
 
-      <label for="job_contacts">Number of Job Contacts</label>
-      <input type="number" id="job_contacts" min="0" value="0" required />
+          <div class="field">
+            <label for="recruiter_name">Recruiter Name *</label>
+            <input id="recruiter_name" name="recruiter_name" type="text" />
+          </div>
 
-      <button type="submit">Validate Report</button>
-    </form>
+          <div class="field">
+            <label for="company">Company / Agency *</label>
+            <input id="company" name="company" type="text" />
+          </div>
 
-    <div id="result" class="result hidden"></div>
+          <div class="field">
+            <label for="level">Level (Mgr/Dir/Exec)</label>
+            <input id="level" name="level" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="role_type">Role Type</label>
+            <input id="role_type" name="role_type" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="location">Location</label>
+            <input id="location" name="location" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="comp_range">Comp Range</label>
+            <input id="comp_range" name="comp_range" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="status">Status *</label>
+            <select id="status" name="status">
+              <option value="">-- Select Status --</option>
+              <option value="Applied">Applied</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Interviewing">Interviewing</option>
+              <option value="Offer">Offer</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="relationship_status">Relationship Status</label>
+            <select id="relationship_status" name="relationship_status">
+              <option value="">-- Select Relationship Status --</option>
+              <option value="Active">Active</option>
+              <option value="Warm">Warm</option>
+              <option value="Cold">Cold</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="reported_unemployment">Reported to Unemployment</label>
+            <select id="reported_unemployment" name="reported_unemployment">
+              <option value="No" selected>No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="next_follow_up_date">Next Follow-Up Date</label>
+            <input id="next_follow_up_date" name="next_follow_up_date" type="date" />
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" />
+          </div>
+
+          <div class="field">
+            <label for="address">Address</label>
+            <input id="address" name="address" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="website">Website</label>
+            <input id="website" name="website" type="text" />
+          </div>
+        </div>
+
+        <div class="field full-width">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="5"></textarea>
+        </div>
+
+        <div class="button-row">
+          <button type="submit">Save Contact</button>
+          <button type="button" id="resetButton" class="secondary">Reset</button>
+        </div>
+
+        <div id="selectedContactsContainer"></div>
+      </form>
+
+      <hr />
+
+<h2>Saved Contacts</h2>
+<p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
+
+<div class="button-row">
+  <button type="button" id="viewButton" disabled>View Selected</button>
+</div>
+
+<table id="contactsTable">
+  <thead>
+    <tr>
+      <th>Select</th>
+      <th>Date</th>
+      <th>Company</th>
+      <th>Status</th>
+      <th>Reported</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<section class="card">
+  <h2>Detail Viewer</h2>
+  <div id="weekly-report-detail">
+    <p>Select employers or a saved report to view details.</p>
   </div>
+</section>
+
+<div class="button-row">
+  <button type="button" id="generateReportBtn" disabled>Generate Weekly Report</button>
+</div>
+
+<section class="card">
+  <h2>Weekly Report History</h2>
+
+  <div id="weekly-report-history-message" class="message"></div>
+
+  <table id="weekly-report-history-table" class="data-table">
+    <thead>
+      <tr>
+        <th>Week Start</th>
+        <th>Week End</th>
+        <th>Submitted</th>
+        <th>Submitted At</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
 
   <script type="module" src="./app.js"></script>
 </body>
