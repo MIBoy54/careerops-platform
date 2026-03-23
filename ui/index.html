@@ -27,20 +27,37 @@
             <input id="recruiter_name" name="recruiter_name" type="text" />
           </div>
 
-          <div class="field">
-            <label for="company">Company / Agency *</label>
-            <input id="company" name="company" type="text" />
+        <div class="field">
+          <label for="company">Company / Agency *</label>
+          <div class="autocomplete">
+            <input id="company" name="company" type="text" autocomplete="off" />
+            <div id="companySuggestions" class="suggestions"></div>
           </div>
+        </div>
 
-          <div class="field">
-            <label for="level">Level (Mgr/Dir/Exec)</label>
-            <input id="level" name="level" type="text" />
-          </div>
+        <div class="field">
+          <label for="level">Level</label>
+          <select id="level" name="level">
+            <option value="">-- Select Level --</option>
+            <option value="Director">Director</option>
+            <option value="Executive">Executive</option>
+            <option value="Lead">Lead</option>
+            <option value="Manager">Manager</option>
+          </select>
+        </div>
 
-          <div class="field">
-            <label for="role_type">Role Type</label>
-            <input id="role_type" name="role_type" type="text" />
-          </div>
+        <div class="field">
+          <label for="role_type">Role Type</label>
+          <select id="role_type" name="role_type">
+            <option value="">-- Select Role Type --</option>
+            <option value="Leadership">Leadership</option>
+            <option value="QE Transformation">QE Transformation</option>
+            <option value="QA Operations">QA Operations</option>
+            <option value="DevOps Platform">DevOps Platform</option>
+            <option value="Healthcare Tech">Healthcare Tech</option>
+            <option value="AI / Data Platforms">AI / Data Platforms</option>
+          </select>
+        </div>
 
           <div class="field">
             <label for="location">Location</label>
@@ -76,26 +93,13 @@
           </div>
 
           <div class="field">
-            <label for="reported_unemployment">Reported to Unemployment</label>
-            <select id="reported_unemployment" name="reported_unemployment">
-              <option value="No" selected>No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="next_follow_up_date">Next Follow-Up Date</label>
-            <input id="next_follow_up_date" name="next_follow_up_date" type="date" />
-          </div>
-
-          <div class="field">
             <label for="phone">Phone</label>
             <input id="phone" name="phone" type="text" />
           </div>
 
           <div class="field">
             <label for="email">Email</label>
-            <input id="email" name="email" type="email" />
+            <input id="email" name="email" type="text" />
           </div>
 
           <div class="field">
@@ -113,6 +117,19 @@
           <label for="notes">Notes</label>
           <textarea id="notes" name="notes" rows="5"></textarea>
         </div>
+
+        <div class="field">
+           <label for="reported_unemployment">Reported to Unemployment</label>
+           <select id="reported_unemployment" name="reported_unemployment">
+             <option value="No" selected>No</option>
+             <option value="Yes">Yes</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="next_follow_up_date">Date Reported</label>
+            <input id="next_follow_up_date" name="next_follow_up_date" type="date" />
+       </div>
 
         <div class="button-row">
           <button type="submit">Save Contact</button>

@@ -62,6 +62,34 @@ app.get("/api/contacts", async (req, res) => {
   }
 });
 
+app.get("/api/companies/search", async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+
+    if (q.length < 2) {
+      return res.json([]);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT DISTINCT company
+      FROM recruiter_tracker
+      WHERE company IS NOT NULL
+        AND company <> ''
+        AND company LIKE ?
+      ORDER BY company ASC
+      LIMIT 10
+      `,
+      [`%${q}%`]
+    );
+
+    res.json(rows.map((row) => row.company));
+  } catch (error) {
+    console.error("GET /api/companies/search failed:", error);
+    res.status(500).json({ error: "Failed to search companies" });
+  }
+});
+
 app.get("/api/reports", async (req, res) => {
   try {
     const [rows] = await pool.query(`

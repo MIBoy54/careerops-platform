@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const resetButton = document.getElementById("resetButton");
   const tableBody = document.querySelector("#contactsTable tbody");
   const dateInput = document.getElementById("date_contacted");
+  const companyInput = document.getElementById("company");
+  const companySuggestions = document.getElementById("companySuggestions");
   const selectionCountEl = document.getElementById("selectionCount");
   const generateReportBtn = document.getElementById("generateReportBtn");
   const weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
@@ -42,40 +44,55 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderErrors([]);
 
-    try {
-      if (editId !== null) {
-        await fetch(`/api/contacts/${editId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(contact)
-        });
+try {
+  let response;
+  let result;
 
-        renderMessage("Contact updated successfully.");
-        editId = null;
-      } else {
-        await fetch("/api/contacts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(contact)
-        });
+  if (editId !== null) {
+    response = await fetch(`/api/contacts/${editId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(contact)
+    });
 
-        renderMessage("Contact saved successfully.");
-      }
+    result = await response.json();
 
-      await loadContacts();
-      selectedIds.clear();
-      renderTable();
-
-      form.reset();
-      dateInput.value = today;
-    } catch (error) {
-      console.error("Save failed:", error);
-      renderMessage("Failed to save contact.", "error");
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to update contact");
     }
+
+    renderMessage("Contact updated successfully.");
+    editId = null;
+  } else {
+    response = await fetch("/api/contacts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(contact)
+    });
+
+    result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to create contact");
+    }
+
+    renderMessage("Contact saved successfully.");
+  }
+
+  await loadContacts();
+  selectedIds.clear();
+  renderTable();
+
+  form.reset();
+  dateInput.value = today;
+} catch (error) {
+  console.error("Save failed:", error);
+  renderMessage(error.message || "Failed to save contact.", "error");
+}
   });
 
   resetButton.addEventListener("click", () => {
@@ -133,6 +150,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+	companyInput.addEventListener("input", async () => {
+	  const query = companyInput.value.trim();
+
+      if (query.length < 2) {
+        companySuggestions.innerHTML = "";
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
+        const companies = await response.json();
+
+        if (!response.ok) {
+          throw new Error("Failed to load company suggestions");
+        }
+
+        companySuggestions.innerHTML = companies
+          .map((company) => `<div class="suggestion-item">${escapeHtml(company)}</div>`)
+          .join("");
+
+        document.querySelectorAll(".suggestion-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            companyInput.value = item.textContent;
+            companySuggestions.innerHTML = "";
+          });
+        });
+      } catch (error) {
+        console.error("Company search failed:", error);
+        companySuggestions.innerHTML = "";
+      }
+      });
+    
+  
   async function loadContacts() {
     try {
       const response = await fetch("/api/contacts");
@@ -287,15 +337,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const id = Number(button.dataset.id);
 
         try {
-          await fetch(`/api/contacts/${id}`, {
-            method: "DELETE"
-          });
+			const response = await fetch(`/api/contacts/${id}`, {
+			  method: "DELETE"
+			});
 
-          selectedIds.clear();
-          await loadContacts();
-          renderTable();
-          renderMessage("Contact deleted successfully.");
-          renderErrors([]);
+			const result = await response.json();
+
+			if (!response.ok) {
+			  throw new Error(result.error || "Failed to delete contact");
+			}
+
+			selectedIds.clear();
+			await loadContacts();
+			renderTable();
+			renderMessage("Contact deleted successfully.");
+			renderErrors([]);
         } catch (error) {
           console.error("Delete failed:", error);
           renderMessage("Failed to delete contact.", "error");
@@ -304,6 +360,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
   function renderErrors(errors) {
     if (!errors.length) {
       errorsDiv.innerHTML = "";
@@ -453,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   } catch (error) {
     console.error("Failed to load weekly report detail:", error);
-    weeklyReportDetailEl.innerHTML = "<p>Failed to load weekly report detail.</p>";
+    weeklyReportDetailEl.innerHTML = `<p class="error">Failed to load weekly report detail.</p>`;
   }
 }
 });
