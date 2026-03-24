@@ -162,37 +162,46 @@ button.secondary {
 
 .autocomplete {
   position: relative;
-  width: 100%;
 }
 
-.autocomplete input {
+.field {
+  position: relative;
+  overflow: visible;
+  min-width: 0;
+}
+
+.autocomplete {
+  position: relative;
   width: 100%;
+  min-width: 0;
+}
+
+.autocomplete input,
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .suggestions {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
-
+  right: 0;
+  z-index: 9999;
   background: #fff;
   border: 1px solid #ccc;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
-
-  z-index: 9999;
-
-  box-sizing: border-box;   /* prevents width shift */
+  box-sizing: border-box;
 }
 
 .suggestion-item {
-  padding: 10px;
+  padding: 8px;
   cursor: pointer;
 }
 
 .suggestion-item:hover {
-  background-color: #f0f0f0;
-}
-.field {
-  overflow: visible;
+  background-color: #f2f2f2;
 }

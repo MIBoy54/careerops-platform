@@ -49,7 +49,7 @@ app.get("/api/contacts", async (req, res) => {
       phone,
       email,
       address,
-      website_raw AS website,
+      website,
       notes
     FROM recruiter_tracker
     ORDER BY date_contacted DESC
@@ -72,7 +72,24 @@ app.get("/api/companies/search", async (req, res) => {
 
     const [rows] = await pool.query(
       `
-      SELECT DISTINCT company
+      SELECT
+        id,
+        date_contacted,
+        recruiter_name,
+        company,
+        role_level AS level,
+        role_type,
+        location,
+        comp_range,
+        status,
+        relationship_status,
+        reported_to_unemployment AS reported_unemployment,
+        follow_up_date AS next_follow_up_date,
+        phone,
+        email,
+        address,
+        website,
+        notes
       FROM recruiter_tracker
       WHERE company IS NOT NULL
         AND company <> ''
@@ -83,7 +100,7 @@ app.get("/api/companies/search", async (req, res) => {
       [`%${q}%`]
     );
 
-    res.json(rows.map((row) => row.company));
+    res.json(rows);
   } catch (error) {
     console.error("GET /api/companies/search failed:", error);
     res.status(500).json({ error: "Failed to search companies" });
@@ -270,6 +287,37 @@ app.delete("/api/contacts/:id", async (req, res) => {
   } catch (error) {
     console.error("DELETE /api/contacts/:id failed:", error);
     res.status(500).json({ error: "Failed to delete contact" });
+  }
+});
+
+app.put("/api/unemployment-report", async (req, res) => {
+  try {
+    const { company, date_reported, notes } = req.body;
+
+    await pool.query(
+      `
+      UPDATE recruiter_tracker
+      SET
+        reported_to_unemployment = 'Yes',
+        date_reported = ?,
+        notes = CASE
+          WHEN notes IS NULL OR notes = '' THEN ?
+          ELSE CONCAT(notes, '\n', ?)
+        END
+      WHERE company = ?
+      `,
+      [
+        date_reported || null,
+        notes || null,
+        notes || null,
+        company
+      ]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("PUT /api/unemployment-report failed:", error);
+    res.status(500).json({ error: "Failed to save unemployment report" });
   }
 });
 

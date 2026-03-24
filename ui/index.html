@@ -118,19 +118,7 @@
           <textarea id="notes" name="notes" rows="5"></textarea>
         </div>
 
-        <div class="field">
-           <label for="reported_unemployment">Reported to Unemployment</label>
-           <select id="reported_unemployment" name="reported_unemployment">
-             <option value="No" selected>No</option>
-             <option value="Yes">Yes</option>
-            </select>
-        </div>
-
-        <div class="field">
-            <label for="next_follow_up_date">Date Reported</label>
-            <input id="next_follow_up_date" name="next_follow_up_date" type="date" />
-       </div>
-
+ 
         <div class="button-row">
           <button type="submit">Save Contact</button>
           <button type="button" id="resetButton" class="secondary">Reset</button>
@@ -143,10 +131,6 @@
 
 <h2>Saved Contacts</h2>
 <p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
-
-<div class="button-row">
-  <button type="button" id="viewButton" disabled>View Selected</button>
-</div>
 
 <table id="contactsTable">
   <thead>
@@ -162,16 +146,31 @@
   <tbody></tbody>
 </table>
 
+<div class="button-row">
+  <button type="button" id="viewButton" disabled>View Selected</button>
+</div>
+
 <section class="card">
   <h2>Detail Viewer</h2>
   <div id="weekly-report-detail">
     <p>Select employers or a saved report to view details.</p>
   </div>
-</section>
 
-<div class="button-row">
-  <button type="button" id="generateReportBtn" disabled>Generate Weekly Report</button>
+  <div class="report-actions">
+  <div class="report-warning">
+    ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
+  </div>
+
+  <div class="report-button-row">
+    <button id="generateReportBtn" class="primary-btn">
+      Generate Weekly Report
+    </button>
+  </div>
 </div>
+
+
+  
+</section>
 
 <section class="card">
   <h2>Weekly Report History</h2>

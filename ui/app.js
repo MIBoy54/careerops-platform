@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const errorsDiv = document.getElementById("errors");
   const messageDiv = document.getElementById("message");
   const resetButton = document.getElementById("resetButton");
+  const unemploymentForm = document.getElementById("unemploymentForm");
   const tableBody = document.querySelector("#contactsTable tbody");
   const dateInput = document.getElementById("date_contacted");
   const companyInput = document.getElementById("company");
@@ -150,51 +151,111 @@ try {
     }
   });
 
-	companyInput.addEventListener("input", async () => {
-	  const query = companyInput.value.trim();
+  if (unemploymentForm) {
+  unemploymentForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-      if (query.length < 2) {
-        companySuggestions.innerHTML = "";
-        return;
-      }
+    const payload = {
+      company: document.getElementById("unemployment_company").value.trim(),
+      date_reported: document.getElementById("date_reported").value,
+      notes: document.getElementById("unemployment_notes").value.trim()
+    };
 
-      try {
-        const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
-        const companies = await response.json();
-
-        if (!response.ok) {
-          throw new Error("Failed to load company suggestions");
-        }
-
-        companySuggestions.innerHTML = companies
-          .map((company) => `<div class="suggestion-item">${escapeHtml(company)}</div>`)
-          .join("");
-
-        document.querySelectorAll(".suggestion-item").forEach((item) => {
-          item.addEventListener("click", () => {
-            companyInput.value = item.textContent;
-            companySuggestions.innerHTML = "";
-          });
-        });
-      } catch (error) {
-        console.error("Company search failed:", error);
-        companySuggestions.innerHTML = "";
-      }
-      });
-    
-  
-  async function loadContacts() {
     try {
-      const response = await fetch("/api/contacts");
-      const data = await response.json();
+      const response = await fetch("/api/unemployment-report", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-      contacts.length = 0;
-      contacts.push(...data);
+      if (!response.ok) {
+        throw new Error("Failed to save unemployment report");
+      }
+
+      unemploymentForm.reset();
+      renderMessage("Unemployment report saved successfully.");
+
+      await loadContacts();
+      renderTable();
+      wireEditButtons();
+
     } catch (error) {
-      console.error("Load failed:", error);
-      renderMessage("Failed to load contacts.", "error");
+      console.error("Unemployment form save failed:", error);
+      renderMessage("Failed to save unemployment report.", "error");
     }
+  });
+}
+companyInput.addEventListener("input", async () => {
+  const query = companyInput.value.trim();
+
+  if (query.length < 2) {
+    companySuggestions.innerHTML = "";
+    return;
   }
+
+  try {
+    const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
+    const companies = await response.json();
+
+    if (!response.ok) {
+      throw new Error("Failed to load company suggestions");
+    }
+
+    companySuggestions.innerHTML = companies
+      .map((contact, index) => `
+        <div class="suggestion-item" data-index="${index}">
+          ${escapeHtml(contact.company || "")}
+        </div>
+      `)
+      .join("");
+
+    document.querySelectorAll(".suggestion-item").forEach((item) => {
+      item.addEventListener("mousedown", () => {
+        const contact = companies[Number(item.dataset.index)];
+        if (!contact) return;
+
+        Object.keys(contact).forEach((key) => {
+          const field = form.elements[key];
+          if (field) {
+            field.value =
+              key === "date_contacted" || key === "next_follow_up_date"
+                ? formatDate(contact[key])
+                : (contact[key] || "");
+          }
+        });
+
+        form.elements["website"].value = contact.website || "";
+        companyInput.value = contact.company || "";
+        companySuggestions.innerHTML = "";
+      });
+    });
+  } catch (error) {
+    console.error("Company search failed:", error);
+    companySuggestions.innerHTML = "";
+  }
+});
+
+companyInput.addEventListener("blur", () => {
+  setTimeout(() => {
+    companySuggestions.innerHTML = "";
+  }, 150);
+});
+    
+async function loadContacts() {
+  try {
+    const response = await fetch("/api/contacts");
+    const data = await response.json();
+
+    console.log("API data:", data);
+    console.log("First website values:", data.map(row => ({ id: row.id, company: row.company, website: row.website })));
+
+    contacts.length = 0;
+    contacts.push(...data);
+  } catch (error) {
+    console.error("Load failed:", error);
+    renderMessage("Failed to load contacts.", "error");
+  }
+}
 
   function renderTable() {
     tableBody.innerHTML = "";
@@ -237,35 +298,39 @@ try {
     updateSelectionCount();
   }
 
-  function wireEditButtons() {
-    const editButtons = document.querySelectorAll(".edit-btn");
+function wireEditButtons() {
+  const editButtons = document.querySelectorAll(".edit-btn");
 
-    editButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const id = Number(button.dataset.id);
-        const contact = contacts.find((item) => item.id === id);
+  editButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = Number(button.dataset.id);
+      const contact = contacts.find((item) => item.id === id);
+      console.log("Editing contact:", contact);
+	  console.log("Website only:", contact.website);
 
-        if (!contact) return;
+      if (!contact) return;
 
-        editId = id;
-        selectedIds.clear();
-        updateSelectionCount();
+      editId = id;
+      selectedIds.clear();
+      updateSelectionCount();
 
-        Object.keys(contact).forEach((key) => {
-          const field = form.elements[key];
-          if (field) {
-            field.value =
-              key === "date_contacted" || key === "next_follow_up_date"
-                ? formatDate(contact[key])
-                : (contact[key] || "");
-          }
-        });
-
-        renderMessage("Editing contact. Update fields and click Save Contact.");
-        renderErrors([]);
+      Object.keys(contact).forEach((key) => {
+        const field = form.elements[key];
+        if (field) {
+          field.value =
+            key === "date_contacted" || key === "next_follow_up_date"
+              ? formatDate(contact[key])
+              : (contact[key] || "");
+        }
       });
+
+      form.elements["website"].value = contact.website || "";
+
+      renderMessage("Editing contact. Update fields and click Save Contact.");
+      renderErrors([]);
     });
-  }
+  });
+}
 
   function wireSelectionCheckboxes() {
     const checkboxes = document.querySelectorAll(".select-checkbox");
