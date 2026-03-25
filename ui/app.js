@@ -104,16 +104,29 @@ try {
     renderMessage("");
   });
 
-  document.getElementById("viewButton").addEventListener("click", () => {
-    const selected = getSelectedContacts();
+document.getElementById("unemploymentExportBtn").addEventListener("click", () => {
+  if (!weeklyHistoryTableBody || !weeklyHistoryTableBody.children.length) {
+    weeklyHistoryMessage.textContent = "No weekly report history found.";
+    weeklyHistoryMessage.className = "message error";
+    return;
+  }
 
-    if (selected.length === 0) {
-      renderMessage("Please select at least one contact.", "error");
-      return;
-    }
+  const firstRow = weeklyHistoryTableBody.children[0];
+  const cells = firstRow.querySelectorAll("td");
 
-    renderSelectedContacts(selected);
-  });
+  const start = cells[0]?.textContent.trim();
+  const end = cells[1]?.textContent.trim();
+
+  if (!start || !end) {
+    weeklyHistoryMessage.textContent = "Unable to determine report date range.";
+    weeklyHistoryMessage.className = "message error";
+    return;
+  }
+
+  console.log("Exporting:", start, end);
+
+  window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
+});
 
 generateReportBtn.addEventListener("click", async () => {
   if (selectedIds.size !== 4) {

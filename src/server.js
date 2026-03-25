@@ -139,6 +139,130 @@ app.get("/api/reports", async (req, res) => {
   }
 });
 
+app.get("/api/reports/unemployment", async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).json({
+        error: "start and end query parameters are required. Example: /api/reports/unemployment?start=2026-03-19&end=2026-03-25"
+      });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        DATE_FORMAT(date_contacted, '%m/%d/%Y') AS date_contacted,
+        recruiter_name,
+        company,
+        role_level,
+        role_type,
+        location,
+        comp_range,
+        status,
+        relationship_status,
+        phone,
+        email,
+        address,
+        website,
+        notes,
+        reported_to_unemployment
+      FROM recruiter_tracker
+      WHERE reported_to_unemployment = 'Yes'
+        AND DATE(date_contacted) BETWEEN ? AND ?
+      ORDER BY date_contacted DESC, id DESC
+      `,
+      [start, end]
+    );
+
+    res.json({
+      report_start: start,
+      report_end: end,
+      total_jobs_reported: rows.length,
+      jobs: rows
+    });
+  } catch (error) {
+    console.error("Unemployment report failed:", error);
+    res.status(500).json({ error: "Error generating unemployment report" });
+  }
+});
+
+app.get("/api/reports/unemployment/export", async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).send("Start and end dates required");
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        DATE_FORMAT(date_contacted, '%m/%d/%Y') AS date_contacted,
+        recruiter_name,
+        company,
+        role_level,
+        role_type,
+        location,
+        comp_range,
+        status,
+        relationship_status,
+        phone,
+        email,
+        address,
+        website,
+        notes
+      FROM recruiter_tracker
+      WHERE reported_to_unemployment = 'Yes'
+        AND DATE(date_contacted) BETWEEN ? AND ?
+      ORDER BY date_contacted DESC, id DESC
+      `,
+      [start, end]
+    );
+
+    if (!rows.length) {
+      return res.status(404).send("No data for selected range");
+    }
+
+    const headers = [
+      "ID",
+      "Date Contacted",
+      "Recruiter Name",
+      "Company",
+      "Role Level",
+      "Role Type",
+      "Location",
+      "Comp Range",
+      "Status",
+      "Relationship Status",
+      "Phone",
+      "Email",
+      "Address",
+      "Website",
+      "Notes"
+    ].join(",");
+
+    const csv = [
+      headers,
+      ...rows.map(row =>
+        Object.values(row)
+          .map(value => `"${(value ?? "").toString().replace(/"/g, '""')}"`)
+          .join(",")
+      )
+    ].join("\n");
+
+    res.header("Content-Type", "text/csv");
+    res.attachment(`unemployment_report_${start}_to_${end}.csv`);
+    res.send(csv);
+
+  } catch (error) {
+    console.error("Unemployment CSV export failed:", error);
+    res.status(500).send("Error generating CSV");
+  }
+});
+
 app.get("/api/reports/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -190,6 +314,80 @@ app.get("/api/reports/:id", async (req, res) => {
   } catch (error) {
     console.error("GET /api/reports/:id failed:", error);
     res.status(500).json({ error: "Failed to fetch report detail" });
+  }
+});
+
+app.get("/api/contacts/export", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        id,
+        date_contacted,
+        recruiter_name,
+        company,
+        role_level,
+        role_type,
+        location,
+        comp_range,
+        status,
+        relationship_status,
+        phone,
+        email,
+        address,
+        website,
+        notes
+      FROM recruiter_tracker
+      ORDER BY date_contacted DESC
+    `);
+
+    if (rows.length === 0) {
+      return res.status(404).send("No data found");
+    }
+
+    const headers = [
+      "ID",
+      "Date Contacted",
+      "Recruiter Name",
+      "Company",
+      "Role Level",
+      "Role Type",
+      "Location",
+      "Comp Range",
+      "Status",
+      "Relationship Status",
+      "Phone",
+      "Email",
+      "Address",
+      "Website",
+      "Notes"
+    ].join(",");
+
+    const csv = [
+      headers,
+      ...rows.map(row =>
+        Object.values(row)
+          .map((value, index) => {
+            if (index === 1 && value) {
+              const d = new Date(value);
+              const formatted = `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d
+                .getDate()
+                .toString()
+                .padStart(2, "0")}/${d.getFullYear()}`;
+              return `"${formatted}"`;
+            }
+
+            return `"${(value ?? "").toString().replace(/"/g, '""')}"`;
+          })
+          .join(",")
+      )
+    ].join("\n");
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("recruiter_export.csv");
+    res.send(csv);
+  } catch (error) {
+    console.error("CSV export failed:", error);
+    res.status(500).send("Error generating CSV");
   }
 });
 
