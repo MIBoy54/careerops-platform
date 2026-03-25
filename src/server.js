@@ -4,6 +4,35 @@ import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
 
+function getWeekStart() {
+  const today = new Date();
+  const day = today.getDay(); // 0 = Sunday
+  const start = new Date(today);
+  start.setDate(today.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function getWeekEnd() {
+  const start = getWeekStart();
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+function formatReportFileDate(date = new Date()) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day}${month}${year}`;
+}
+
+async function ensureReportsDir() {
+  const reportsDir = path.join(process.cwd(), "reports");
+  await fs.mkdir(reportsDir, { recursive: true });
+  return reportsDir;
+}
 const app = express();
 const PORT = 3000;
 
@@ -64,32 +93,15 @@ app.get("/api/contacts", async (req, res) => {
 
 app.get("/api/companies/search", async (req, res) => {
   try {
-    const q = String(req.query.q || "").trim();
+    const { q } = req.query;
 
-    if (q.length < 2) {
+    if (!q || q.trim().length < 2) {
       return res.json([]);
     }
 
     const [rows] = await pool.query(
       `
-      SELECT
-        id,
-        date_contacted,
-        recruiter_name,
-        company,
-        role_level AS level,
-        role_type,
-        location,
-        comp_range,
-        status,
-        relationship_status,
-        reported_to_unemployment AS reported_unemployment,
-        follow_up_date AS next_follow_up_date,
-        phone,
-        email,
-        address,
-        website,
-        notes
+      SELECT DISTINCT company
       FROM recruiter_tracker
       WHERE company IS NOT NULL
         AND company <> ''
@@ -100,7 +112,7 @@ app.get("/api/companies/search", async (req, res) => {
       [`%${q}%`]
     );
 
-    res.json(rows);
+    res.json(rows.map((row) => row.company));
   } catch (error) {
     console.error("GET /api/companies/search failed:", error);
     res.status(500).json({ error: "Failed to search companies" });
@@ -124,6 +136,60 @@ app.get("/api/reports", async (req, res) => {
   } catch (error) {
     console.error("GET /api/reports failed:", error);
     res.status(500).json({ error: "Failed to fetch reports" });
+  }
+});
+
+app.get("/api/reports/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [[report]] = await pool.query(
+      `
+      SELECT id, week_start, week_end, submitted, submitted_at
+      FROM weekly_reports
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (!report) {
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    const [employers] = await pool.query(
+      `
+      SELECT
+        rt.id,
+        rt.date_contacted,
+        rt.recruiter_name,
+        rt.company,
+        rt.role_level AS level,
+        rt.role_type,
+        rt.location,
+        rt.comp_range,
+        rt.status,
+        rt.relationship_status,
+        rt.phone,
+        rt.email,
+        rt.address,
+        rt.website,
+        rt.notes
+      FROM report_job_contacts rjc
+      JOIN recruiter_tracker rt
+        ON rt.id = rjc.recruiter_tracker_id
+      WHERE rjc.report_id = ?
+      ORDER BY rt.company ASC
+      `,
+      [id]
+    );
+
+    res.json({
+      ...report,
+      employers
+    });
+  } catch (error) {
+    console.error("GET /api/reports/:id failed:", error);
+    res.status(500).json({ error: "Failed to fetch report detail" });
   }
 });
 
@@ -290,37 +356,6 @@ app.delete("/api/contacts/:id", async (req, res) => {
   }
 });
 
-app.put("/api/unemployment-report", async (req, res) => {
-  try {
-    const { company, date_reported, notes } = req.body;
-
-    await pool.query(
-      `
-      UPDATE recruiter_tracker
-      SET
-        reported_to_unemployment = 'Yes',
-        date_reported = ?,
-        notes = CASE
-          WHEN notes IS NULL OR notes = '' THEN ?
-          ELSE CONCAT(notes, '\n', ?)
-        END
-      WHERE company = ?
-      `,
-      [
-        date_reported || null,
-        notes || null,
-        notes || null,
-        company
-      ]
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("PUT /api/unemployment-report failed:", error);
-    res.status(500).json({ error: "Failed to save unemployment report" });
-  }
-});
-
 app.post("/api/reports", async (req, res) => {
   const connection = await pool.getConnection();
 
@@ -364,16 +399,18 @@ if (uniqueIds.length !== 4) {
       values
     );
 
-    const updatePlaceholders = uniqueIds.map(() => "?").join(", ");
+	const updatePlaceholders = uniqueIds.map(() => "?").join(", ");
 
-    await connection.query(
-      `
-      UPDATE recruiter_tracker
-      SET reported_to_unemployment = 'Yes'
-      WHERE id IN (${updatePlaceholders})
-      `,
-      uniqueIds
-    );
+	await connection.query(
+	  `
+	  UPDATE recruiter_tracker
+	  SET
+		reported_to_unemployment = 'Yes',
+		follow_up_date = CURDATE()
+	  WHERE id IN (${updatePlaceholders})
+	  `,
+	  uniqueIds
+	);
 
     await connection.commit();
 
@@ -389,103 +426,6 @@ if (uniqueIds.length !== 4) {
     connection.release();
   }
 });
-
-function getWeekStart() {
-  const today = new Date();
-  const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + diffToMonday);
-
-  return monday.toISOString().split("T")[0];
-}
-
-function getWeekEnd() {
-  const today = new Date();
-  const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const diffToSunday = day === 0 ? 0 : 7 - day;
-
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() + diffToSunday);
-
-  return sunday.toISOString().split("T")[0];
-}
-
-app.get("/api/weekly-reports", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT 
-        wr.id,
-        wr.week_start,
-        wr.week_end,
-        wr.submitted,
-        wr.submitted_at
-      FROM weekly_reports wr
-      ORDER BY wr.week_start DESC
-    `);
-
-    res.json(rows);
-  } catch (error) {
-    console.error("GET /api/weekly-reports failed:", error);
-    res.status(500).json({ error: "Failed to fetch weekly reports" });
-  }
-});
-
-app.get("/api/weekly-reports/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [reportRows] = await pool.query(
-      `
-      SELECT
-        id,
-        week_start,
-        week_end,
-        submitted,
-        submitted_at
-      FROM weekly_reports
-      WHERE id = ?
-      `,
-      [id]
-    );
-
-    if (reportRows.length === 0) {
-      return res.status(404).json({ error: "Weekly report not found" });
-    }
-
-    const [employerRows] = await pool.query(
-      `
-      SELECT
-        rt.id,
-        rt.date_contacted,
-        rt.recruiter_name,
-        rt.company,
-        rt.email,
-        rt.phone,
-        rt.status,
-        rt.relationship_status,
-        rt.role_type,
-        rt.location
-      FROM report_job_contacts rjc
-      INNER JOIN recruiter_tracker rt
-        ON rt.id = rjc.recruiter_tracker_id
-      WHERE rjc.report_id = ?
-      ORDER BY rt.date_contacted DESC, rt.company ASC
-      `,
-      [id]
-    );
-
-    res.json({
-      ...reportRows[0],
-      employers: employerRows
-    });
-  } catch (error) {
-    console.error("GET /api/weekly-reports/:id failed:", error);
-    res.status(500).json({ error: "Failed to fetch weekly report detail" });
-  }
-});
-
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

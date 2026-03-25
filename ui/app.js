@@ -115,41 +115,50 @@ try {
     renderSelectedContacts(selected);
   });
 
-  generateReportBtn.addEventListener("click", async () => {
-    if (selectedIds.size !== 4) {
-      renderMessage("You must select exactly 4 employers.", "error");
-      return;
+generateReportBtn.addEventListener("click", async () => {
+  if (selectedIds.size !== 4) {
+    renderMessage("You must select exactly 4 employers.", "error");
+    return;
+  }
+
+  if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
+    return;
+  }
+
+  try {
+    const payload = {
+      selectedIds: Array.from(selectedIds)
+    };
+
+    const response = await fetch("/api/reports", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to generate report");
     }
 
-    try {
-      const payload = {
-        selectedIds: Array.from(selectedIds)
-      };
+    renderMessage("Weekly report generated successfully.");
+    selectedIds.clear();
+    updateSelectionCount();
 
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to generate report");
-      }
-
-      renderMessage("Weekly report generated successfully.");
-      selectedIds.clear();
-      await loadContacts();
-      renderTable();
-      await loadWeeklyReportHistory();
-    } catch (error) {
-      console.error("Generate report failed:", error);
-      renderMessage("Failed to generate weekly report.", "error");
-    }
-  });
+    await loadContacts();
+    renderTable();
+    wireEditButtons();
+    wireDeleteButtons();
+    wireSelectionCheckboxes();
+    await loadWeeklyReportHistory();
+  } catch (error) {
+    console.error("Generate report failed:", error);
+    renderMessage("Failed to generate weekly report.", "error");
+  }
+});
 
   if (unemploymentForm) {
   unemploymentForm.addEventListener("submit", async (event) => {
@@ -202,30 +211,16 @@ companyInput.addEventListener("input", async () => {
     }
 
     companySuggestions.innerHTML = companies
-      .map((contact, index) => `
-        <div class="suggestion-item" data-index="${index}">
-          ${escapeHtml(contact.company || "")}
+      .map((company) => `
+        <div class="suggestion-item">
+          ${escapeHtml(company)}
         </div>
       `)
       .join("");
 
     document.querySelectorAll(".suggestion-item").forEach((item) => {
       item.addEventListener("mousedown", () => {
-        const contact = companies[Number(item.dataset.index)];
-        if (!contact) return;
-
-        Object.keys(contact).forEach((key) => {
-          const field = form.elements[key];
-          if (field) {
-            field.value =
-              key === "date_contacted" || key === "next_follow_up_date"
-                ? formatDate(contact[key])
-                : (contact[key] || "");
-          }
-        });
-
-        form.elements["website"].value = contact.website || "";
-        companyInput.value = contact.company || "";
+        companyInput.value = item.textContent.trim();
         companySuggestions.innerHTML = "";
       });
     });
@@ -488,7 +483,7 @@ function wireEditButtons() {
     weeklyHistoryTableBody.innerHTML = "";
 
     try {
-      const response = await fetch("/api/weekly-reports");
+      const response = await fetch("/api/reports");
       const reports = await response.json();
 
       if (!response.ok) {
@@ -544,7 +539,7 @@ function wireEditButtons() {
   weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
 
   try {
-    const response = await fetch(`/api/weekly-reports/${reportId}`);
+    fetch(`/api/reports/${reportId}`)
     const report = await response.json();
 
     if (!response.ok) {
