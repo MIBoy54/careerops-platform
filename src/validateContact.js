@@ -14,16 +14,13 @@ export function validateContact(contact) {
   }
 
 // Allow either valid email OR freeform text
-  if (contact.email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+if (contact.email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const isEmail = emailRegex.test(contact.email);
-
-    // Only validate if it looks like an email attempt
-    if (contact.email.includes("@") && !isEmail) {
-      errors.push("Email format is invalid.");
-    }
+  if (!emailRegex.test(contact.email)) {
+    errors.push("Email format is invalid.");
   }
+}
 
   if (contact.website && !/^https?:\/\/.+\..+/.test(contact.website)) {
     errors.push("Website format is invalid.");
