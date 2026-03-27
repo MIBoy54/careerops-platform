@@ -39,6 +39,32 @@ The system is built around a CI-first architecture where validation occurs autom
 </p>
 
 <hr>
+<h2>System Capabilities</h2>
+<h3>Core System</h3>
+<ui>
+  <li>Recruiter Contact Management System (UI + API + Validation)</li>
+  <li>API Layer with Validation + CI Integration (Vitest + GitHub Actions)</li>
+  <li>MySQL Data Model for Recruiter & Reporting Workflows</li>
+</ui>
+<h3>Workflow Engine</h3>
+<ui>
+  <li>Weekly Compliance Reporting Engine (Selection → Persist → Export)</li>
+  <li>End-to-End Workflow Automation (Contact → Report → History → Export)</li>
+</ui>
+<h3>Reporting & Visibility</h3>
+<ui>
+  <li>Weekly Report History & Detail Viewer</li>
+  <li>CSV Export for Compliance Reporting</li>
+</ui>
+<h3>Enhancements</h3>
+<ui>
+  <li>Company/Agency Search-as-you-type</li>
+  <li>Role Type dropdown standardization</li>
+  <li>Email validation improvements</li>
+  <li>Follow-up date field standardization</li>
+</ui>
+
+<hr>
 <h2>What This Demonstrates</h2>
 <ul>
 <li>End-to-end workflow design from UI → API → database</li>
