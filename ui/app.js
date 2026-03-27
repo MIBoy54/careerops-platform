@@ -18,16 +18,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const today = new Date().toISOString().split("T")[0];
   const contacts = [];
   const selectedIds = new Set();
+  const closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
+  const viewButton = document.getElementById("viewButton");
   let editId = null;
 
   initialize();
 
-  async function initialize() {
-    dateInput.value = today;
-    await loadContacts();
-    renderTable();
-    await loadWeeklyReportHistory();
-  }
+async function initialize() {
+  dateInput.value = today;
+
+  await loadContacts();
+  console.log("contacts loaded:", contacts);
+  renderTable();
+
+  await loadWeeklyReportHistory();
+  console.log("weekly history loaded");
+  updateSelectionCount();
+  clearWeeklyReportDetail();
+}
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -106,8 +114,8 @@ try {
 
 document.getElementById("unemploymentExportBtn").addEventListener("click", () => {
   if (!weeklyHistoryTableBody || !weeklyHistoryTableBody.children.length) {
-    weeklyHistoryMessage.textContent = "No weekly report history found.";
-    weeklyHistoryMessage.className = "message error";
+    weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+    weeklyHistoryMessageEl.className = "message error";
     return;
   }
 
@@ -118,8 +126,8 @@ document.getElementById("unemploymentExportBtn").addEventListener("click", () =>
   const end = cells[1]?.textContent.trim();
 
   if (!start || !end) {
-    weeklyHistoryMessage.textContent = "Unable to determine report date range.";
-    weeklyHistoryMessage.className = "message error";
+    weeklyHistoryMessageEl.textContent = "Unable to determine report date range.";
+    weeklyHistoryMessageEl.className = "message error";
     return;
   }
 
@@ -128,6 +136,11 @@ document.getElementById("unemploymentExportBtn").addEventListener("click", () =>
   window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
 });
 
+    if (closeWeeklyReportDetailBtn) {
+    closeWeeklyReportDetailBtn.addEventListener("click", () => {
+      clearWeeklyReportDetail();
+    });
+  }
 generateReportBtn.addEventListener("click", async () => {
   if (selectedIds.size !== 4) {
     renderMessage("You must select exactly 4 employers.", "error");
@@ -343,16 +356,11 @@ function wireEditButtons() {
   function wireSelectionCheckboxes() {
     const checkboxes = document.querySelectorAll(".select-checkbox");
 
-    checkboxes.forEach((cb) => {
-      cb.addEventListener("change", () => {
-        const id = Number(cb.dataset.id);
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        const id = Number(checkbox.dataset.id);
 
-        if (cb.checked) {
-          if (selectedIds.size >= 4) {
-            cb.checked = false;
-            renderMessage("You can only select 4 employers.", "error");
-            return;
-          }
+        if (checkbox.checked) {
           selectedIds.add(id);
         } else {
           selectedIds.delete(id);
@@ -364,83 +372,92 @@ function wireEditButtons() {
   }
 
   function getSelectedContacts() {
-    return contacts.filter((contact) => selectedIds.has(contact.id));
+    return contacts.filter((c) => selectedIds.has(c.id));
   }
 
-  function renderSelectedContacts(selected) {
-    if (!weeklyReportDetailEl) {
-      return;
-    }
-
-    weeklyReportDetailEl.innerHTML = `
-      <h3>Selected Contact Details</h3>
-      ${selected.map((contact) => `
-        <div class="contact-card">
-          <p><strong>ID:</strong> ${contact.id ?? ""}</p>
-          <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
-          <p><strong>Recruiter Name:</strong> ${contact.recruiter_name || ""}</p>
-          <p><strong>Company:</strong> ${contact.company || ""}</p>
-          <p><strong>Email:</strong> ${contact.email || ""}</p>
-          <p><strong>Phone:</strong> ${contact.phone || ""}</p>
-          <p><strong>Status:</strong> ${contact.status || ""}</p>
-          <p><strong>Relationship Status:</strong> ${contact.relationship_status || ""}</p>
-          <p><strong>Role Type:</strong> ${contact.role_type || ""}</p>
-          <p><strong>Location:</strong> ${contact.location || ""}</p>
-          <hr>
-        </div>
-      `).join("")}
-    `;
-  }
-
-	function updateSelectionCount() {
-	  selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
-	  generateReportBtn.disabled = selectedIds.size !== 4;
-
-	  const viewButton = document.getElementById("viewButton");
-	  if (viewButton) {
-		viewButton.disabled = selectedIds.size === 0;
-	  }
+	function renderSelectedContacts(selected) {
+	  weeklyReportDetailEl.innerHTML = `
+		<h3>Selected Employer Details</h3>
+		${selected.map((contact) => `
+		  <div class="contact-card">
+			<p><strong>ID:</strong> ${contact.id ?? ""}</p>
+			<p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
+			<p><strong>Company:</strong> ${contact.company || ""}</p>
+			<p><strong>Status:</strong> ${contact.status || ""}</p>
+			<p><strong>Reported to Unemployment:</strong> ${contact.reported_unemployment || "No"}</p>
+		  </div>
+		`).join("")}
+	  `;
 	}
 
-  function wireDeleteButtons() {
-    const deleteButtons = document.querySelectorAll(".delete-btn");
+		// all your constants here
 
-    deleteButtons.forEach((button) => {
-      button.addEventListener("click", async () => {
-        const id = Number(button.dataset.id);
+	  function updateSelectionCount() {
+		selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
+		generateReportBtn.disabled = selectedIds.size !== 4;
 
-        try {
-			const response = await fetch(`/api/contacts/${id}`, {
-			  method: "DELETE"
-			});
+		if (viewButton) {
+		  viewButton.disabled = selectedIds.size === 0;
+		}
+	  }
 
-			const result = await response.json();
+	  // ✅ View button handler (ADD THIS HERE)
+	  if (viewButton) {
+		viewButton.addEventListener("click", () => {
+		  const selected = getSelectedContacts();
 
-			if (!response.ok) {
-			  throw new Error(result.error || "Failed to delete contact");
-			}
+		  if (!selected.length) {
+			weeklyReportDetailEl.innerHTML = `<p class="error">Please select at least one contact.</p>`;
+			return;
+		  }
 
-			selectedIds.clear();
-			await loadContacts();
-			renderTable();
-			renderMessage("Contact deleted successfully.");
-			renderErrors([]);
-        } catch (error) {
-          console.error("Delete failed:", error);
-          renderMessage("Failed to delete contact.", "error");
+		  renderSelectedContacts(selected);
+		});
+	  }
+
+	}); // ✅ THIS closes DOMContentLoaded
+
+function wireDeleteButtons() {
+  const deleteButtons = document.querySelectorAll(".delete-btn");
+
+  deleteButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = Number(button.dataset.id);
+
+      try {
+        const response = await fetch(`/api/contacts/${id}`, {
+          method: "DELETE"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to delete contact");
         }
-      });
-    });
-  }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-  function renderErrors(errors) {
+        selectedIds.clear();
+        await loadContacts();
+        renderTable();
+        renderMessage("Contact deleted successfully.");
+        renderErrors([]);
+        clearWeeklyReportDetail();
+      } catch (error) {
+        console.error("Delete failed:", error);
+        renderMessage("Failed to delete contact.", "error");
+      }
+    });
+  });
+}
+
+	function escapeHtml(value) {
+	  return String(value)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+	}
+
+	function renderErrors(errors) {
     if (!errors.length) {
       errorsDiv.innerHTML = "";
       return;
@@ -486,65 +503,88 @@ function wireEditButtons() {
     }
   }
 
-  async function loadWeeklyReportHistory() {
-    if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) {
+async function loadWeeklyReportHistory() {
+  const weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
+  const weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
+
+  if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) {
+    return;
+  }
+
+  weeklyHistoryMessageEl.textContent = "";
+  weeklyHistoryMessageEl.className = "message";
+  weeklyHistoryTableBody.innerHTML = "";
+
+  try {
+    const response = await fetch("/api/reports");
+    const reports = await response.json();
+
+    if (!response.ok) {
+      throw new Error(reports.error || "Failed to load weekly reports.");
+    }
+
+    if (!Array.isArray(reports) || reports.length === 0) {
+      weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+      weeklyHistoryMessageEl.className = "message error";
       return;
     }
 
-    weeklyHistoryMessageEl.textContent = "";
-    weeklyHistoryMessageEl.className = "message";
-    weeklyHistoryTableBody.innerHTML = "";
+    reports.forEach((report) => {
+      const row = document.createElement("tr");
 
-    try {
-      const response = await fetch("/api/reports");
-      const reports = await response.json();
+      row.innerHTML = `
+        <td>${formatDate(report.week_start)}</td>
+        <td>${formatDate(report.week_end)}</td>
+        <td>${report.submitted ?? 0}</td>
+        <td>${formatDate(report.submitted_at)}</td>
+        <td>
+          <button type="button" class="view-report-btn" data-id="${report.id}">View</button>
+        </td>
+      `;
 
-      if (!response.ok) {
-        throw new Error(reports.error || "Failed to load weekly reports.");
-      }
-
-      if (!reports.length) {
-        weeklyHistoryMessageEl.textContent = "No weekly reports found.";
-        weeklyHistoryMessageEl.className = "message";
-        return;
-      }
-
-      reports.forEach((report) => {
-        const row = document.createElement("tr");
-
-        row.innerHTML = `
-          <td>${formatDate(report.week_start)}</td>
-          <td>${formatDate(report.week_end)}</td>
-          <td>${report.submitted ?? 0}</td>
-          <td>${formatDate(report.submitted_at)}</td>
-          <td>
-            <button type="button" class="view-report-btn" data-id="${report.id}">View</button>
-          </td>
-        `;
-
-        weeklyHistoryTableBody.appendChild(row);
-      });
-
-      wireViewReportButtons();
-    } catch (error) {
-      console.error("Failed to load weekly report history:", error);
-      weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
-      weeklyHistoryMessageEl.className = "message error";
-    }
-  }
-
-  function wireViewReportButtons() {
-    const viewButtons = document.querySelectorAll(".view-report-btn");
-
-    viewButtons.forEach((button) => {
-      button.addEventListener("click", async () => {
-        const id = Number(button.dataset.id);
-        await loadWeeklyReportDetail(id);
-      });
+      weeklyHistoryTableBody.appendChild(row);
     });
+
+    wireViewReportButtons();
+  } catch (error) {
+    console.error("Failed to load weekly report history:", error);
+    weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
+    weeklyHistoryMessageEl.className = "message error";
+  }
+}
+
+function getSelectedContacts() {
+  return contacts.filter((contact) => selectedIds.has(contact.id));
+}
+
+function renderSelectedContacts(selected) {
+  if (!weeklyReportDetailEl) {
+    return;
   }
 
-  async function loadWeeklyReportDetail(reportId) {
+  weeklyReportDetailEl.innerHTML = `
+    <h3>Selected Employer Details</h3>
+    ${selected.map((contact) => `
+      <div class="contact-card">
+        <p><strong>ID:</strong> ${contact.id ?? ""}</p>
+        <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
+        <p><strong>Recruiter Name:</strong> ${contact.recruiter_name || ""}</p>
+        <p><strong>Company:</strong> ${contact.company || ""}</p>
+        <p><strong>Email:</strong> ${contact.email || ""}</p>
+        <p><strong>Phone:</strong> ${contact.phone || ""}</p>
+        <p><strong>Status:</strong> ${contact.status || ""}</p>
+        <p><strong>Relationship Status:</strong> ${contact.relationship_status || ""}</p>
+        <p><strong>Role Type:</strong> ${contact.role_type || ""}</p>
+        <p><strong>Location:</strong> ${contact.location || ""}</p>
+      </div>
+    `).join("")}
+  `;
+}
+
+async function loadWeeklyReportDetail(reportId) {
+  const weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+  const header = document.getElementById("weekly-report-detail-header");
+
   if (!weeklyReportDetailEl) {
     return;
   }
@@ -552,11 +592,15 @@ function wireEditButtons() {
   weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
 
   try {
-    fetch(`/api/reports/${reportId}`)
+    const response = await fetch(`/api/reports/${reportId}`);
     const report = await response.json();
 
     if (!response.ok) {
       throw new Error(report.error || "Failed to load weekly report detail.");
+    }
+
+    if (header) {
+      header.style.display = "block";
     }
 
     weeklyReportDetailEl.innerHTML = `
@@ -589,7 +633,186 @@ function wireEditButtons() {
     `;
   } catch (error) {
     console.error("Failed to load weekly report detail:", error);
+
+    if (header) {
+      header.style.display = "none";
+    }
+
     weeklyReportDetailEl.innerHTML = `<p class="error">Failed to load weekly report detail.</p>`;
   }
 }
+
+function wireViewReportButtons() {
+  const viewButtons = document.querySelectorAll(".view-report-btn");
+
+  viewButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = Number(button.dataset.id);
+      setActiveViewReportButton(button);
+      await loadWeeklyReportDetail(id);
+    });
+  });
+}
+
+function setActiveViewReportButton(activeButton) {
+  document.querySelectorAll(".view-report-btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+
+  if (activeButton) {
+    activeButton.classList.add("active");
+  }
+}
+
+function clearWeeklyReportDetail() {
+  const header = document.getElementById("weekly-report-detail-header");
+  const weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+
+  if (header) {
+    header.style.display = "none";
+  }
+
+  if (weeklyReportDetailEl) {
+    weeklyReportDetailEl.innerHTML = "<p>Select employers or a saved report to view details.</p>";
+  }
+
+  document.querySelectorAll(".view-report-btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+}
+
+if (closeWeeklyReportDetailBtn) {
+  closeWeeklyReportDetailBtn.addEventListener("click", () => {
+    clearWeeklyReportDetail();
+  });
+}
+
+if (viewButton) {
+  viewButton.addEventListener("click", () => {
+    const selected = getSelectedContacts();
+
+    if (!selected.length) {
+      weeklyReportDetailEl.innerHTML = `<p class="error">Please select at least one contact.</p>`;
+      return;
+    }
+
+    clearWeeklyReportDetail();
+    renderSelectedContacts(selected);
+  });
+}
+
+generateReportBtn.addEventListener("click", async () => {
+  if (selectedIds.size !== 4) {
+    renderMessage("You must select exactly 4 employers.", "error");
+    return;
+  }
+
+  if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
+    return;
+  }
+
+  try {
+    const payload = {
+      selectedIds: Array.from(selectedIds)
+    };
+
+    const response = await fetch("/api/reports", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to generate report");
+    }
+
+    renderMessage("Weekly report generated successfully.");
+    selectedIds.clear();
+
+    await loadContacts();
+    renderTable();
+    await loadWeeklyReportHistory();
+    updateSelectionCount();
+    clearWeeklyReportDetail();
+  } catch (error) {
+    console.error("Generate report failed:", error);
+    renderMessage("Failed to generate weekly report.", "error");
+  }
 });
+
+if (unemploymentForm) {
+  unemploymentForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      company: document.getElementById("unemployment_company").value.trim(),
+      date_reported: document.getElementById("date_reported").value,
+      notes: document.getElementById("unemployment_notes").value.trim()
+    };
+
+    try {
+      const response = await fetch("/api/unemployment-report", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save unemployment report");
+      }
+
+      unemploymentForm.reset();
+      renderMessage("Unemployment report saved successfully.");
+
+      await loadContacts();
+      renderTable();
+    } catch (error) {
+      console.error("Unemployment form save failed:", error);
+      renderMessage("Failed to save unemployment report.", "error");
+    }
+  });
+}
+
+companyInput.addEventListener("input", async () => {
+  const query = companyInput.value.trim();
+
+  if (query.length < 2) {
+    companySuggestions.innerHTML = "";
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
+    const companies = await response.json();
+
+    if (!response.ok) {
+      throw new Error("Failed to load company suggestions");
+    }
+
+    companySuggestions.innerHTML = companies
+      .map((company) => `
+        <div class="suggestion-item">${escapeHtml(company)}</div>
+      `)
+      .join("");
+
+    document.querySelectorAll(".suggestion-item").forEach((item) => {
+      item.addEventListener("mousedown", () => {
+        companyInput.value = item.textContent.trim();
+        companySuggestions.innerHTML = "";
+      });
+    });
+  } catch (error) {
+    console.error("Company search failed:", error);
+    companySuggestions.innerHTML = "";
+  }
+});
+
+companyInput.addEventListener("blur", () => {
+  setTimeout(() => {
+    companySuggestions.innerHTML = "";
+  }, 150);
+}); // closes DOMContentLoaded

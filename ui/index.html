@@ -152,24 +152,26 @@
 
 <section class="card">
   <h2>Detail Viewer</h2>
+
+  <div id="weekly-report-detail-header" style="display: none; margin-bottom: 12px;">
+    <button id="closeWeeklyReportDetailBtn" type="button">Close</button>
+  </div>
+
   <div id="weekly-report-detail">
     <p>Select employers or a saved report to view details.</p>
   </div>
 
   <div class="report-actions">
-  <div class="report-warning">
-    ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
+    <div class="report-warning">
+      ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
+    </div>
+
+    <div class="report-button-row">
+      <button id="generateReportBtn" class="primary-btn">
+        Generate Weekly Report
+      </button>
+    </div>
   </div>
-
-  <div class="report-button-row">
-    <button id="generateReportBtn" class="primary-btn">
-      Generate Weekly Report
-    </button>
-  </div>
-</div>
-
-
-  
 </section>
 
 <section class="card">

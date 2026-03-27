@@ -122,20 +122,20 @@ app.get("/api/companies/search", async (req, res) => {
 app.get("/api/reports", async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT 
-        wr.id,
-        wr.week_start,
-        wr.week_end,
-        wr.submitted,
-        wr.submitted_at
-      FROM weekly_reports wr
-      ORDER BY wr.week_start DESC
+      SELECT
+        id,
+        week_start,
+        week_end,
+        submitted,
+        submitted_at
+      FROM weekly_reports
+      ORDER BY week_start DESC, id DESC
     `);
 
     res.json(rows);
   } catch (error) {
     console.error("GET /api/reports failed:", error);
-    res.status(500).json({ error: "Failed to fetch reports" });
+    res.status(500).json({ error: "Failed to load weekly reports" });
   }
 });
 
@@ -265,29 +265,36 @@ app.get("/api/reports/unemployment/export", async (req, res) => {
 
 app.get("/api/reports/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const reportId = req.params.id;
 
-    const [[report]] = await pool.query(
+    const [reportRows] = await pool.query(
       `
-      SELECT id, week_start, week_end, submitted, submitted_at
+      SELECT
+        id,
+        week_start,
+        week_end,
+        submitted,
+        submitted_at
       FROM weekly_reports
       WHERE id = ?
       `,
-      [id]
+      [reportId]
     );
 
-    if (!report) {
+    if (!reportRows.length) {
       return res.status(404).json({ error: "Report not found" });
     }
 
-    const [employers] = await pool.query(
+    const report = reportRows[0];
+
+    const [employerRows] = await pool.query(
       `
       SELECT
         rt.id,
         rt.date_contacted,
         rt.recruiter_name,
         rt.company,
-        rt.role_level AS level,
+        rt.role_level,
         rt.role_type,
         rt.location,
         rt.comp_range,
@@ -297,23 +304,24 @@ app.get("/api/reports/:id", async (req, res) => {
         rt.email,
         rt.address,
         rt.website,
-        rt.notes
+        rt.notes,
+        rt.reported_to_unemployment
       FROM report_job_contacts rjc
       JOIN recruiter_tracker rt
         ON rt.id = rjc.recruiter_tracker_id
       WHERE rjc.report_id = ?
-      ORDER BY rt.company ASC
+      ORDER BY rt.date_contacted DESC, rt.id DESC
       `,
-      [id]
+      [reportId]
     );
 
     res.json({
       ...report,
-      employers
+      employers: employerRows
     });
   } catch (error) {
     console.error("GET /api/reports/:id failed:", error);
-    res.status(500).json({ error: "Failed to fetch report detail" });
+    res.status(500).json({ error: "Failed to load weekly report detail" });
   }
 });
 
