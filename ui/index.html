@@ -9,16 +9,54 @@
 <body>
   <div class="page">
     <div class="card">
-      <h1>Employer Contact Form</h1>
-      <div class="demo-banner">
-  Demo Mode – Sample data only. No changes are saved.
-</div>
-      <p class="subtitle">Create or update recruiter and employer contact information.</p>
+      <h1>System Telemetry</h1>
+      <!-- <div class="demo-banner">
+            Demo Mode – Sample data only. No changes are saved.
+      </div> -->
 
       <div id="message"></div>
       <div id="errors"></div>
 
+      <div id="analyticsPanel" class="analytics-panel">
+        <h3>System Analytics</h3>
+        <div class="analytics-grid">
+          <div>Total Visits: <span id="totalVisits">0</span></div>
+          <div>Unique Visitors: <span id="uniqueVisitors">0</span></div>
+          <div>Total Time (sec): <span id="totalTime">0</span></div>
+          <div>Avg Time (sec): <span id="avgTime">0</span></div>
+          <div>Active Users: <span id="activeUsers">0</span></div>
+          <div>Stale Sessions: <span id="staleSessions">0</span></div>
+          <div>Sessions Today: <span id="sessionsToday">0</span></div>
+          <div>Last Updated: <span id="lastUpdated"></span></div>
+        </div>
+      </div>
+
+      <div id="topPagesPanel" class="analytics-panel">
+      <h3>Top Pages</h3>
+      <table id="topPagesTable">
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th>Visits</th>
+            <th>Unique</th>
+            <th>Total Time</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="trendPanel" class="analytics-panel">
+      <h3>Session Activity Trend (Last 8 Hours)</h3>
+      <div id="trendChart" class="trend-chart"></div>
+    </div>
+
       <form id="contactForm">
+              <h1>Employer Contact Form</h1>
+      <!-- <div class="demo-banner">
+            Demo Mode – Sample data only. No changes are saved.
+      </div> -->
+      <p class="subtitle">Create or update recruiter and employer contact information.</p>
         <div class="grid">
           <div class="field">
             <label for="date_contacted">Date Contacted</label>

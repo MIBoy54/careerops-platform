@@ -1,5 +1,9 @@
+const ACTIVE_THRESHOLD_MINUTES = 1;
+const STALE_THRESHOLD_MINUTES = 5;
+
 import cors from "cors";
 import express from "express";
+import fs from "fs/promises";
 import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -54,6 +58,29 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+
+async function loadActiveUsers() {
+  try {
+    console.log("loadActiveUsers called");
+
+    const response = await fetch("/api/analytics/active-users");
+
+    if (!response.ok) {
+      throw new Error("Failed to load active users");
+    }
+
+    const data = await response.json();
+    console.log("active users response:", data);
+
+    const el = document.getElementById("activeUsers");
+
+    if (el) {
+      el.textContent = data.active_users ?? 0;
+    }
+  } catch (error) {
+    console.error("Active users load failed:", error);
+  }
+}
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
@@ -543,6 +570,44 @@ app.put("/api/contacts/:id", async (req, res) => {
   }
 });
 
+app.put("/api/analytics/heartbeat", async (req, res) => {
+  try {
+    const { session_id, page_path, seconds } = req.body;
+
+    if (!session_id || !page_path || typeof seconds !== "number") {
+      return res.status(400).json({ error: "Invalid heartbeat payload" });
+    }
+
+    await pool.query(
+      `
+      UPDATE visitor_analytics
+      SET
+        last_seen = NOW(),
+        time_spent_seconds = time_spent_seconds + ?
+      WHERE session_id = ? AND page_path = ?
+      `,
+      [seconds, session_id, page_path]
+    );
+
+    await pool.query(
+      `
+      INSERT INTO analytics_heartbeat_events (
+        session_id,
+        page_path,
+        event_time,
+        seconds
+      )
+      VALUES (?, ?, NOW(), ?)
+      `,
+      [session_id, page_path, seconds]
+    );
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Heartbeat update failed:", error);
+    res.status(500).json({ error: "Heartbeat failed" });
+  }
+});
 app.delete("/api/contacts/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -632,6 +697,137 @@ if (uniqueIds.length !== 4) {
     connection.release();
   }
 });
+
+app.get("/api/analytics/summary", async (req, res) => {
+  try {
+    const [[totals]] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_visits,
+        COUNT(DISTINCT session_id) AS unique_visitors,
+        COALESCE(SUM(time_spent_seconds), 0) AS total_time_spent_seconds,
+        COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds
+      FROM visitor_analytics
+      `
+    );
+
+    const [pages] = await pool.query(
+      `
+      SELECT
+        page_path,
+        COUNT(*) AS visits,
+        COUNT(DISTINCT session_id) AS unique_visitors,
+        COALESCE(SUM(time_spent_seconds), 0) AS total_time_spent_seconds,
+        COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds
+      FROM visitor_analytics
+      GROUP BY page_path
+      ORDER BY visits DESC
+      `
+    );
+
+    res.status(200).json({ totals, pages });
+  } catch (error) {
+    console.error("GET /api/analytics/summary failed:", error);
+    res.status(500).json({ error: "Failed to load analytics summary." });
+  }
+});
+
+function isValidSessionId(value) {
+  return typeof value === "string" && value.trim().length >= 10 && value.trim().length <= 100;
+}
+
+app.post("/api/analytics/start", async (req, res) => {
+  try {
+    const { session_id, page_path } = req.body;
+
+    if (!isValidSessionId(session_id) || !page_path) {
+      return res.status(400).json({ error: "session_id and page_path are required." });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO visitor_analytics (
+        session_id,
+        page_path,
+        first_seen,
+        last_seen,
+        time_spent_seconds
+      )
+      VALUES (?, ?, NOW(), NOW(), 0)
+      ON DUPLICATE KEY UPDATE
+        last_seen = NOW()
+      `,
+      [session_id.trim(), page_path]
+    );
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("POST /api/analytics/start failed:", error);
+    res.status(500).json({ error: "Failed to start analytics session." });
+  }
+});
+
+app.get("/api/analytics/trend", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00') AS minute_bucket,
+        COUNT(*) AS heartbeat_count,
+        COUNT(DISTINCT session_id) AS unique_sessions,
+        COALESCE(SUM(seconds), 0) AS total_seconds
+      FROM analytics_heartbeat_events
+      WHERE event_time >= NOW() - INTERVAL 8 HOUR
+      GROUP BY DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00')
+      ORDER BY minute_bucket ASC
+      `
+    );
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("GET /api/analytics/trend failed:", error);
+    res.status(500).json({ error: "Failed to load analytics trend." });
+  }
+});
+
+app.get("/api/analytics/active-users", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT COUNT(DISTINCT session_id) AS active_users
+      FROM visitor_analytics
+      WHERE last_seen >= NOW() - INTERVAL ${ACTIVE_THRESHOLD_MINUTES} MINUTE
+      `
+    );
+
+    res.status(200).json({
+      active_users: rows[0]?.active_users ?? 0
+    });
+  } catch (error) {
+    console.error("GET /api/analytics/active-users failed:", error);
+    res.status(500).json({ error: "Failed to load active users." });
+  }
+});
+
+app.get("/api/analytics/stale-sessions", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT COUNT(DISTINCT session_id) AS stale_sessions
+      FROM visitor_analytics
+      WHERE last_seen < NOW() - INTERVAL ${STALE_THRESHOLD_MINUTES} MINUTE
+      `
+    );
+
+    res.status(200).json({
+      stale_sessions: rows[0]?.stale_sessions ?? 0
+    });
+  } catch (error) {
+    console.error("GET /api/analytics/stale-sessions failed:", error);
+    res.status(500).json({ error: "Failed to load stale sessions." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

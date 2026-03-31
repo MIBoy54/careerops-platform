@@ -1,4 +1,5 @@
-const DEMO_MODE = false
+console.log("app.js loaded");
+const DEMO_MODE = false;
 import { validateContact } from "../src/validateContact.js";
 
 let selectedIds = new Set();
@@ -20,6 +21,8 @@ let weeklyHistoryTableBody;
 let weeklyReportDetailEl;
 let closeWeeklyReportDetailBtn;
 let viewButton;
+let analyticsSessionId = null;
+let analyticsHeartbeatInterval = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -27,6 +30,215 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function getAnalyticsSessionId() {
+  let sessionId = sessionStorage.getItem("analyticsSessionId");
+
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    sessionStorage.setItem("analyticsSessionId", sessionId);
+  }
+
+  return sessionId;
+}
+
+async function startAnalyticsSession() {
+  console.log("startAnalyticsSession called");
+
+  analyticsSessionId = getAnalyticsSessionId();
+
+  const response = await fetch("/api/analytics/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_id: analyticsSessionId,
+      page_path: window.location.pathname
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to start analytics session");
+  }
+}
+
+async function loadAnalyticsSummary() {
+  try {
+    const response = await fetch("/api/analytics/summary");
+
+    if (!response.ok) {
+      throw new Error("Failed to load analytics summary");
+    }
+
+    const data = await response.json();
+
+    // Existing totals
+  document.getElementById("totalVisits").textContent =
+    Number(data.totals.total_visits ?? 0).toLocaleString();
+
+  document.getElementById("uniqueVisitors").textContent =
+    Number(data.totals.unique_visitors ?? 0).toLocaleString();
+
+  document.getElementById("totalTime").textContent =
+    Number(data.totals.total_time_spent_seconds ?? 0).toLocaleString();
+
+  document.getElementById("avgTime").textContent =
+    Number(data.totals.avg_time_spent_seconds ?? 0).toLocaleString();
+
+  document.getElementById("lastUpdated").textContent =
+  new Date().toLocaleTimeString();
+
+    // NEW: Top Pages
+    const tbody = document.querySelector("#topPagesTable tbody");
+    tbody.innerHTML = "";
+
+    data.pages.forEach(page => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td>${page.page_path}</td>
+        <td>${page.visits}</td>
+        <td>${page.unique_visitors}</td>
+        <td>${page.total_time_spent_seconds}</td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+  } catch (error) {
+    console.error("Analytics load failed:", error);
+  }
+}
+async function sendAnalyticsHeartbeat(seconds = 15) {
+  if (!analyticsSessionId) return;
+
+  const response = await fetch("/api/analytics/heartbeat", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_id: analyticsSessionId,
+      page_path: window.location.pathname,
+      seconds
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to send analytics heartbeat");
+  }
+}
+
+async function loadAnalyticsTrend() {
+  try {
+    const response = await fetch("/api/analytics/trend");
+
+    if (!response.ok) {
+      throw new Error("Failed to load analytics trend");
+    }
+
+    const rows = await response.json();
+    const chart = document.getElementById("trendChart");
+
+    if (!chart) return;
+
+    chart.innerHTML = "";
+
+    if (!rows.length) {
+      chart.innerHTML = "<div>No trend data yet.</div>";
+      return;
+    }
+
+    const maxSeconds = Math.max(...rows.map(row => Number(row.total_seconds) || 0), 1);
+
+    rows.forEach(row => {
+      const totalSeconds = Number(row.total_seconds) || 0;
+      const height = Math.max((totalSeconds / maxSeconds) * 140, 10);
+
+      const wrap = document.createElement("div");
+      wrap.className = "trend-bar-wrap";
+
+      wrap.innerHTML = `
+        <div class="trend-value">${totalSeconds}s</div>
+        <div class="trend-bar" style="height:${height}px;" title="${row.minute_bucket} - ${totalSeconds} sec"></div>
+        <div class="trend-label">${row.minute_bucket.slice(11, 16)}</div>
+      `;
+
+      chart.appendChild(wrap);
+    });
+  } catch (error) {
+    console.error("Analytics trend load failed:", error);
+  }
+}
+
+async function loadActiveUsers() {
+  try {
+    const response = await fetch("/api/analytics/active-users");
+
+    if (!response.ok) {
+      throw new Error("Failed to load active users");
+    }
+
+    const data = await response.json();
+    const activeUsersEl = document.getElementById("activeUsers");
+
+    if (activeUsersEl) {
+      activeUsersEl.textContent = data.active_users ?? 0;
+    }
+
+  } catch (error) {
+    console.error("Active users load failed:", error);
+  }
+}
+
+async function loadStaleSessions() {
+  try {
+    const response = await fetch("/api/analytics/stale-sessions");
+
+    if (!response.ok) {
+      throw new Error("Failed to load stale sessions");
+    }
+
+    const data = await response.json();
+    const staleSessionsEl = document.getElementById("staleSessions");
+
+    if (staleSessionsEl) {
+      staleSessionsEl.textContent = data.stale_sessions ?? 0;
+    }
+  } catch (error) {
+    console.error("Stale sessions load failed:", error);
+  }
+}
+
+async function loadSessionsToday() {
+  try {
+    const response = await fetch("/api/analytics/sessions-today");
+
+    if (!response.ok) {
+      throw new Error("Failed to load sessions today");
+    }
+
+    const data = await response.json();
+    const sessionsTodayEl = document.getElementById("sessionsToday");
+
+    if (sessionsTodayEl) {
+      sessionsTodayEl.textContent = data.sessions_today ?? 0;
+    }
+  } catch (error) {
+    console.error("Sessions today load failed:", error);
+  }
+}
+
+function startAnalyticsHeartbeat() {
+  if (analyticsHeartbeatInterval) {
+    clearInterval(analyticsHeartbeatInterval);
+  }
+
+  analyticsHeartbeatInterval = setInterval(async () => {
+    try {
+      await sendAnalyticsHeartbeat(15);
+    } catch (error) {
+      console.error("Analytics heartbeat failed:", error);
+    }
+  }, 15000);
 }
 
 function renderErrors(target, errors) {
@@ -124,7 +336,7 @@ function renderSelectedContacts(selected) {
         <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
         <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
         <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
-        <p><strong>Role Type:</strong> ${escapeHtml(contact.role_type || "")}</p>
+        <p><strong>Level Type:</strong> ${escapeHtml(contact.role_level || "")}</p>
         <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
         <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
       </div>
@@ -203,7 +415,7 @@ async function loadWeeklyReportDetail(reportId) {
               <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
               <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
               <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
-              <p><strong>Role Type:</strong> ${escapeHtml(contact.role_type || "")}</p>
+              <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
               <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
             </div>
           `
@@ -422,7 +634,7 @@ function renderTable() {
   updateSelectionCount();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   form = document.getElementById("contactForm");
   errorsDiv = document.getElementById("errors");
   messageDiv = document.getElementById("message");
@@ -445,7 +657,20 @@ document.addEventListener("DOMContentLoaded", () => {
   selectedIds.clear();
   editId = null;
 
+  try {
+    await startAnalyticsSession();
+    startAnalyticsHeartbeat();
+  } catch (error) {
+    console.error("Analytics startup failed:", error);
+  }
+
   initialize();
+  
+  await loadAnalyticsSummary();
+  setTimeout(loadAnalyticsSummary, 2000);
+  setInterval(loadAnalyticsSummary, 30000);
+  await loadAnalyticsTrend();
+  setInterval(loadAnalyticsTrend, 60000);
 
   async function initialize() {
     if (dateInput) {
@@ -473,17 +698,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     renderErrors(errorsDiv, []);
-if (DEMO_MODE) {
-  if (editId !== null) {
-    renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
-    editId = null;
-  } else {
-    renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
-  }
+    if (DEMO_MODE) {
+      if (editId !== null) {
+        renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
+        editId = null;
+      } else {
+        renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
+      }
 
-  form.reset();
-  return;
-}
+      form.reset();
+      return;
+    }
     try {
       let response;
       let result;
@@ -595,10 +820,10 @@ if (DEMO_MODE) {
       renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
       return;
     }
-if (DEMO_MODE) {
-  renderMessage(messageDiv, "Demo Mode: Weekly report generation is disabled.", "error");
-  return;
-}
+    if (DEMO_MODE) {
+      renderMessage(messageDiv, "Demo Mode: Weekly report generation is disabled.", "error");
+      return;
+    }
     if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
       return;
     }
@@ -645,11 +870,11 @@ if (DEMO_MODE) {
         date_reported: document.getElementById("date_reported")?.value,
         notes: document.getElementById("unemployment_notes")?.value.trim()
       };
-if (DEMO_MODE) {
-  renderMessage(messageDiv, "Demo Mode: Unemployment report not saved.", "error");
-  unemploymentForm.reset();
-  return;
-}
+      if (DEMO_MODE) {
+        renderMessage(messageDiv, "Demo Mode: Unemployment report not saved.", "error");
+        unemploymentForm.reset();
+        return;
+      }
       try {
         const response = await fetch("/api/unemployment-report", {
           method: "PUT",
@@ -724,4 +949,13 @@ if (DEMO_MODE) {
       }
     }, 150);
   });
+
+setTimeout(loadActiveUsers, 2000);
+setInterval(loadActiveUsers, 15000);
+
+setTimeout(loadStaleSessions, 2000);
+setInterval(loadStaleSessions, 15000);
+
+setTimeout(loadSessionsToday, 2000);
+setInterval(loadSessionsToday, 15000);
 });
