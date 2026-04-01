@@ -1,18 +1,24 @@
 <h1 align="center">CareerOps Platform</h1>
 <p align="center"><i>CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</i></p>
-<hr>
-<p align="left">
-A system-level Quality Engineering showcase demonstrating how CI-driven architectures, data design, and operational workflows integrate to enforce quality at scale.
 
-This platform moves beyond traditional test automation to illustrate how engineering systems can be designed for:
+<hr>
+
+<p>
+CareerOps is a system-level Quality Engineering platform demonstrating how modern engineering practices enforce quality, validation, and compliance through architecture—not just testing.
+
+This project showcases how to design systems where:
+</p>
+
 <ul>
-<li>End-to-end workflow validation</li>
-<li>Real-time operational visibility</li>
-<li>Auditability and compliance support</li>
-<li>CI-integrated quality enforcement</li>
+<li>Quality is enforced through CI/CD pipelines</li>
+<li>Validation is embedded across UI, API, and data layers</li>
+<li>Operational workflows are fully traceable and auditable</li>
+<li>Compliance requirements are programmatically validated</li>
 </ul>
 
-Rather than focusing on tools alone, this project emphasizes how quality is embedded into the system architecture itself.
+<p>
+This is not a test automation project.<br>
+It is a <b>quality engineering system</b>.
 </p>
 
 <hr>
@@ -21,6 +27,8 @@ Rather than focusing on tools alone, this project emphasizes how quality is embe
 <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
 <img src="https://img.shields.io/badge/node-20.x-green"/>
 <img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
+<img src="https://img.shields.io/badge/e2e-playwright-blue"/>
+<img src="https://img.shields.io/badge/framework-cypress-blue"/>
 </p>
 
 <hr>
@@ -253,27 +261,32 @@ POST /validate-weekly-report
 
 <hr>
 <h2>Roadmap</h2>
-<h3>Phase 1</h3>
+
+<h3>Phase 1 — Foundation (Completed ✅)</h3>
+<p><b>Result:</b> CI pipeline actively validating business rules with automated test enforcement.</p>
 <ul>
 <li>Repository setup</li>
 <li>Vitest test framework</li>
 <li>GitHub Actions CI pipeline</li>
 <li>Documentation and project board</li>
- </ul>
-<h3>Phase 2</h3>
-<ul>
- <li>Playwright automation testing</li>
- <li>Expanded validation coverage</li>
- <li>Run history automation</li>
 </ul>
-<h3>Phase 3</h3>
+
+<h3>Phase 2 — Validation Expansion (In Progress 🚧)</h3>
+<ul>
+<li>Playwright / Cypress → End-to-end automation (framework integration in progress)</li>
+<li>Expanded validation coverage</li>
+<li>Run history automation</li>
+</ul>
+
+<h3>Phase 3 — System Integration (Planned 🔜)</h3>
 <ul>
 <li>MySQL schema</li>
 <li>API service layer</li>
 <li>Recruiter contact management</li>
-  </ul>
-<h3>Phase 4</h3>
- <ul>
+</ul>
+
+<h3>Phase 4 — Reporting & Compliance (Planned 🔜)</h3>
+<ul>
 <li>Reporting dashboard</li>
 <li>Compliance automation workflows</li>
 </ul>
@@ -318,10 +331,12 @@ This demonstrates how compliance rules and data quality requirements are program
 <hr>
 <h2>Perspective</h2>
 <p>
-Automation frameworks don’t scale. Engineering systems do.<br><br>
-Quality is not validated at the end of delivery — <br> 
-it is enforced throughout the system.<br><br>
-The future of Quality Engineering is not more tests.<br>  
-It is better system design.<br>
+Automation does not create quality.<br>
+Systems do.<br><br>
+
+Quality is not validated at the end of delivery — it is enforced throughout the system.<br><br>
+
+The future of Quality Engineering is not more tests.<br>
+It is better system design.
 </p>
 <hr>
