@@ -88,28 +88,29 @@ app.get("/", (req, res) => {
 
 app.get("/api/contacts", async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-    SELECT 
-      id,
-      date_contacted,
-      recruiter_name,
-      company,
-      role_level AS level,
-      role_type,
-      location,
-      comp_range,
-      status,
-      relationship_status,
-      reported_to_unemployment AS reported_unemployment,
-      follow_up_date AS next_follow_up_date,
-      phone,
-      email,
-      address,
-      website,
-      notes
-    FROM recruiter_tracker
-    ORDER BY date_contacted DESC
-  `);
+const [rows] = await pool.query(`
+  SELECT
+    id,
+    date_contacted,
+    recruiter_name,
+    company,
+    role_level AS level,
+    role_type,
+    location,
+    comp_range,
+    status,
+    relationship_status,
+    reported_to_unemployment AS reported_unemployment,
+    follow_up_date AS next_follow_up_date,
+    phone,
+    email,
+    address,
+    website,
+    notes
+  FROM recruiter_tracker
+  WHERE status NOT IN ('Rejected', 'Closed')
+  ORDER BY date_contacted DESC
+`);
 
     res.json(rows);
   } catch (error) {
@@ -148,16 +149,26 @@ app.get("/api/companies/search", async (req, res) => {
 
 app.get("/api/reports", async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT
-        id,
-        week_start,
-        week_end,
-        submitted,
-        submitted_at
-      FROM weekly_reports
-      ORDER BY week_start DESC, id DESC
-    `);
+const [rows] = await pool.query(`
+  SELECT
+    wr.id,
+    wr.week_start,
+    wr.week_end,
+    wr.submitted,
+    wr.submitted_at
+  FROM weekly_reports wr
+  INNER JOIN (
+    SELECT
+      week_start,
+      week_end,
+      MAX(id) AS max_id
+    FROM weekly_reports
+    WHERE submitted = 1
+    GROUP BY week_start, week_end
+  ) latest
+    ON wr.id = latest.max_id
+  ORDER BY wr.week_start DESC, wr.id DESC
+`);
 
     res.json(rows);
   } catch (error) {
@@ -498,6 +509,88 @@ app.post("/api/contacts", async (req, res) => {
   }
 });
 
+app.get("/api/analytics/sessions-today", async (req, res) => {
+  try {
+    const [tableCheck] = await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+        AND table_name = 'analytics_sessions'
+    `);
+
+    if (!tableCheck[0]?.count) {
+      return res.json({ sessions_today: 0 });
+    }
+
+    const [rows] = await pool.query(`
+      SELECT COUNT(*) AS sessions_today
+      FROM analytics_sessions
+      WHERE DATE(created_at) = CURDATE()
+    `);
+
+    res.json({
+      sessions_today: rows[0]?.sessions_today ?? 0
+    });
+  } catch (error) {
+    console.error("GET /api/analytics/sessions-today failed:", error);
+    res.json({ sessions_today: 0 });
+  }
+});
+
+app.get("/api/validation-runs", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        run_type,
+        status,
+        started_at,
+        completed_at,
+        duration_ms,
+        trigger_source,
+        notes,
+        created_at
+      FROM validation_runs
+      ORDER BY id DESC
+      `
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("GET /api/validation-runs failed:", error);
+    res.status(500).json({ error: "Failed to load validation run history." });
+  }
+});
+
+app.post("/api/validation-runs/start", async (req, res) => {
+  try {
+    const { run_type, trigger_source, notes } = req.body;
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO validation_runs (
+        run_type,
+        status,
+        started_at,
+        trigger_source,
+        notes
+      )
+      VALUES (?, 'STARTED', NOW(), ?, ?)
+      `,
+      [run_type, trigger_source || null, notes || null]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      message: "Validation run started."
+    });
+  } catch (error) {
+    console.error("POST /api/validation-runs/start failed:", error);
+    res.status(500).json({ error: "Failed to start validation run." });
+  }
+});
+
 app.put("/api/contacts/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -624,6 +717,44 @@ app.delete("/api/contacts/:id", async (req, res) => {
   } catch (error) {
     console.error("DELETE /api/contacts/:id failed:", error);
     res.status(500).json({ error: "Failed to delete contact" });
+  }
+});
+
+app.put("/api/validation-runs/:id/complete", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    const [rows] = await pool.query(
+      `SELECT started_at FROM validation_runs WHERE id = ?`,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "Validation run not found." });
+    }
+
+    const startedAt = new Date(rows[0].started_at);
+    const completedAt = new Date();
+    const durationMs = completedAt.getTime() - startedAt.getTime();
+
+    await pool.query(
+      `
+      UPDATE validation_runs
+      SET
+        status = ?,
+        completed_at = NOW(),
+        duration_ms = ?,
+        notes = COALESCE(?, notes)
+      WHERE id = ?
+      `,
+      [status, durationMs, notes || null, id]
+    );
+
+    res.json({ message: "Validation run completed." });
+  } catch (error) {
+    console.error("PUT /api/validation-runs/:id/complete failed:", error);
+    res.status(500).json({ error: "Failed to complete validation run." });
   }
 });
 
@@ -825,6 +956,53 @@ app.get("/api/analytics/stale-sessions", async (req, res) => {
   } catch (error) {
     console.error("GET /api/analytics/stale-sessions failed:", error);
     res.status(500).json({ error: "Failed to load stale sessions." });
+  }
+});
+
+app.get("/api/companies/details", async (req, res) => {
+  try {
+    const company = (req.query.company || "").trim();
+
+    if (!company) {
+      return res.status(400).json({ error: "Company is required." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        date_contacted,
+        recruiter_name,
+        company,
+        role_level,
+        role_type,
+        location,
+        comp_range,
+        status,
+        relationship_status,
+        phone,
+        email,
+        address,
+        website,
+        notes
+      FROM recruiter_tracker
+      WHERE TRIM(company) = TRIM(?)
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [company]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "No company record found." });
+    }
+
+    console.log("Company details returned:", rows[0]);
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("GET /api/companies/details failed:", error);
+    res.status(500).json({ error: "Failed to fetch company details." });
   }
 });
 

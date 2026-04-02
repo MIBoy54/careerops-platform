@@ -10,9 +10,6 @@
   <div class="page">
     <div class="card">
       <h1>System Telemetry</h1>
-      <!-- <div class="demo-banner">
-            Demo Mode – Sample data only. No changes are saved.
-      </div> -->
 
       <div id="message"></div>
       <div id="errors"></div>
@@ -51,11 +48,36 @@
       <div id="trendChart" class="trend-chart"></div>
     </div>
 
+    <section class="card">
+  <h2>Validation Runs</h2>
+
+  <div class="actions-row">
+    <button id="startValidationRunBtn" type="button">Start Validation Run</button>
+    <button id="completeValidationRunBtn" type="button">Complete Latest Run</button>
+  </div>
+
+  <div id="validationRunMessage" class="message"></div>
+
+  <table id="validationRunsTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Run Type</th>
+        <th>Status</th>
+        <th>Started</th>
+        <th>Completed</th>
+        <th>Duration (ms)</th>
+        <th>Trigger Source</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
       <form id="contactForm">
               <h1>Employer Contact Form</h1>
-      <!-- <div class="demo-banner">
-            Demo Mode – Sample data only. No changes are saved.
-      </div> -->
+
       <p class="subtitle">Create or update recruiter and employer contact information.</p>
         <div class="grid">
           <div class="field">
@@ -77,13 +99,15 @@
         </div>
 
         <div class="field">
-          <label for="level">Level</label>
-          <select id="level" name="level">
+          <label for="role_level">Level</label>
+          <select id="role_level" name="level">
             <option value="">-- Select Level --</option>
             <option value="Director">Director</option>
             <option value="Executive">Executive</option>
-            <option value="Lead">Lead</option>
+            <option value="Senior Manager">Senior Manager</option>
             <option value="Manager">Manager</option>
+            <option value="Lead">Lead</option>
+            <option value="QA Engineer">QA Engineer</option>
           </select>
         </div>
 

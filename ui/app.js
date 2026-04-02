@@ -1,5 +1,28 @@
 console.log("app.js loaded");
-const DEMO_MODE = false;
+const DEMO_MODE = false; // Set to true to enable demo mode (no data changes, demo banner shown)
+
+function renderDemoBanner() {
+  if (!DEMO_MODE) return;
+
+  console.log("DEMO banner running...");
+
+  const banner = document.createElement("div");
+  banner.textContent = "DEMO MODE";
+  banner.style.position = "fixed";
+  banner.style.top = "0";
+  banner.style.left = "0";
+  banner.style.right = "0";
+  banner.style.backgroundColor = "#d32f2f";
+  banner.style.color = "white";
+  banner.style.textAlign = "center";
+  banner.style.padding = "8px";
+  banner.style.fontWeight = "bold";
+  banner.style.zIndex = "9999";
+
+  document.body.prepend(banner);
+  document.body.style.paddingTop = "40px";
+}
+
 import { validateContact } from "../src/validateContact.js";
 
 let selectedIds = new Set();
@@ -23,6 +46,8 @@ let closeWeeklyReportDetailBtn;
 let viewButton;
 let analyticsSessionId = null;
 let analyticsHeartbeatInterval = null;
+let validationRuns = [];
+let latestValidationRunId = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -227,29 +252,150 @@ async function loadSessionsToday() {
   }
 }
 
-function startAnalyticsHeartbeat() {
-  if (analyticsHeartbeatInterval) {
-    clearInterval(analyticsHeartbeatInterval);
-  }
+async function loadValidationRuns() {
+  try {
+    const response = await fetch("/api/validation-runs");
 
-  analyticsHeartbeatInterval = setInterval(async () => {
-    try {
-      await sendAnalyticsHeartbeat(15);
-    } catch (error) {
-      console.error("Analytics heartbeat failed:", error);
+    if (!response.ok) {
+      throw new Error("Failed to load validation runs");
     }
-  }, 15000);
+
+    validationRuns = await response.json();
+
+    renderMessage(
+      document.getElementById("validationRunMessage"),
+      ""
+    );
+
+    renderValidationRunsTable();
+    latestValidationRunId = validationRuns.length ? validationRuns[0].id : null;
+  } catch (error) {
+    console.error("Validation runs load failed:", error);
+    renderMessage(
+      document.getElementById("validationRunMessage"),
+      "Failed to load validation runs.",
+      "error"
+    );
+  }
 }
 
-function renderErrors(target, errors) {
-  if (!target) return;
+function renderValidationRunsTable() {
+  const tableBody = document.querySelector("#validationRunsTable tbody");
+  console.log("tableBody found:", !!tableBody);
+  if (!tableBody) return;
 
-  if (!errors || !errors.length) {
-    target.innerHTML = "";
+  tableBody.innerHTML = "";
+
+  if (!validationRuns.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="8">No validation runs found.</td>
+      </tr>
+    `;
     return;
   }
 
-  target.innerHTML = `
+  tableBody.innerHTML = validationRuns
+    .map((run) => {
+      const isLatest = run.id === latestValidationRunId;
+
+      return `
+      <tr class="${isLatest ? 'latest-run' : ''}">
+        <td>${run.id ?? ""}</td>
+        <td>${escapeHtml(run.run_type ?? "")}</td>
+        <td>${escapeHtml(run.status ?? "")}</td>
+        <td>${escapeHtml(run.started_at ?? "")}</td>
+        <td>${escapeHtml(run.completed_at ?? "")}</td>
+        <td>${run.duration_ms ?? ""}</td>
+        <td>${escapeHtml(run.trigger_source ?? "")}</td>
+        <td>${escapeHtml(run.notes ?? "")}</td>
+      </tr>
+    `;
+    })
+    .join("");
+}
+  async function startValidationRun() {
+    const messageDiv = document.getElementById("validationRunMessage");
+
+    try {
+      const response = await fetch("/api/validation-runs/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          run_type: "UI Validation Run",
+          trigger_source: "UI",
+          notes: "Started from CareerOps UI"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to start validation run");
+      }
+
+      const data = await response.json();
+      latestValidationRunId = data.id;
+
+      renderMessage(messageDiv, "Validation run started successfully.");
+      await loadValidationRuns();
+    } catch (error) {
+      console.error("Start validation run failed:", error);
+      renderMessage(messageDiv, "Failed to start validation run.", "error");
+    }
+  }
+
+  async function completeValidationRun() {
+    const messageDiv = document.getElementById("validationRunMessage");
+
+    try {
+      if (!latestValidationRunId) {
+        renderMessage(messageDiv, "No validation run available to complete.", "error");
+        return;
+      }
+
+      const response = await fetch(`/api/validation-runs/${latestValidationRunId}/complete`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "COMPLETED",
+          notes: "Completed from CareerOps UI"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to complete validation run");
+      }
+
+      renderMessage(messageDiv, "Validation run completed successfully.");
+      await loadValidationRuns();
+    } catch (error) {
+      console.error("Complete validation run failed:", error);
+      renderMessage(messageDiv, "Failed to complete validation run.", "error");
+    }
+  }
+
+  function startAnalyticsHeartbeat() {
+    if (analyticsHeartbeatInterval) {
+      clearInterval(analyticsHeartbeatInterval);
+    }
+
+    analyticsHeartbeatInterval = setInterval(async () => {
+      try {
+        await sendAnalyticsHeartbeat(15);
+      } catch (error) {
+        console.error("Analytics heartbeat failed:", error);
+      }
+    }, 15000);
+  }
+
+  function renderErrors(target, errors) {
+    if (!target) return;
+
+    if (!errors || !errors.length) {
+      target.innerHTML = "";
+      return;
+    }
+
+    target.innerHTML = `
     <div class="error-box">
       <strong>Please fix the following:</strong>
       <ul>
@@ -257,76 +403,76 @@ function renderErrors(target, errors) {
       </ul>
     </div>
   `;
-}
-
-function renderMessage(target, message, type = "success") {
-  if (!target) return;
-
-  if (!message) {
-    target.innerHTML = "";
-    return;
   }
 
-  const className = type === "error" ? "error-box" : "success-box";
-  target.innerHTML = `<div class="${className}">${escapeHtml(message)}</div>`;
-}
+  function renderMessage(target, message, type = "success") {
+    if (!target) return;
 
-function formatDate(value) {
-  if (!value) return "";
-  return String(value).split("T")[0];
-}
+    if (!message) {
+      target.innerHTML = "";
+      return;
+    }
 
-function getStatusClass(status) {
-  switch (status) {
-    case "Applied":
-      return "status-green";
-    case "Interviewing":
-      return "status-blue";
-    case "Offer":
-      return "status-purple";
-    case "Rejected":
-      return "status-red";
-    default:
-      return "";
-  }
-}
-
-async function loadContacts() {
-  const response = await fetch("/api/contacts");
-
-  if (!response.ok) {
-    throw new Error("Failed to load contacts");
+    const className = type === "error" ? "error-box" : "success-box";
+    target.innerHTML = `<div class="${className}">${escapeHtml(message)}</div>`;
   }
 
-  contacts = await response.json();
-}
-
-function updateSelectionCount() {
-  if (selectionCountEl) {
-    selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
+  function formatDate(value) {
+    if (!value) return "";
+    return String(value).split("T")[0];
   }
 
-  if (generateReportBtn) {
-    generateReportBtn.disabled = selectedIds.size !== 4;
+  function getStatusClass(status) {
+    switch (status) {
+      case "Applied":
+        return "status-green";
+      case "Interviewing":
+        return "status-blue";
+      case "Offer":
+        return "status-purple";
+      case "Rejected":
+        return "status-red";
+      default:
+        return "";
+    }
   }
 
-  if (viewButton) {
-    viewButton.disabled = selectedIds.size === 0;
+  async function loadContacts() {
+    const response = await fetch("/api/contacts");
+
+    if (!response.ok) {
+      throw new Error("Failed to load contacts");
+    }
+
+    contacts = await response.json();
   }
-}
 
-function getSelectedContacts() {
-  return contacts.filter((c) => selectedIds.has(c.id));
-}
+  function updateSelectionCount() {
+    if (selectionCountEl) {
+      selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
+    }
 
-function renderSelectedContacts(selected) {
-  if (!weeklyReportDetailEl) return;
+    if (generateReportBtn) {
+      generateReportBtn.disabled = selectedIds.size !== 4;
+    }
 
-  weeklyReportDetailEl.innerHTML = `
+    if (viewButton) {
+      viewButton.disabled = selectedIds.size === 0;
+    }
+  }
+
+  function getSelectedContacts() {
+    return contacts.filter((c) => selectedIds.has(c.id));
+  }
+
+  function renderSelectedContacts(selected) {
+    if (!weeklyReportDetailEl) return;
+
+    weeklyReportDetailEl.innerHTML = `
     <h3>Selected Employer Details</h3>
     ${selected
-      .map(
-        (contact) => `
+        .map(
+          (contact) => `
       <div class="contact-card">
         <p><strong>ID:</strong> ${contact.id ?? ""}</p>
         <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
@@ -341,58 +487,58 @@ function renderSelectedContacts(selected) {
         <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
       </div>
     `
-      )
-      .join("")}
+        )
+        .join("")}
   `;
-}
-
-function clearWeeklyReportDetail() {
-  const header = document.getElementById("weekly-report-detail-header");
-
-  if (header) {
-    header.style.display = "none";
   }
 
-  if (weeklyReportDetailEl) {
-    weeklyReportDetailEl.innerHTML =
-      "<p>Select employers or a saved report to view details.</p>";
-  }
-
-  document.querySelectorAll(".view-report-btn").forEach((btn) => {
-    btn.classList.remove("active");
-  });
-}
-
-function setActiveViewReportButton(activeButton) {
-  document.querySelectorAll(".view-report-btn").forEach((btn) => {
-    btn.classList.remove("active");
-  });
-
-  if (activeButton) {
-    activeButton.classList.add("active");
-  }
-}
-
-async function loadWeeklyReportDetail(reportId) {
-  const header = document.getElementById("weekly-report-detail-header");
-
-  if (!weeklyReportDetailEl) return;
-
-  weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
-
-  try {
-    const response = await fetch(`/api/reports/${reportId}`);
-    const report = await response.json();
-
-    if (!response.ok) {
-      throw new Error(report.error || "Failed to load weekly report detail.");
-    }
+  function clearWeeklyReportDetail() {
+    const header = document.getElementById("weekly-report-detail-header");
 
     if (header) {
-      header.style.display = "block";
+      header.style.display = "none";
     }
 
-    weeklyReportDetailEl.innerHTML = `
+    if (weeklyReportDetailEl) {
+      weeklyReportDetailEl.innerHTML =
+        "<p>Select employers or a saved report to view details.</p>";
+    }
+
+    document.querySelectorAll(".view-report-btn").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+  }
+
+  function setActiveViewReportButton(activeButton) {
+    document.querySelectorAll(".view-report-btn").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+
+    if (activeButton) {
+      activeButton.classList.add("active");
+    }
+  }
+
+  async function loadWeeklyReportDetail(reportId) {
+    const header = document.getElementById("weekly-report-detail-header");
+
+    if (!weeklyReportDetailEl) return;
+
+    weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
+
+    try {
+      const response = await fetch(`/api/reports/${reportId}`);
+      const report = await response.json();
+
+      if (!response.ok) {
+        throw new Error(report.error || "Failed to load weekly report detail.");
+      }
+
+      if (header) {
+        header.style.display = "block";
+      }
+
+      weeklyReportDetailEl.innerHTML = `
       <h3>Weekly Report Summary</h3>
       <p><strong>ID:</strong> ${report.id}</p>
       <p><strong>Week Start:</strong> ${formatDate(report.week_start)}</p>
@@ -401,11 +547,10 @@ async function loadWeeklyReportDetail(reportId) {
       <p><strong>Submitted At:</strong> ${formatDate(report.submitted_at)}</p>
 
       <h3>Selected Employer Details</h3>
-      ${
-        report.employers && report.employers.length
+      ${report.employers && report.employers.length
           ? report.employers
-              .map(
-                (contact) => `
+            .map(
+              (contact) => `
             <div class="contact-card">
               <p><strong>ID:</strong> ${contact.id ?? ""}</p>
               <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
@@ -419,60 +564,60 @@ async function loadWeeklyReportDetail(reportId) {
               <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
             </div>
           `
-              )
-              .join("")
+            )
+            .join("")
           : "<p>No employers found for this report.</p>"
-      }
+        }
     `;
-  } catch (error) {
-    console.error("Failed to load weekly report detail:", error);
+    } catch (error) {
+      console.error("Failed to load weekly report detail:", error);
 
-    if (header) {
-      header.style.display = "none";
+      if (header) {
+        header.style.display = "none";
+      }
+
+      weeklyReportDetailEl.innerHTML =
+        `<p class="error">Failed to load weekly report detail.</p>`;
     }
-
-    weeklyReportDetailEl.innerHTML =
-      `<p class="error">Failed to load weekly report detail.</p>`;
   }
-}
 
-function wireViewReportButtons() {
-  const viewButtons = document.querySelectorAll(".view-report-btn");
+  function wireViewReportButtons() {
+    const viewButtons = document.querySelectorAll(".view-report-btn");
 
-  viewButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      const id = Number(button.dataset.id);
-      setActiveViewReportButton(button);
-      await loadWeeklyReportDetail(id);
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = Number(button.dataset.id);
+        setActiveViewReportButton(button);
+        await loadWeeklyReportDetail(id);
+      });
     });
-  });
-}
+  }
 
-async function loadWeeklyReportHistory() {
-  if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) return;
+  async function loadWeeklyReportHistory() {
+    if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) return;
 
-  weeklyHistoryMessageEl.textContent = "";
-  weeklyHistoryMessageEl.className = "message";
-  weeklyHistoryTableBody.innerHTML = "";
+    weeklyHistoryMessageEl.textContent = "";
+    weeklyHistoryMessageEl.className = "message";
+    weeklyHistoryTableBody.innerHTML = "";
 
-  try {
-    const response = await fetch("/api/reports");
-    const reports = await response.json();
+    try {
+      const response = await fetch("/api/reports");
+      const reports = await response.json();
 
-    if (!response.ok) {
-      throw new Error(reports.error || "Failed to load weekly reports.");
-    }
+      if (!response.ok) {
+        throw new Error(reports.error || "Failed to load weekly reports.");
+      }
 
-    if (!Array.isArray(reports) || reports.length === 0) {
-      weeklyHistoryMessageEl.textContent = "No weekly report history found.";
-      weeklyHistoryMessageEl.className = "message error";
-      return;
-    }
+      if (!Array.isArray(reports) || reports.length === 0) {
+        weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+        weeklyHistoryMessageEl.className = "message error";
+        return;
+      }
 
-    reports.forEach((report) => {
-      const row = document.createElement("tr");
+      reports.forEach((report) => {
+        const row = document.createElement("tr");
 
-      row.innerHTML = `
+        row.innerHTML = `
         <td>${formatDate(report.week_start)}</td>
         <td>${formatDate(report.week_end)}</td>
         <td>${report.submitted ?? 0}</td>
@@ -482,137 +627,136 @@ async function loadWeeklyReportHistory() {
         </td>
       `;
 
-      weeklyHistoryTableBody.appendChild(row);
-    });
-
-    wireViewReportButtons();
-  } catch (error) {
-    console.error("Failed to load weekly report history:", error);
-    weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
-    weeklyHistoryMessageEl.className = "message error";
-  }
-}
-
-function wireSelectionCheckboxes() {
-  const checkboxes = document.querySelectorAll(".select-checkbox");
-
-  checkboxes.forEach((checkbox) => {
-    checkbox.addEventListener("change", () => {
-      const id = Number(checkbox.dataset.id);
-
-      if (checkbox.checked) {
-        selectedIds.add(id);
-      } else {
-        selectedIds.delete(id);
-      }
-
-      updateSelectionCount();
-    });
-  });
-}
-
-function wireEditButtons() {
-  const editButtons = document.querySelectorAll(".edit-btn");
-
-  editButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const id = Number(button.dataset.id);
-      const contact = contacts.find((item) => item.id === id);
-
-      if (!contact) return;
-
-      console.log("Editing contact:", contact);
-      console.log("Website only:", contact.website);
-
-      editId = id;
-      selectedIds.clear();
-      updateSelectionCount();
-
-      Object.keys(contact).forEach((key) => {
-        const field = form?.elements?.[key];
-        if (field) {
-          field.value =
-            key === "date_contacted" || key === "next_follow_up_date"
-              ? formatDate(contact[key])
-              : (contact[key] || "");
-        }
+        weeklyHistoryTableBody.appendChild(row);
       });
 
-      if (form?.elements?.website) {
-        form.elements.website.value = contact.website || "";
-      }
-
-      renderMessage(
-        messageDiv,
-        "Editing contact. Update fields and click Save Contact."
-      );
-      renderErrors(errorsDiv, []);
-    });
-  });
-}
-
-function wireDeleteButtons() {
-  const deleteButtons = document.querySelectorAll(".delete-btn");
-
-  deleteButtons.forEach((button) => {
-button.addEventListener("click", async () => {
-  const id = Number(button.dataset.id);
-
-  if (DEMO_MODE) {
-    renderMessage(messageDiv, "Demo Mode: Delete disabled.", "error");
-    return;
-  }
-
-  try {
-    const response = await fetch(`/api/contacts/${id}`, {
-      method: "DELETE"
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to delete contact");
+      wireViewReportButtons();
+    } catch (error) {
+      console.error("Failed to load weekly report history:", error);
+      weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
+      weeklyHistoryMessageEl.className = "message error";
     }
-
-    selectedIds.clear();
-    await loadContacts();
-    renderTable();
-    renderMessage(messageDiv, "Contact deleted successfully.");
-    renderErrors(errorsDiv, []);
-    clearWeeklyReportDetail();
-  } catch (error) {
-    console.error("Delete failed:", error);
-    renderMessage(messageDiv, "Failed to delete contact.", "error");
   }
-});
-  });
-}
 
-function renderTable() {
-  const tableBody = document.querySelector("#contactsTable tbody");
-  if (!tableBody) return;
+  function wireSelectionCheckboxes() {
+    const checkboxes = document.querySelectorAll(".select-checkbox");
 
-  tableBody.innerHTML = "";
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        const id = Number(checkbox.dataset.id);
 
-  const filteredContacts = contacts
-    .filter((c) => (c.reported_unemployment || "No") === "No")
-    .sort((a, b) => {
-      const dateCompare = String(b.date_contacted || "").localeCompare(
-        String(a.date_contacted || "")
-      );
-      if (dateCompare !== 0) {
-        return dateCompare;
-      }
-      return String(a.status || "").localeCompare(String(b.status || ""));
+        if (checkbox.checked) {
+          selectedIds.add(id);
+        } else {
+          selectedIds.delete(id);
+        }
+
+        updateSelectionCount();
+      });
     });
+  }
 
-  filteredContacts.forEach((c) => {
-    const row = document.createElement("tr");
+  function wireEditButtons() {
+    const editButtons = document.querySelectorAll(".edit-btn");
 
-    row.innerHTML = `
+    editButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const id = Number(button.dataset.id);
+        const contact = contacts.find((item) => item.id === id);
+
+        if (!contact) return;
+
+        console.log("Editing contact:", contact);
+        console.log("Website only:", contact.website);
+
+        editId = id;
+        selectedIds.clear();
+        updateSelectionCount();
+
+        Object.keys(contact).forEach((key) => {
+          const field = form?.elements?.[key];
+          if (field) {
+            field.value =
+              key === "date_contacted" || key === "next_follow_up_date"
+                ? formatDate(contact[key])
+                : (contact[key] || "");
+          }
+        });
+
+        if (form?.elements?.website) {
+          form.elements.website.value = contact.website || "";
+        }
+
+        renderMessage(
+          messageDiv,
+          "Editing contact. Update fields and click Save Contact."
+        );
+        renderErrors(errorsDiv, []);
+      });
+    });
+  }
+
+  function wireDeleteButtons() {
+    const deleteButtons = document.querySelectorAll(".delete-btn");
+
+    deleteButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = Number(button.dataset.id);
+
+        if (DEMO_MODE) {
+          renderMessage(messageDiv, "Demo Mode: Delete disabled.", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/contacts/${id}`, {
+            method: "DELETE"
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to delete contact");
+          }
+
+          selectedIds.clear();
+          await loadContacts();
+          renderTable();
+          renderMessage(messageDiv, "Contact deleted successfully.");
+          renderErrors(errorsDiv, []);
+          clearWeeklyReportDetail();
+        } catch (error) {
+          console.error("Delete failed:", error);
+          renderMessage(messageDiv, "Failed to delete contact.", "error");
+        }
+      });
+    });
+  }
+
+  function renderTable() {
+    const tableBody = document.querySelector("#contactsTable tbody");
+    if (!tableBody) return;
+
+    tableBody.innerHTML = "";
+
+    const filteredContacts = contacts
+      .filter((c) => (c.reported_unemployment || "No") === "No")
+      .sort((a, b) => {
+        const dateCompare = String(b.date_contacted || "").localeCompare(
+          String(a.date_contacted || "")
+        );
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+        return String(a.status || "").localeCompare(String(b.status || ""));
+      });
+
+    filteredContacts.forEach((c) => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
       <td>
-        <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${
-          selectedIds.has(c.id) ? "checked" : ""
+        <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""
         } />
       </td>
       <td>${formatDate(c.date_contacted)}</td>
@@ -625,337 +769,397 @@ function renderTable() {
       </td>
     `;
 
-    tableBody.appendChild(row);
-  });
+      tableBody.appendChild(row);
+    });
 
-  wireSelectionCheckboxes();
-  wireEditButtons();
-  wireDeleteButtons();
-  updateSelectionCount();
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  form = document.getElementById("contactForm");
-  errorsDiv = document.getElementById("errors");
-  messageDiv = document.getElementById("message");
-  resetButton = document.getElementById("resetButton");
-  unemploymentForm = document.getElementById("unemploymentForm");
-  dateInput = document.getElementById("date_contacted");
-  companyInput = document.getElementById("company");
-  companySuggestions = document.getElementById("companySuggestions");
-  selectionCountEl = document.getElementById("selectionCount");
-  generateReportBtn = document.getElementById("generateReportBtn");
-  weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
-  weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
-  weeklyReportDetailEl = document.getElementById("weekly-report-detail");
-  closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
-  viewButton = document.getElementById("viewButton");
-
-  const today = new Date().toISOString().split("T")[0];
-
-  contacts = [];
-  selectedIds.clear();
-  editId = null;
-
-  try {
-    await startAnalyticsSession();
-    startAnalyticsHeartbeat();
-  } catch (error) {
-    console.error("Analytics startup failed:", error);
-  }
-
-  initialize();
-  
-  await loadAnalyticsSummary();
-  setTimeout(loadAnalyticsSummary, 2000);
-  setInterval(loadAnalyticsSummary, 30000);
-  await loadAnalyticsTrend();
-  setInterval(loadAnalyticsTrend, 60000);
-
-  async function initialize() {
-    if (dateInput) {
-      dateInput.value = today;
-    }
-
-    await loadContacts();
-    renderTable();
-
-    await loadWeeklyReportHistory();
+    wireSelectionCheckboxes();
+    wireEditButtons();
+    wireDeleteButtons();
     updateSelectionCount();
-    clearWeeklyReportDetail();
   }
 
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  document.addEventListener("DOMContentLoaded", async () => {
+    renderDemoBanner()
+  
+    form = document.getElementById("contactForm");
+    errorsDiv = document.getElementById("errors");
+    messageDiv = document.getElementById("message");
+    resetButton = document.getElementById("resetButton");
+    unemploymentForm = document.getElementById("unemploymentForm");
+    dateInput = document.getElementById("date_contacted");
+    companyInput = document.getElementById("company");
+    companySuggestions = document.getElementById("companySuggestions");
+    selectionCountEl = document.getElementById("selectionCount");
+    generateReportBtn = document.getElementById("generateReportBtn");
+    weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
+    weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
+    weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+    closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
+    viewButton = document.getElementById("viewButton");
+    const startValidationRunBtn = document.getElementById("startValidationRunBtn");
+    const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
 
-    const formData = new FormData(form);
-    const contact = Object.fromEntries(formData.entries());
-    const validation = validateContact(contact);
+    const today = new Date().toISOString().split("T")[0];
 
-    if (!validation.valid) {
-      renderErrors(errorsDiv, validation.errors);
-      return;
+    contacts = [];
+    selectedIds.clear();
+    editId = null;
+
+    try {
+      await startAnalyticsSession();
+      startAnalyticsHeartbeat();
+    } catch (error) {
+      console.error("Analytics startup failed:", error);
     }
 
-    renderErrors(errorsDiv, []);
-    if (DEMO_MODE) {
-      if (editId !== null) {
-        renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
-        editId = null;
-      } else {
-        renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
+    await initialize();
+  
+    await loadAnalyticsSummary();
+    setTimeout(loadAnalyticsSummary, 2000);
+    setInterval(loadAnalyticsSummary, 30000);
+    await loadAnalyticsTrend();
+    setInterval(loadAnalyticsTrend, 60000);
+
+    async function initialize() {
+      if (dateInput) {
+        dateInput.value = today;
       }
 
-      form.reset();
-      return;
+      await loadContacts();
+      renderTable();
+      await loadValidationRuns();
+      await loadWeeklyReportHistory();
+      updateSelectionCount();
+      clearWeeklyReportDetail();
     }
-    try {
-      let response;
-      let result;
 
-      if (editId !== null) {
-        response = await fetch(`/api/contacts/${editId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(contact)
-        });
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-        result = await response.json();
+      const formData = new FormData(form);
+      const contact = Object.fromEntries(formData.entries());
+      const validation = validateContact(contact);
 
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to update contact");
+      if (!validation.valid) {
+        renderErrors(errorsDiv, validation.errors);
+        return;
+      }
+
+      renderErrors(errorsDiv, []);
+      if (DEMO_MODE) {
+        if (editId !== null) {
+          renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
+          editId = null;
+        } else {
+          renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
         }
 
-        renderMessage(messageDiv, "Contact updated successfully.");
-        editId = null;
-      } else {
-        response = await fetch("/api/contacts", {
+        form.reset();
+        return;
+      }
+      try {
+        let response;
+        let result;
+
+        if (editId !== null) {
+          response = await fetch(`/api/contacts/${editId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(contact)
+          });
+
+          result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to update contact");
+          }
+
+          renderMessage(messageDiv, "Contact updated successfully.");
+          editId = null;
+        } else {
+          response = await fetch("/api/contacts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(contact)
+          });
+
+          result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to create contact");
+          }
+
+          renderMessage(messageDiv, "Contact saved successfully.");
+        }
+
+        await loadContacts();
+        selectedIds.clear();
+        renderTable();
+
+        form.reset();
+        if (dateInput) {
+          dateInput.value = today;
+        }
+      } catch (error) {
+        console.error("Save failed:", error);
+        renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
+      }
+    });
+
+    resetButton?.addEventListener("click", () => {
+      form?.reset();
+      if (dateInput) {
+        dateInput.value = today;
+      }
+      editId = null;
+      renderErrors(errorsDiv, []);
+      renderMessage(messageDiv, "");
+    });
+
+    async function loadCompanyDetails(companyName) {
+      console.log("loadCompanyDetails called with:", companyName);
+      try {
+        const response = await fetch(
+          `/api/companies/details?company=${encodeURIComponent(companyName)}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            return;
+          }
+          throw new Error("Failed to fetch company details");
+        }
+
+        const companyDetails = await response.json();
+
+        document.getElementById("company").value = companyDetails.company || "";
+        document.getElementById("recruiter_name").value = companyDetails.recruiter_name || "";
+        document.getElementById("location").value = companyDetails.location || "";
+        document.getElementById("role_level").value = companyDetails.role_level || "";
+        document.getElementById("role_type").value = companyDetails.role_type || "";
+        document.getElementById("status").value = companyDetails.status || "";
+        document.getElementById("relationship_status").value = companyDetails.relationship_status || "";
+        document.getElementById("phone").value = companyDetails.phone || "";
+        document.getElementById("email").value = companyDetails.email || "";
+        document.getElementById("address").value = companyDetails.address || "";
+        document.getElementById("website").value = companyDetails.website || "";
+        document.getElementById("notes").value = companyDetails.notes || "";
+
+        if (companyDetails.date_contacted) {
+          document.getElementById("date_contacted").value =
+            String(companyDetails.date_contacted).split("T")[0];
+        }
+      } catch (error) {
+        console.error("loadCompanyDetails failed:", error);
+        renderMessage(messageDiv, "Failed to load company details.", "error");
+      }
+    }
+
+    document.getElementById("unemploymentExportBtn")?.addEventListener("click", () => {
+      if (!weeklyHistoryTableBody || !weeklyHistoryTableBody.children.length) {
+        if (weeklyHistoryMessageEl) {
+          weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+          weeklyHistoryMessageEl.className = "message error";
+        }
+        return;
+      }
+
+      const firstRow = weeklyHistoryTableBody.children[0];
+      const cells = firstRow.querySelectorAll("td");
+      const start = cells[0]?.textContent.trim();
+      const end = cells[1]?.textContent.trim();
+
+      if (!start || !end) {
+        if (weeklyHistoryMessageEl) {
+          weeklyHistoryMessageEl.textContent = "Unable to determine report date range.";
+          weeklyHistoryMessageEl.className = "message error";
+        }
+        return;
+      }
+
+      window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
+    });
+
+    closeWeeklyReportDetailBtn?.addEventListener("click", () => {
+      clearWeeklyReportDetail();
+    });
+
+    viewButton?.addEventListener("click", () => {
+      const selected = getSelectedContacts();
+
+      if (!selected.length) {
+        if (weeklyReportDetailEl) {
+          weeklyReportDetailEl.innerHTML =
+            `<p class="error">Please select at least one contact.</p>`;
+        }
+        return;
+      }
+
+      renderSelectedContacts(selected);
+    });
+
+    generateReportBtn?.addEventListener("click", async () => {
+      if (selectedIds.size !== 4) {
+        renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
+        return;
+      }
+      if (DEMO_MODE) {
+        renderMessage(messageDiv, "Demo Mode: Weekly report generation is disabled.", "error");
+        return;
+      }
+      if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
+        return;
+      }
+
+      try {
+        const payload = {
+          selectedIds: Array.from(selectedIds)
+        };
+
+        const response = await fetch("/api/reports", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(contact)
-        });
-
-        result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to create contact");
-        }
-
-        renderMessage(messageDiv, "Contact saved successfully.");
-      }
-
-      await loadContacts();
-      selectedIds.clear();
-      renderTable();
-
-      form.reset();
-      if (dateInput) {
-        dateInput.value = today;
-      }
-    } catch (error) {
-      console.error("Save failed:", error);
-      renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
-    }
-  });
-
-  resetButton?.addEventListener("click", () => {
-    form?.reset();
-    if (dateInput) {
-      dateInput.value = today;
-    }
-    editId = null;
-    renderErrors(errorsDiv, []);
-    renderMessage(messageDiv, "");
-  });
-
-  document.getElementById("unemploymentExportBtn")?.addEventListener("click", () => {
-    if (!weeklyHistoryTableBody || !weeklyHistoryTableBody.children.length) {
-      if (weeklyHistoryMessageEl) {
-        weeklyHistoryMessageEl.textContent = "No weekly report history found.";
-        weeklyHistoryMessageEl.className = "message error";
-      }
-      return;
-    }
-
-    const firstRow = weeklyHistoryTableBody.children[0];
-    const cells = firstRow.querySelectorAll("td");
-    const start = cells[0]?.textContent.trim();
-    const end = cells[1]?.textContent.trim();
-
-    if (!start || !end) {
-      if (weeklyHistoryMessageEl) {
-        weeklyHistoryMessageEl.textContent = "Unable to determine report date range.";
-        weeklyHistoryMessageEl.className = "message error";
-      }
-      return;
-    }
-
-    window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
-  });
-
-  closeWeeklyReportDetailBtn?.addEventListener("click", () => {
-    clearWeeklyReportDetail();
-  });
-
-  viewButton?.addEventListener("click", () => {
-    const selected = getSelectedContacts();
-
-    if (!selected.length) {
-      if (weeklyReportDetailEl) {
-        weeklyReportDetailEl.innerHTML =
-          `<p class="error">Please select at least one contact.</p>`;
-      }
-      return;
-    }
-
-    renderSelectedContacts(selected);
-  });
-
-  generateReportBtn?.addEventListener("click", async () => {
-    if (selectedIds.size !== 4) {
-      renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
-      return;
-    }
-    if (DEMO_MODE) {
-      renderMessage(messageDiv, "Demo Mode: Weekly report generation is disabled.", "error");
-      return;
-    }
-    if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
-      return;
-    }
-
-    try {
-      const payload = {
-        selectedIds: Array.from(selectedIds)
-      };
-
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to generate report");
-      }
-
-      renderMessage(messageDiv, "Weekly report generated successfully.");
-      selectedIds.clear();
-
-      await loadContacts();
-      renderTable();
-      await loadWeeklyReportHistory();
-      updateSelectionCount();
-      clearWeeklyReportDetail();
-    } catch (error) {
-      console.error("Generate report failed:", error);
-      renderMessage(messageDiv, "Failed to generate weekly report.", "error");
-    }
-  });
-
-  if (unemploymentForm) {
-    unemploymentForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const payload = {
-        company: document.getElementById("unemployment_company")?.value.trim(),
-        date_reported: document.getElementById("date_reported")?.value,
-        notes: document.getElementById("unemployment_notes")?.value.trim()
-      };
-      if (DEMO_MODE) {
-        renderMessage(messageDiv, "Demo Mode: Unemployment report not saved.", "error");
-        unemploymentForm.reset();
-        return;
-      }
-      try {
-        const response = await fetch("/api/unemployment-report", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
+        const result = await response.json();
+
         if (!response.ok) {
-          throw new Error("Failed to save unemployment report");
+          throw new Error(result.error || "Failed to generate report");
         }
 
-        unemploymentForm.reset();
-        renderMessage(messageDiv, "Unemployment report saved successfully.");
+        renderMessage(messageDiv, "Weekly report generated successfully.");
+        selectedIds.clear();
 
         await loadContacts();
         renderTable();
+        await loadWeeklyReportHistory();
+        updateSelectionCount();
+        clearWeeklyReportDetail();
       } catch (error) {
-        console.error("Unemployment form save failed:", error);
-        renderMessage(messageDiv, "Failed to save unemployment report.", "error");
+        console.error("Generate report failed:", error);
+        renderMessage(messageDiv, "Failed to generate weekly report.", "error");
       }
     });
-  }
 
-  companyInput?.addEventListener("input", async () => {
-    const query = companyInput.value.trim();
+    if (unemploymentForm) {
+      unemploymentForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
 
-    if (query.length < 2) {
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
-      }
-      return;
-    }
+        const payload = {
+          company: document.getElementById("unemployment_company")?.value.trim(),
+          date_reported: document.getElementById("date_reported")?.value,
+          notes: document.getElementById("unemployment_notes")?.value.trim()
+        };
+        if (DEMO_MODE) {
+          renderMessage(messageDiv, "Demo Mode: Unemployment report not saved.", "error");
+          unemploymentForm.reset();
+          return;
+        }
+        try {
+          const response = await fetch("/api/unemployment-report", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
 
-    try {
-      const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
-      const companies = await response.json();
-
-      if (!response.ok) {
-        throw new Error("Failed to load company suggestions");
-      }
-
-      if (companySuggestions) {
-        companySuggestions.innerHTML = companies
-          .map(
-            (company) => `
-              <div class="suggestion-item">${escapeHtml(company)}</div>
-            `
-          )
-          .join("");
-      }
-
-      document.querySelectorAll(".suggestion-item").forEach((item) => {
-        item.addEventListener("mousedown", () => {
-          companyInput.value = item.textContent.trim();
-          if (companySuggestions) {
-            companySuggestions.innerHTML = "";
+          if (!response.ok) {
+            throw new Error("Failed to save unemployment report");
           }
-        });
+
+          unemploymentForm.reset();
+          renderMessage(messageDiv, "Unemployment report saved successfully.");
+
+          await loadContacts();
+          renderTable();
+        } catch (error) {
+          console.error("Unemployment form save failed:", error);
+          renderMessage(messageDiv, "Failed to save unemployment report.", "error");
+        }
       });
-    } catch (error) {
-      console.error("Company search failed:", error);
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
-      }
     }
-  });
 
-  companyInput?.addEventListener("blur", () => {
-    setTimeout(() => {
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
+    companyInput?.addEventListener("input", async () => {
+      const query = companyInput.value.trim();
+
+      if (query.length < 2) {
+        if (companySuggestions) {
+          companySuggestions.innerHTML = "";
+        }
+        return;
       }
-    }, 150);
+
+      try {
+        const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
+        const companies = await response.json();
+
+        if (!response.ok) {
+          throw new Error("Failed to load company suggestions");
+        }
+
+        if (companySuggestions) {
+          companySuggestions.innerHTML = companies
+            .map(
+              (company) => `
+            <div class="suggestion-item">${escapeHtml(company)}</div>
+          `
+            )
+            .join("");
+        }
+
+        document.querySelectorAll(".suggestion-item").forEach((item) => {
+          item.addEventListener("mousedown", async (event) => {
+            event.preventDefault();
+
+            const selectedCompany = item.textContent.trim();
+            console.log("Selected company:", selectedCompany);
+
+            companyInput.value = selectedCompany;
+            companySuggestions.innerHTML = "";
+
+            await loadCompanyDetails(selectedCompany);
+          });
+        });
+      } catch (error) {
+        console.error("Company search failed:", error);
+        if (companySuggestions) {
+          companySuggestions.innerHTML = "";
+        }
+      }
+    });
+
+    companyInput?.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (companySuggestions) {
+          companySuggestions.innerHTML = "";
+        }
+      }, 150);
+    });
+
+    if (startValidationRunBtn) {
+      startValidationRunBtn.addEventListener("click", async () => {
+        await startValidationRun();
+      });
+    }
+
+    if (completeValidationRunBtn) {
+      completeValidationRunBtn.addEventListener("click", async () => {
+        await completeValidationRun();
+      });
+    }
+
+    setTimeout(loadActiveUsers, 2000);
+    setInterval(loadActiveUsers, 15000);
+
+    setTimeout(loadStaleSessions, 2000);
+    setInterval(loadStaleSessions, 15000);
+
+    setTimeout(loadSessionsToday, 2000);
+    setInterval(loadSessionsToday, 15000);
   });
-
-setTimeout(loadActiveUsers, 2000);
-setInterval(loadActiveUsers, 15000);
-
-setTimeout(loadStaleSessions, 2000);
-setInterval(loadStaleSessions, 15000);
-
-setTimeout(loadSessionsToday, 2000);
-setInterval(loadSessionsToday, 15000);
-});

@@ -276,3 +276,36 @@ button.secondary {
   font-size: 10px;
   margin-bottom: 4px;
 }
+
+#validationRunsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+#validationRunsTable th,
+#validationRunsTable td {
+  border: 1px solid #dcdcdc;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+#validationRunsTable th {
+  background-color: #f5f5f5;
+}
+
+.actions-row {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+#validationRunMessage {
+  margin: 10px 0;
+}
+
+.latest-run {
+  background-color: #e8f5e9;
+  font-weight: bold;
+}
