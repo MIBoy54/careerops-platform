@@ -1,5 +1,6 @@
 <h1 align="center">CareerOps Platform</h1>
-<p align="center"><i>CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</i></p>
+<p align="center"><b><i>This architecture reflects a shift from tool-driven automation to system-driven quality engineering.</i></b></p>
+<p align="center">CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</p>
 
 <hr>
 
@@ -84,16 +85,25 @@ The system is built around a CI-first architecture where validation occurs autom
 
 <hr>
 <h2>System Architecture Layers</h2>
-<p>This platform is structured as a multi-layered quality engineering system:</p>
+<p>This platform is structured as a multi-layered <b>quality engineering system</b>, designed to move from execution to observability and enforcement:</p>
 
 <ul>
-<li><b>Data Layer</b> → Audit-ready MySQL schema supporting recruiter and opportunity tracking</li>
-<li><b>API Layer</b> → Service layer enabling CI-integrated validation and workflow orchestration</li>
-<li><b>UI Layer</b> → Recruiter contact management interface supporting operational workflows</li>
-<li><b>Metrics Layer</b> → Dashboard providing pipeline visibility and performance insights</li>
+<li><b>Data Layer</b> → Audit-ready MySQL schema supporting recruiter and opportunity tracking, enabling traceability across workflows</li>
+<li><b>API Layer</b> → Service layer enabling CI-integrated validation, orchestration, and system-level data flow</li>
+<li><b>Validation Layer</b> → Structured validation execution with run history tracking and audit capability (#14)</li>
+<li><b>Observability Layer</b> → Metrics and dashboarding providing CI/CD pipeline visibility, execution trends, and system stability insights (#7)</li>
+<li><b>Enforcement Layer</b> → CI/CD-aligned quality gates ensuring validation standards are met before deployment (#26)</li>
+<li><b>UI Layer</b> →Operational interface supporting recruiter workflows, data interaction, and validation visibility</li>
 <li><b>Compliance Layer</b> → Weekly unemployment reporting with audit and traceability support</li>
 </ul>
-
+<hr>
+<h2>System Design Principles</h2>
+<ul>
+  <li>Validation is continuous, not point-in-time</li>
+  <li>Visibility drives confidence</li>
+  <li>Quality is enforced, not assumed</li>
+  <li>Systems scale quality—not tools alone</li>
+</ul>
 <hr>
 <h2>Architecture</h2>
 <table>
