@@ -1134,6 +1134,15 @@ app.get("/api/companies/details", async (req, res) => {
   }
 });
 
+app.get('/env-check', (req, res) => {
+  res.json({
+    host: process.env.MYSQLHOST,
+    user: process.env.MYSQLUSER,
+    db: process.env.MYSQLDATABASE,
+    port: process.env.MYSQLPORT
+  });
+});
+
 app.get('/hello', (req, res) => {
   res.send('hello');
 });
