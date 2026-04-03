@@ -51,6 +51,77 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../ui")));
 app.use("/src", express.static(path.join(__dirname)));
 
+app.get('/hello', (req, res) => {
+  res.send('hello');
+});
+
+app.get('/db-ping', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT 1 AS ok');
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('db-ping failed:', err);
+    res.status(500).send(`DB_PING_ERROR: ${err.message}`);
+  }
+});
+
+app.get('/setup-db', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS recruiter_tracker (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        date_contacted DATE,
+        recruiter_name VARCHAR(255),
+        company VARCHAR(255),
+        role_level VARCHAR(100),
+        role_type VARCHAR(100),
+        location VARCHAR(255),
+        comp_range VARCHAR(100),
+        status VARCHAR(50),
+        relationship_status VARCHAR(50),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        address VARCHAR(255),
+        website VARCHAR(255),
+        notes TEXT,
+        reported_to_unemployment VARCHAR(10),
+        follow_up_date DATE
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS weekly_reports (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        week_start DATE,
+        week_end DATE,
+        submitted BOOLEAN DEFAULT FALSE,
+        submitted_at TIMESTAMP NULL
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS report_job_contacts (
+        report_id INT,
+        recruiter_tracker_id INT
+      );
+    `);
+
+    await pool.query(`
+      INSERT INTO recruiter_tracker
+      (date_contacted, recruiter_name, company, role_level, role_type, location, comp_range, status, relationship_status)
+      VALUES
+      (CURDATE(), 'John Smith', 'Amazon', 'Director', 'QE Transformation', 'Remote', '$150K-$170K', 'Active', 'Warm'),
+      (CURDATE(), 'Sarah Johnson', 'Microsoft', 'Manager', 'QA Operations', 'Nashville', '$130K-$150K', 'Active', 'Active'),
+      (CURDATE(), 'Mike Brown', 'Google', 'Lead', 'DevOps Platform', 'Remote', '$160K-$180K', 'Active', 'Warm');
+    `);
+
+    res.send('Database setup complete!');
+  } catch (err) {
+    console.error('setup-db failed:', err);
+    res.status(500).send(`ERROR: ${err.message}`);
+  }
+});
+
 const pool = mysql.createPool({
   host: process.env.MYSQLHOST,
   user: process.env.MYSQLUSER,
