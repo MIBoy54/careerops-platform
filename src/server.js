@@ -1065,6 +1065,20 @@ app.get("/api/companies/details", async (req, res) => {
   }
 });
 
+app.get('/hello', (req, res) => {
+  res.send('hello');
+});
+
+app.get('/db-ping', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT 1 AS ok');
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('db-ping failed:', err);
+    res.status(500).send(`DB_PING_ERROR: ${err.message}`);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
