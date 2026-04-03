@@ -1,5 +1,7 @@
 const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 import cors from "cors";
 import dotenv from "dotenv";
@@ -40,9 +42,6 @@ async function ensureReportsDir() {
   await fs.mkdir(reportsDir, { recursive: true });
   return reportsDir;
 }
-const app = express();
-const PORT = process.env.PORT || 3000;
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
