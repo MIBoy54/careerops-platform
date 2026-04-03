@@ -2,11 +2,14 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 import cors from "cors";
+import dotenv from "dotenv";
 import express from "express";
 import fs from "fs/promises";
 import mysql from "mysql2/promise";
 import path from "path";
 import { fileURLToPath } from "url";
+
+dotenv.config();
 
 function getWeekStart() {
   const today = new Date();
@@ -50,10 +53,10 @@ app.use(express.static(path.join(__dirname, "../ui")));
 app.use("/src", express.static(path.join(__dirname)));
 
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "27@67Hampden",
-  database: "recruiter_db",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
