@@ -1013,8 +1013,8 @@ app.get('/setup-db', async (req, res) => {
 
     res.send("Database setup complete!");
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error setting up database");
+    console.error("❌ setup-db failed:", err);
+    res.status(500).send(`ERROR: ${err.message}`);
   }
 });
 
