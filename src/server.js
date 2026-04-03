@@ -962,7 +962,10 @@ app.get("/api/analytics/stale-sessions", async (req, res) => {
 });
 
 app.get('/setup-db', async (req, res) => {
+  console.log("🚀 setup-db called");
+
   try {
+    console.log("Step 1: Creating recruiter_tracker...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS recruiter_tracker (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -985,6 +988,7 @@ app.get('/setup-db', async (req, res) => {
       );
     `);
 
+    console.log("Step 2: Creating weekly_reports...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS weekly_reports (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -995,6 +999,7 @@ app.get('/setup-db', async (req, res) => {
       );
     `);
 
+    console.log("Step 3: Creating report_job_contacts...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS report_job_contacts (
         report_id INT,
@@ -1002,6 +1007,7 @@ app.get('/setup-db', async (req, res) => {
       );
     `);
 
+    console.log("Step 4: Inserting seed data...");
     await pool.query(`
       INSERT INTO recruiter_tracker 
       (date_contacted, recruiter_name, company, role_level, role_type, location, comp_range, status, relationship_status)
@@ -1011,10 +1017,12 @@ app.get('/setup-db', async (req, res) => {
       (CURDATE(), 'Mike Brown', 'Google', 'Lead', 'DevOps Platform', 'Remote', '$160K-$180K', 'Active', 'Warm');
     `);
 
+    console.log("✅ setup-db complete");
     res.send("Database setup complete!");
+
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error setting up database");
+    console.error("❌ setup-db failed:", err);
+    res.status(500).send(`ERROR: ${err.message}`);
   }
 });
 
