@@ -41,7 +41,7 @@ async function ensureReportsDir() {
   return reportsDir;
 }
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -962,6 +962,63 @@ app.get("/api/analytics/stale-sessions", async (req, res) => {
   }
 });
 
+app.get('/setup-db', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS recruiter_tracker (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        date_contacted DATE,
+        recruiter_name VARCHAR(255),
+        company VARCHAR(255),
+        role_level VARCHAR(100),
+        role_type VARCHAR(100),
+        location VARCHAR(255),
+        comp_range VARCHAR(100),
+        status VARCHAR(50),
+        relationship_status VARCHAR(50),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        address VARCHAR(255),
+        website VARCHAR(255),
+        notes TEXT,
+        reported_to_unemployment VARCHAR(10),
+        follow_up_date DATE
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS weekly_reports (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        week_start DATE,
+        week_end DATE,
+        submitted BOOLEAN DEFAULT FALSE,
+        submitted_at TIMESTAMP NULL
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS report_job_contacts (
+        report_id INT,
+        recruiter_tracker_id INT
+      );
+    `);
+
+    await pool.query(`
+      INSERT INTO recruiter_tracker 
+      (date_contacted, recruiter_name, company, role_level, role_type, location, comp_range, status, relationship_status)
+      VALUES
+      (CURDATE(), 'John Smith', 'Amazon', 'Director', 'QE Transformation', 'Remote', '$150K-$170K', 'Active', 'Warm'),
+      (CURDATE(), 'Sarah Johnson', 'Microsoft', 'Manager', 'QA Operations', 'Nashville', '$130K-$150K', 'Active', 'Active'),
+      (CURDATE(), 'Mike Brown', 'Google', 'Lead', 'DevOps Platform', 'Remote', '$160K-$180K', 'Active', 'Warm');
+    `);
+
+    res.send("Database setup complete!");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error setting up database");
+  }
+});
+
 app.get("/api/companies/details", async (req, res) => {
   try {
     const company = (req.query.company || "").trim();
@@ -1010,5 +1067,5 @@ app.get("/api/companies/details", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
