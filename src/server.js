@@ -13,7 +13,7 @@ console.log("🔥 LOADING SERVER FILE:", __filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const DEMO_MODE = String(process.env.DEMO_MODE).trim() === "false";
+const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
 
 
 const ACTIVE_THRESHOLD_MINUTES = 1;
@@ -211,6 +211,31 @@ app.get("/api/contacts", async (req, res) => {
   } catch (error) {
     console.error("GET /api/contacts failed:", error);
     res.status(500).json({ error: "Failed to fetch contacts" });
+  }
+});
+
+app.get('/api/validation-runs', async (req, res) => {
+  console.log('HIT NEW /api/validation-runs ROUTE');
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        id,
+        run_type,
+        status,
+        started_at,
+        completed_at,
+        duration_ms,
+        trigger_source,
+        notes,
+        created_at
+      FROM validation_runs
+      ORDER BY id DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('validation-runs failed:', err);
+    res.status(500).json({ error: 'Failed to load validation run history.' });
   }
 });
 
