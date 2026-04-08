@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # reports
 .reports/
+
+#test-results
+test-results/
