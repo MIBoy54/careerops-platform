@@ -136,22 +136,147 @@ The system is built around a CI-first architecture where validation occurs autom
     <td>Development environment</td>
   </tr>
 </table>
+<hr>
+
+<h2>Quality Engineering Approach: Deterministic UI Automation with System-Aware Design</h2>
+
+<p>
+  This project demonstrates a modern approach to UI automation that goes beyond tool usage
+  and focuses on system reliability, deterministic execution, and maintainable test architecture.
+</p>
+
+<h3>Problem Statement</h3>
+
+<p>Most automation efforts fail not because of tooling limitations, but because:</p>
+
+<ul>
+  <li>Tests depend on inconsistent or pre-existing data</li>
+  <li>UI interactions break due to hidden elements or async rendering</li>
+  <li>Navigation logic is duplicated and brittle</li>
+  <li>Tests validate actions, not system behavior</li>
+</ul>
+
+<p>The result:</p>
+
+<ul>
+  <li>Flaky tests</li>
+  <li>Low confidence in automation</li>
+  <li>High maintenance overhead</li>
+</ul>
+
+<h3>Approach</h3>
+
+<p>
+  This framework addresses those issues by treating automation as part of a quality system,
+  not just test execution.
+</p>
+
+<h4>1. Deterministic Test Data</h4>
+
+<pre><code>await seedContacts(page);</code></pre>
+
+<ul>
+  <li>Ensures required data exists before execution</li>
+  <li>Eliminates dependency on environment state</li>
+  <li>Makes tests repeatable and reliable</li>
+</ul>
+
+<h4>2. Centralized Navigation Contract</h4>
+
+<pre><code>helpers/navigation.js</code></pre>
+
+<ul>
+  <li>Encapsulates all UI navigation logic</li>
+  <li>Prevents duplication across tests</li>
+  <li>Ensures consistent interaction patterns</li>
+</ul>
+
+<h4>3. UI-State-Aware Interaction Handling</h4>
+
+<p>Modern UIs introduce challenges such as:</p>
+
+<ul>
+  <li>Hidden elements (checkboxes, buttons)</li>
+  <li>Disabled controls based on state</li>
+  <li>Dynamic rendering</li>
+</ul>
+
+<p>Solution:</p>
+
+<pre><code>await locator.evaluate((el) =&gt; el.click());</code></pre>
+
+<ul>
+  <li>Bypasses visibility constraints when appropriate</li>
+  <li>Triggers real application behavior</li>
+  <li>Aligns automation with how the UI actually functions</li>
+</ul>
+
+<h4>4. System-State Validation (Not Just Actions)</h4>
+
+<p>Example:</p>
+
+<pre><code>await expect(page.locator('#viewButton')).toBeEnabled();</code></pre>
+
+<ul>
+  <li>Validates system readiness before actions</li>
+  <li>Prevents false positives</li>
+  <li>Improves test reliability</li>
+</ul>
+
+<h4>5. Clean Test Design (Single Responsibility)</h4>
+
+<p>Each test validates one outcome:</p>
+
+<ul>
+  <li>End-to-end user flow</li>
+  <li>Data mutation and persistence</li>
+  <li>Negative state validation</li>
+</ul>
+
+<p>
+  No fallback logic. No branching.<br>
+  Tests either pass or fail based on system behavior.
+</p>
+
+<h3>Example Coverage</h3>
+
+<ul>
+  <li>Detail Viewer end-to-end workflow</li>
+  <li>Weekly Report generation and persistence</li>
+  <li>Validation of required user actions (selection gating)</li>
+</ul>
+
+<h3>Outcome</h3>
+
+<p>This approach results in:</p>
+
+<ul>
+  <li>Stable, repeatable test execution</li>
+  <li>Reduced flakiness</li>
+  <li>Clear separation of concerns</li>
+  <li>Scalable automation architecture</li>
+</ul>
+
+<h3>Key Principle</h3>
+
+<p>
+  Sustainable quality engineering is not a tooling decision — it is a system design decision.
+</p>
+
+<h2 style="text-align: center;">CI Pipeline Flow</h2>
+
+<pre><code>graph TD
+A[Developer Change] --&gt; B[Git Commit]
+B --&gt; C[Git Push]
+C --&gt; D[GitHub Actions Trigger]
+D --&gt; E[npm install Dependencies]
+E --&gt; F[Run Vitest Unit Tests]
+F --&gt; G{Tests Pass?}
+G --&gt;|Yes| H[Record Success]
+G --&gt;|No| I[Record Failure]</code></pre>
 
 <hr>
-<h2 align="center">CI Pipeline Flow</h2>
 
-```mermaid
-graph TD
-A[Developer Change] --> B[Git Commit]
-B --> C[Git Push]
-C --> D[GitHub Actions Trigger]
-D --> E[npm install Dependencies]
-E --> F[Run Vitest Unit Tests]
-F --> G{Tests Pass?}
-G -->|Yes| H[Record Success]
-G -->|No| I[Record Failure]
-```
-<hr>
 <h2>Project Structure</h2>
 <pre><code>
 careerops-platform/
