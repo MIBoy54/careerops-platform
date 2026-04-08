@@ -1124,9 +1124,10 @@ form?.addEventListener("submit", async (event) => {
       window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
     });
 
-    closeWeeklyReportDetailBtn?.addEventListener("click", () => {
-      clearWeeklyReportDetail();
-    });
+closeWeeklyReportDetailBtn?.addEventListener("click", () => {
+  clearWeeklyReportDetail();
+  showSection("savedContactsSection");
+});
 
     generateReportBtn?.addEventListener("click", async () => {
       if (selectedIds.size !== 4) {
