@@ -50,3 +50,15 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   // --- Back to Saved Contacts ---
   await expect(page.locator('#savedContactsSection')).toBeVisible();
 });
+test('View Selected is disabled when no contacts are selected', async ({ page }) => {
+  await page.goto('http://localhost:3000/login.html');
+
+  await page.getByLabel('Email').fill('admin@example.com');
+  await page.getByLabel('Password').fill('StrongPass123');
+
+  await page.getByRole('button', { name: 'Login' }).click();
+  await expect(page.getByText('CareerOps Landing Page')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Saved Contacts' }).click();
+  await expect(page.locator('#viewButton')).toBeDisabled();
+});
