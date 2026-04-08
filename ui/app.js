@@ -48,6 +48,16 @@ let analyticsSessionId = null;
 let analyticsHeartbeatInterval = null;
 let validationRuns = [];
 let latestValidationRunId = null;
+let currentSectionIndex = 0;
+
+const sectionOrder = [
+  "landingPage",
+  "telemetrySection",
+  "contactFormSection",
+  "savedContactsSection",
+  "detailViewerSection",
+  "weeklyReportHistorySection"
+];
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -465,32 +475,37 @@ function renderValidationRunsTable() {
     return contacts.filter((c) => selectedIds.has(c.id));
   }
 
-  function renderSelectedContacts(selected) {
-    if (!weeklyReportDetailEl) return;
+function renderSelectedContacts(selected) {
+  if (!weeklyReportDetailEl) return;
 
-    weeklyReportDetailEl.innerHTML = `
+  weeklyReportDetailEl.innerHTML = `
     <h3>Selected Employer Details</h3>
     ${selected
-        .map(
-          (contact) => `
-      <div class="contact-card">
-        <p><strong>ID:</strong> ${contact.id ?? ""}</p>
-        <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
-        <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
-        <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
-        <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
-        <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
-        <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
-        <p><strong>Level Type:</strong> ${escapeHtml(contact.role_level || "")}</p>
-        <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
-        <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
-      </div>
-    `
-        )
-        .join("")}
+      .map(
+        (contact) => `
+          <div class="contact-card">
+            <p><strong>ID:</strong> ${contact.id ?? ""}</p>
+            <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
+            <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
+            <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
+            <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
+            <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
+            <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
+            <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
+            <p><strong>Role Type:</strong> ${escapeHtml(contact.role_type || "")}</p>
+            <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
+            <p><strong>Comp Range:</strong> ${escapeHtml(contact.comp_range || "")}</p>
+            <p><strong>Address:</strong> ${escapeHtml(contact.address || "")}</p>
+            <p><strong>Website:</strong> ${escapeHtml(contact.website || "")}</p>
+            <p><strong>Notes:</strong> ${escapeHtml(contact.notes || "")}</p>
+            <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
+          </div>
+        `
+      )
+      .join("")}
   `;
-  }
+}
 
   function clearWeeklyReportDetail() {
     const header = document.getElementById("weekly-report-detail-header");
@@ -638,6 +653,17 @@ function renderValidationRunsTable() {
     }
   }
 
+ async function checkAuth() {
+  const response = await fetch("/api/auth/me");
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  return data.user;
+} 
+
   function wireSelectionCheckboxes() {
     const checkboxes = document.querySelectorAll(".select-checkbox");
 
@@ -656,45 +682,43 @@ function renderValidationRunsTable() {
     });
   }
 
-  function wireEditButtons() {
-    const editButtons = document.querySelectorAll(".edit-btn");
+function wireEditButtons() {
+  const editButtons = document.querySelectorAll(".edit-btn");
 
-    editButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const id = Number(button.dataset.id);
-        const contact = contacts.find((item) => item.id === id);
+  editButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = Number(button.dataset.id);
+      const contact = contacts.find((item) => item.id === id);
 
-        if (!contact) return;
+      if (!contact) return;
 
-        console.log("Editing contact:", contact);
-        console.log("Website only:", contact.website);
+      editId = id;
+      selectedIds.clear();
+      updateSelectionCount();
 
-        editId = id;
-        selectedIds.clear();
-        updateSelectionCount();
-
-        Object.keys(contact).forEach((key) => {
-          const field = form?.elements?.[key];
-          if (field) {
-            field.value =
-              key === "date_contacted" || key === "next_follow_up_date"
-                ? formatDate(contact[key])
-                : (contact[key] || "");
-          }
-        });
-
-        if (form?.elements?.website) {
-          form.elements.website.value = contact.website || "";
+      Object.keys(contact).forEach((key) => {
+        const field = form?.elements?.[key];
+        if (field) {
+          field.value =
+            key === "date_contacted" || key === "next_follow_up_date"
+              ? formatDate(contact[key])
+              : (contact[key] || "");
         }
-
-        renderMessage(
-          messageDiv,
-          "Editing contact. Update fields and click Save Contact."
-        );
-        renderErrors(errorsDiv, []);
       });
+
+      if (form?.elements?.website) {
+        form.elements.website.value = contact.website || "";
+      }
+
+      showSection("contactFormSection");
+      renderErrors(errorsDiv, []);
+      renderMessage(
+        messageDiv,
+        "Editing contact. Update fields and click Save Contact."
+      );
     });
-  }
+  });
+}
 
   function wireDeleteButtons() {
     const deleteButtons = document.querySelectorAll(".delete-btn");
@@ -778,137 +802,253 @@ function renderValidationRunsTable() {
     updateSelectionCount();
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
-    renderDemoBanner()
-  
-    form = document.getElementById("contactForm");
-    errorsDiv = document.getElementById("errors");
-    messageDiv = document.getElementById("message");
-    resetButton = document.getElementById("resetButton");
-    unemploymentForm = document.getElementById("unemploymentForm");
-    dateInput = document.getElementById("date_contacted");
-    companyInput = document.getElementById("company");
-    companySuggestions = document.getElementById("companySuggestions");
-    selectionCountEl = document.getElementById("selectionCount");
-    generateReportBtn = document.getElementById("generateReportBtn");
-    weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
-    weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
-    weeklyReportDetailEl = document.getElementById("weekly-report-detail");
-    closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
-    viewButton = document.getElementById("viewButton");
-    const startValidationRunBtn = document.getElementById("startValidationRunBtn");
-    const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+function showSection(sectionId) {
+  document.querySelectorAll(".careerops-section").forEach((section) => {
+    section.classList.remove("active-section");
+  });
 
-    const today = new Date().toISOString().split("T")[0];
+  const target = document.getElementById(sectionId);
+  if (target) {
+    target.classList.add("active-section");
+    currentSectionIndex = sectionOrder.indexOf(sectionId);
+    updateNavButtons();
+  }
+}
 
-    contacts = [];
-    selectedIds.clear();
-    editId = null;
+function updateNavButtons() {
+  const backBtn = document.getElementById("backBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const mainMenuBtn = document.getElementById("mainMenuBtn");
 
-    try {
-      await startAnalyticsSession();
-      startAnalyticsHeartbeat();
-    } catch (error) {
-      console.error("Analytics startup failed:", error);
+  if (!backBtn || !nextBtn || !mainMenuBtn) return;
+
+  backBtn.style.display = currentSectionIndex === 0 ? "none" : "inline-block";
+  mainMenuBtn.style.display = currentSectionIndex === 0 ? "none" : "inline-block";
+
+  if (sectionOrder[currentSectionIndex] === "weeklyReportHistorySection") {
+    nextBtn.style.display = "none";
+  } else if (currentSectionIndex === 0) {
+    nextBtn.style.display = "none";
+  } else {
+    nextBtn.style.display = "inline-block";
+  }
+}
+
+function goBackSection() {
+  if (currentSectionIndex > 0) {
+    showSection(sectionOrder[currentSectionIndex - 1]);
+  }
+}
+
+function goNextSection() {
+  if (currentSectionIndex < sectionOrder.length - 1) {
+    showSection(sectionOrder[currentSectionIndex + 1]);
+  }
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  window.location.href = "/login.html";
+}  
+
+console.log("🚀 DOMContentLoaded fired");
+document.addEventListener("DOMContentLoaded", async () => {
+  renderDemoBanner();
+
+  const user = await checkAuth();
+  if (!user) {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  form = document.getElementById("contactForm");
+  errorsDiv = document.getElementById("formErrors");
+  messageDiv = document.getElementById("formMessage");
+  resetButton = document.getElementById("resetButton");
+  unemploymentForm = document.getElementById("unemploymentForm");
+  dateInput = document.getElementById("date_contacted");
+  companyInput = document.getElementById("company");
+  companySuggestions = document.getElementById("companySuggestions");
+  selectionCountEl = document.getElementById("selectionCount");
+  generateReportBtn = document.getElementById("generateReportBtn");
+  weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
+  weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
+  weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+  closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
+  viewButton = document.getElementById("viewButton");
+viewButton = document.getElementById("viewButton");
+const startValidationRunBtn = document.getElementById("startValidationRunBtn");
+const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+
+viewButton?.addEventListener("click", () => {
+  const selected = getSelectedContacts();
+
+  console.log("VIEW CLICKED:", selected);
+
+  if (!selected.length) {
+    if (weeklyReportDetailEl) {
+      weeklyReportDetailEl.innerHTML =
+        `<p class="error">Please select at least one contact.</p>`;
     }
+    showSection("detailViewerSection");
+    return;
+  }
 
-    await initialize();
-  
-    await loadAnalyticsSummary();
-    setTimeout(loadAnalyticsSummary, 2000);
-    setInterval(loadAnalyticsSummary, 30000);
-    await loadAnalyticsTrend();
-    setInterval(loadAnalyticsTrend, 60000);
+  renderSelectedContacts(selected);
+  showSection("detailViewerSection");
+});
+console.log("📡 About to call loadContacts");
+  document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
+    showSection("landingPage");
+  });
 
-    async function initialize() {
-      if (dateInput) {
-        dateInput.value = today;
-      }
+  document.getElementById("backBtn")?.addEventListener("click", () => {
+    goBackSection();
+  });
 
-      await loadContacts();
-      renderTable();
-      await loadValidationRuns();
-      await loadWeeklyReportHistory();
-      updateSelectionCount();
-      clearWeeklyReportDetail();
-    }
+  document.getElementById("nextBtn")?.addEventListener("click", () => {
+    goNextSection();
+  });
 
-    form?.addEventListener("submit", async (event) => {
-      event.preventDefault();
+  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+    await logout();
+  });
 
-      const formData = new FormData(form);
-      const contact = Object.fromEntries(formData.entries());
-      const validation = validateContact(contact);
-
-      if (!validation.valid) {
-        renderErrors(errorsDiv, validation.errors);
-        return;
-      }
-
-      renderErrors(errorsDiv, []);
-      if (DEMO_MODE) {
-        if (editId !== null) {
-          renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
-          editId = null;
-        } else {
-          renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
-        }
-
-        form.reset();
-        return;
-      }
-      try {
-        let response;
-        let result;
-
-        if (editId !== null) {
-          response = await fetch(`/api/contacts/${editId}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(contact)
-          });
-
-          result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Failed to update contact");
-          }
-
-          renderMessage(messageDiv, "Contact updated successfully.");
-          editId = null;
-        } else {
-          response = await fetch("/api/contacts", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(contact)
-          });
-
-          result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Failed to create contact");
-          }
-
-          renderMessage(messageDiv, "Contact saved successfully.");
-        }
-
-        await loadContacts();
-        selectedIds.clear();
-        renderTable();
-
-        form.reset();
-        if (dateInput) {
-          dateInput.value = today;
-        }
-      } catch (error) {
-        console.error("Save failed:", error);
-        renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
-      }
+  document.querySelectorAll("[data-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSection(button.dataset.target);
     });
+  });
+
+  showSection("landingPage");
+
+ const today = new Date().toISOString().split("T")[0];
+contacts = [];
+selectedIds.clear();
+editId = null;
+
+try {
+  await startAnalyticsSession();
+  startAnalyticsHeartbeat();
+} catch (error) {
+  console.error("Analytics startup failed:", error);
+}
+
+messageDiv = document.getElementById("formMessage");
+
+try {
+  if (dateInput) {
+    dateInput.value = today;
+  }
+
+  await loadContacts();
+  renderTable();
+  await loadValidationRuns();
+  await loadWeeklyReportHistory();
+  updateSelectionCount();
+  clearWeeklyReportDetail();
+
+  await loadAnalyticsSummary();
+  await loadAnalyticsTrend();
+} catch (error) {
+  console.error("Initial page load failed:", error);
+}
+
+setTimeout(loadActiveUsers, 2000);
+setInterval(loadActiveUsers, 15000);
+
+setTimeout(loadStaleSessions, 2000);
+setInterval(loadStaleSessions, 15000);
+
+setTimeout(loadSessionsToday, 2000);
+setInterval(loadSessionsToday, 15000);
+
+setTimeout(loadAnalyticsSummary, 2000);
+setInterval(loadAnalyticsSummary, 30000);
+
+setInterval(loadAnalyticsTrend, 60000);
+
+form?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const formData = new FormData(form);
+  const contact = Object.fromEntries(formData.entries());
+  const validation = validateContact(contact);
+
+  if (!validation.valid) {
+    renderErrors(errorsDiv, validation.errors);
+    return;
+  }
+
+  renderErrors(errorsDiv, []);
+
+  if (DEMO_MODE) {
+    if (editId !== null) {
+      renderMessage(messageDiv, "Demo Mode: Changes not saved.", "error");
+      editId = null;
+    } else {
+      renderMessage(messageDiv, "Demo Mode: Record not saved.", "error");
+    }
+
+    form.reset();
+    if (dateInput) {
+      dateInput.value = today;
+    }
+    return;
+  }
+
+  try {
+    let response;
+    let result;
+
+    if (editId !== null) {
+      response = await fetch(`/api/contacts/${editId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(contact)
+      });
+
+      result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update contact");
+      }
+
+      renderMessage(messageDiv, "Contact updated successfully.");
+      editId = null;
+    } else {
+      response = await fetch("/api/contacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(contact)
+      });
+
+      result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create contact");
+      }
+
+      renderMessage(messageDiv, "Contact saved successfully.");
+    }
+
+    await loadContacts();
+    selectedIds.clear();
+    renderTable();
+
+    form.reset();
+    if (dateInput) {
+      dateInput.value = today;
+    }
+  } catch (error) {
+    console.error("Save failed:", error);
+    renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
+  }
+});
 
     resetButton?.addEventListener("click", () => {
       form?.reset();
@@ -986,20 +1126,6 @@ function renderValidationRunsTable() {
 
     closeWeeklyReportDetailBtn?.addEventListener("click", () => {
       clearWeeklyReportDetail();
-    });
-
-    viewButton?.addEventListener("click", () => {
-      const selected = getSelectedContacts();
-
-      if (!selected.length) {
-        if (weeklyReportDetailEl) {
-          weeklyReportDetailEl.innerHTML =
-            `<p class="error">Please select at least one contact.</p>`;
-        }
-        return;
-      }
-
-      renderSelectedContacts(selected);
     });
 
     generateReportBtn?.addEventListener("click", async () => {
@@ -1084,7 +1210,7 @@ function renderValidationRunsTable() {
         }
       });
     }
-
+  
     companyInput?.addEventListener("input", async () => {
       const query = companyInput.value.trim();
 
@@ -1153,13 +1279,24 @@ function renderValidationRunsTable() {
         await completeValidationRun();
       });
     }
+  
+  const weeklyReportDetailHeader = document.getElementById("weekly-report-detail-header");
 
-    setTimeout(loadActiveUsers, 2000);
-    setInterval(loadActiveUsers, 15000);
+viewButton?.addEventListener("click", () => {
+  const selected = getSelectedContacts();
 
-    setTimeout(loadStaleSessions, 2000);
-    setInterval(loadStaleSessions, 15000);
+  if (!selected.length) {
+    weeklyReportDetailEl.innerHTML = `<p class="error">Please select at least one contact.</p>`;
+    weeklyReportDetailHeader.style.display = "block";
+    showSection("detailViewerSection");
+    return;
+  }
 
-    setTimeout(loadSessionsToday, 2000);
-    setInterval(loadSessionsToday, 15000);
-  });
+  renderSelectedContacts(selected);
+  weeklyReportDetailHeader.style.display = "block";
+  showSection("detailViewerSection");
+});
+  
+showSection("landingPage");
+
+});

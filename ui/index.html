@@ -6,11 +6,32 @@
   <title>CareerOps Platform</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
+<script>console.log("MAIN HTML SCRIPT LOADED");</script>
+<script type="module" src="./app.js"></script>
+  <div class="careerops-nav">
+    <button id="mainMenuBtn" type="button">Main Menu</button>
+    <button id="backBtn" type="button">Back</button>
+    <button id="nextBtn" type="button">Next</button>
+    <button id="logoutBtn" type="button">Logout</button>
+  </div>
+  
+<section id="landingPage" class="careerops-section">
+  <h1>CareerOps Landing Page</h1>
+  <div class="landing-actions">
+    <button type="button" data-target="telemetrySection">System Telemetry</button>
+    <button type="button" data-target="contactFormSection">Employer Contact Form</button>
+    <button type="button" data-target="savedContactsSection">Saved Contacts</button>
+    <button type="button" data-target="detailViewerSection">Detail Viewer</button>
+    <button type="button" data-target="weeklyReportHistorySection">Weekly Report History</button>
+  </div>
+</section>
+
+<section id="telemetrySection" class="careerops-section">
   <div class="page">
     <div class="card">
       <h1>System Telemetry</h1>
-
       <div id="message"></div>
       <div id="errors"></div>
 
@@ -29,56 +50,63 @@
       </div>
 
       <div id="topPagesPanel" class="analytics-panel">
-      <h3>Top Pages</h3>
-      <table id="topPagesTable">
-        <thead>
-          <tr>
-            <th>Page</th>
-            <th>Visits</th>
-            <th>Unique</th>
-            <th>Total Time</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+        <h3>Top Pages</h3>
+        <table id="topPagesTable">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Visits</th>
+              <th>Unique</th>
+              <th>Total Time</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="trendPanel" class="analytics-panel">
+        <h3>Session Activity Trend (Last 8 Hours)</h3>
+        <div id="trendChart" class="trend-chart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Validation Runs</h2>
+
+        <div class="actions-row">
+          <button id="startValidationRunBtn" type="button">Start Validation Run</button>
+          <button id="completeValidationRunBtn" type="button">Complete Latest Run</button>
+        </div>
+
+        <div id="validationRunMessage" class="message"></div>
+
+        <table id="validationRunsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Run Type</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Completed</th>
+              <th>Duration (ms)</th>
+              <th>Trigger Source</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
-
-    <div id="trendPanel" class="analytics-panel">
-      <h3>Session Activity Trend (Last 8 Hours)</h3>
-      <div id="trendChart" class="trend-chart"></div>
-    </div>
-
-    <section class="card">
-  <h2>Validation Runs</h2>
-
-  <div class="actions-row">
-    <button id="startValidationRunBtn" type="button">Start Validation Run</button>
-    <button id="completeValidationRunBtn" type="button">Complete Latest Run</button>
   </div>
-
-  <div id="validationRunMessage" class="message"></div>
-
-  <table id="validationRunsTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Run Type</th>
-        <th>Status</th>
-        <th>Started</th>
-        <th>Completed</th>
-        <th>Duration (ms)</th>
-        <th>Trigger Source</th>
-        <th>Notes</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
 </section>
 
+<section id="contactFormSection" class="careerops-section">
+  <div class="page">
+    <div class="card">
+      <h2>Employer Contact Form</h2>
       <form id="contactForm">
-              <h1>Employer Contact Form</h1>
-
-      <p class="subtitle">Create or update recruiter and employer contact information.</p>
+        <p class="subtitle">Create or update recruiter and employer contact information.</p>
+        <div id="formErrors"></div>
+        <div id="formMessage"></div>
         <div class="grid">
           <div class="field">
             <label for="date_contacted">Date Contacted</label>
@@ -90,39 +118,39 @@
             <input id="recruiter_name" name="recruiter_name" type="text" />
           </div>
 
-        <div class="field">
-          <label for="company">Company / Agency *</label>
-          <div class="autocomplete">
-            <input id="company" name="company" type="text" autocomplete="off" />
-            <div id="companySuggestions" class="suggestions"></div>
+          <div class="field">
+            <label for="company">Company / Agency *</label>
+            <div class="autocomplete">
+              <input id="company" name="company" type="text" autocomplete="off" />
+              <div id="companySuggestions" class="suggestions"></div>
+            </div>
           </div>
-        </div>
 
-        <div class="field">
-          <label for="role_level">Level</label>
-          <select id="role_level" name="level">
-            <option value="">-- Select Level --</option>
-            <option value="Director">Director</option>
-            <option value="Executive">Executive</option>
-            <option value="Senior Manager">Senior Manager</option>
-            <option value="Manager">Manager</option>
-            <option value="Lead">Lead</option>
-            <option value="QA Engineer">QA Engineer</option>
-          </select>
-        </div>
+          <div class="field">
+            <label for="role_level">Level</label>
+            <select id="role_level" name="role_level">
+              <option value="">-- Select Level --</option>
+              <option value="Director">Director</option>
+              <option value="Executive">Executive</option>
+              <option value="Senior Manager">Senior Manager</option>
+              <option value="Manager">Manager</option>
+              <option value="Lead">Lead</option>
+              <option value="QA Engineer">QA Engineer</option>
+            </select>
+          </div>
 
-        <div class="field">
-          <label for="role_type">Role Type</label>
-          <select id="role_type" name="role_type">
-            <option value="">-- Select Role Type --</option>
-            <option value="Leadership">Leadership</option>
-            <option value="QE Transformation">QE Transformation</option>
-            <option value="QA Operations">QA Operations</option>
-            <option value="DevOps Platform">DevOps Platform</option>
-            <option value="Healthcare Tech">Healthcare Tech</option>
-            <option value="AI / Data Platforms">AI / Data Platforms</option>
-          </select>
-        </div>
+          <div class="field">
+            <label for="role_type">Role Type</label>
+            <select id="role_type" name="role_type">
+              <option value="">-- Select Role Type --</option>
+              <option value="Leadership">Leadership</option>
+              <option value="QE Transformation">QE Transformation</option>
+              <option value="QA Operations">QA Operations</option>
+              <option value="DevOps Platform">DevOps Platform</option>
+              <option value="Healthcare Tech">Healthcare Tech</option>
+              <option value="AI / Data Platforms">AI / Data Platforms</option>
+            </select>
+          </div>
 
           <div class="field">
             <label for="location">Location</label>
@@ -183,7 +211,6 @@
           <textarea id="notes" name="notes" rows="5"></textarea>
         </div>
 
- 
         <div class="button-row">
           <button type="submit">Save Contact</button>
           <button type="button" id="resetButton" class="secondary">Reset</button>
@@ -191,74 +218,87 @@
 
         <div id="selectedContactsContainer"></div>
       </form>
-
-      <hr />
-
-<h2>Saved Contacts</h2>
-<p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
-
-<table id="contactsTable">
-  <thead>
-    <tr>
-      <th>Select</th>
-      <th>Date</th>
-      <th>Company</th>
-      <th>Status</th>
-      <th>Reported</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
-<div class="button-row">
-  <button type="button" id="viewButton" disabled>View Selected</button>
-</div>
-
-<section class="card">
-  <h2>Detail Viewer</h2>
-
-  <div id="weekly-report-detail-header" style="display: none; margin-bottom: 12px;">
-    <button id="closeWeeklyReportDetailBtn" type="button">Close</button>
-  </div>
-
-  <div id="weekly-report-detail">
-    <p>Select employers or a saved report to view details.</p>
-  </div>
-
-  <div class="report-actions">
-    <div class="report-warning">
-      ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
-    </div>
-
-    <div class="report-button-row">
-      <button id="generateReportBtn" class="primary-btn">
-        Generate Weekly Report
-      </button>
     </div>
   </div>
 </section>
 
-<section class="card">
-  <h2>Weekly Report History</h2>
+<section id="savedContactsSection" class="careerops-section">
+  <div class="page">
+    <div class="card">
+      <h2>Saved Contacts</h2>
 
-  <div id="weekly-report-history-message" class="message"></div>
+      <p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
 
-  <table id="weekly-report-history-table" class="data-table">
-    <thead>
-            <tr>
-        <th>Week Start</th>
-        <th>Week End</th>
-        <th>Submitted</th>
-        <th>Submitted At</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <button id="unemploymentExportBtn" type="button">Export Unemployment Report</button>
+      <table id="contactsTable">
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Date</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Reported</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="button-row">
+        <button type="button" id="viewButton" disabled>View Selected</button>
+      </div>
+    </div>
+  </div>
 </section>
 
-  <script type="module" src="./app.js"></script>
+<section id="detailViewerSection" class="careerops-section">
+  <div class="page">
+    <div class="card">
+      <h2>Detail Viewer</h2>
+
+      <button id="closeWeeklyReportDetailBtn" type="button">Close</button>
+
+      <div id="weekly-report-detail">
+        <p>Select employers or a saved report to view details.</p>
+      </div>
+
+      <div class="report-actions">
+        <div class="report-warning">
+          ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
+        </div>
+
+        <div class="report-button-row">
+          <button id="generateReportBtn" class="primary-btn" type="button">
+            Generate Weekly Report
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="weeklyReportHistorySection" class="careerops-section">
+  <div class="page">
+    <div class="card">
+      <h2>Weekly Report History</h2>
+
+      <div id="weekly-report-history-message" class="message"></div>
+
+      <table id="weekly-report-history-table" class="data-table">
+        <thead>
+          <tr>
+            <th>Week Start</th>
+            <th>Week End</th>
+            <th>Submitted</th>
+            <th>Submitted At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <button id="unemploymentExportBtn" type="button">Export Unemployment Report</button>
+    </div>
+  </div>
+</section>
 </body>
 </html>

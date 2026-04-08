@@ -1,3 +1,6 @@
+import bcrypt from "bcrypt";
+import session from "express-session";
+
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -47,8 +50,157 @@ const pool = mysql.createPool({
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "change-this-in-env",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 8
+    }
+  })
+);
+
+function requireAuth(req, res, next) {
+  console.log("requireAuth session user:", req.session?.user);
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  next();
+}
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { email, password, full_name } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const trimmedName = full_name ? String(full_name).trim() : null;
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
+
+    const [existingUsers] = await pool.query(
+      "SELECT id FROM users WHERE email = ?",
+      [trimmedEmail]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: "User already exists." });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO users (email, password_hash, full_name)
+      VALUES (?, ?, ?)
+      `,
+      [trimmedEmail, password_hash, trimmedName]
+    );
+
+    req.session.user = {
+      id: result.insertId,
+      email: trimmedEmail,
+      full_name: trimmedName
+    };
+
+    res.status(201).json({
+      message: "User registered successfully.",
+      user: req.session.user
+    });
+  } catch (error) {
+    console.error("Register failed:", error);
+    res.status(500).json({ error: "Failed to register user." });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const trimmedEmail = String(email).trim().toLowerCase();
+
+    const [users] = await pool.query(
+      `
+      SELECT id, email, full_name, password_hash
+      FROM users
+      WHERE email = ?
+      `,
+      [trimmedEmail]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const user = users[0];
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordMatches) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+req.session.user = {
+  id: user.id,
+  email: user.email,
+  full_name: user.full_name
+};
+
+const acceptsHtml = (req.headers.accept || "").includes("text/html");
+
+if (acceptsHtml) {
+  return res.redirect("/");
+}
+
+res.json({
+  message: "Login successful.",
+  user: req.session.user
+});
+} catch (error) {
+  console.error("Login error:", error);
+  return res.status(500).json({ error: error.message });
+}
+});
+
+app.post("/api/auth/logout", requireAuth, async (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Logout failed:", err);
+      return res.status(500).json({ error: "Failed to log out." });
+    }
+
+    res.clearCookie("connect.sid");
+    res.json({ message: "Logout successful." });
+  });
+});
+
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Not authenticated." });
+  }
+
+  res.json({ user: req.session.user });
+});
+
 app.use(express.static(path.join(__dirname, "../ui")));
 app.use("/src", express.static(path.join(__dirname)));
+app.use(express.urlencoded({ extended: true }));
 
 function getWeekStart() {
   const today = new Date();
@@ -79,26 +231,6 @@ async function ensureReportsDir() {
   await fs.mkdir(reportsDir, { recursive: true });
   return reportsDir;
 }
-
-app.use(cors());
-app.use(express.json());
-
-app.use(express.static(path.join(__dirname, "../ui")));
-app.use("/src", express.static(path.join(__dirname)));
-
-app.get('/hello', (req, res) => {
-  res.send('hello');
-});
-
-app.get('/db-ping', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT 1 AS ok');
-    res.json(rows[0]);
-  } catch (err) {
-    console.error('db-ping failed:', err);
-    res.status(500).send(`DB_PING_ERROR: ${err.message}`);
-  }
-});
 
 app.get("/setup-db", async (req, res) => {
   try {
@@ -148,15 +280,16 @@ app.get("/setup-db", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
+app.get("/", requireAuth, async (req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
-app.get("/route-check", (req, res) => {
+app.get("/route-check", requireAuth, async (req, res) => {
   res.send("route-check works");
 });
 
-app.get("/api/contacts", async (req, res) => {
+app.get("/api/contacts", requireAuth, async (req, res) => {
+  console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
   try {
     if (DEMO_MODE) {
@@ -166,7 +299,7 @@ app.get("/api/contacts", async (req, res) => {
           date_contacted: "2026-04-03",
           recruiter_name: "Bruce Lewis",
           company: "CareerOps Demo Company",
-          level: "Director",
+          role_level: "Director",
           role_type: "QE Transformation",
           location: "Remote",
           comp_range: "$130K-$150K",
@@ -189,7 +322,7 @@ app.get("/api/contacts", async (req, res) => {
         date_contacted,
         recruiter_name,
         company,
-        role_level AS level,
+        role_level AS role_level,
         role_type,
         location,
         comp_range,
@@ -239,7 +372,7 @@ app.get('/api/validation-runs', async (req, res) => {
   }
 });
 
-app.get("/api/companies/search", async (req, res) => {
+app.get("/api/companies/search", requireAuth, async (req, res) => {
   try {
     const { q } = req.query;
 
@@ -267,7 +400,7 @@ app.get("/api/companies/search", async (req, res) => {
   }
 });
 
-app.get("/api/reports", async (req, res) => {
+app.get("/api/reports", requireAuth, async (req, res) => {
   try {
 const [rows] = await pool.query(`
   SELECT
@@ -297,7 +430,7 @@ const [rows] = await pool.query(`
   }
 });
 
-app.get("/api/reports/unemployment", async (req, res) => {
+app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
   try {
     const { start, end } = req.query;
 
@@ -346,7 +479,7 @@ app.get("/api/reports/unemployment", async (req, res) => {
   }
 });
 
-app.get("/api/reports/unemployment/export", async (req, res) => {
+app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
   try {
     const { start, end } = req.query;
 
@@ -374,8 +507,8 @@ app.get("/api/reports/unemployment/export", async (req, res) => {
         notes
       FROM recruiter_tracker
       WHERE reported_to_unemployment = 'Yes'
-        AND DATE(date_contacted) BETWEEN ? AND ?
-      ORDER BY date_contacted DESC, id DESC
+        AND DATE(follow_up_date) BETWEEN ? AND ?
+      ORDER BY follow_up_date DESC, id DESC
       `,
       [start, end]
     );
@@ -421,7 +554,7 @@ app.get("/api/reports/unemployment/export", async (req, res) => {
   }
 });
 
-app.get("/api/reports/:id", async (req, res) => {
+app.get("/api/reports/:id", requireAuth, async (req, res) => {
   try {
     const reportId = req.params.id;
 
@@ -483,7 +616,7 @@ app.get("/api/reports/:id", async (req, res) => {
   }
 });
 
-app.get("/api/contacts/export", async (req, res) => {
+app.get("/api/contacts/export", requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT
@@ -557,13 +690,13 @@ app.get("/api/contacts/export", async (req, res) => {
   }
 });
 
-app.post("/api/contacts", async (req, res) => {
+app.post("/api/contacts", requireAuth, async (req, res) => {
   try {
     const {
       date_contacted,
       recruiter_name,
       company,
-      level,
+      role_level,
       role_type,
       location,
       comp_range,
@@ -603,7 +736,7 @@ app.post("/api/contacts", async (req, res) => {
         date_contacted || null,
         recruiter_name || null,
         company || null,
-        level || null,
+        role_level || null,
         role_type || null,
         location || null,
         comp_range || null,
@@ -629,7 +762,7 @@ app.post("/api/contacts", async (req, res) => {
   }
 });
 
-app.get("/api/analytics/sessions-today", async (req, res) => {
+app.get("/api/analytics/sessions-today", requireAuth, async (req, res) => {
   try {
     const [tableCheck] = await pool.query(`
       SELECT COUNT(*) AS count
@@ -657,7 +790,7 @@ app.get("/api/analytics/sessions-today", async (req, res) => {
   }
 });
 
-app.get("/api/validation-runs", async (req, res) => {
+app.get("/api/validation-runs", requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `
@@ -683,7 +816,7 @@ app.get("/api/validation-runs", async (req, res) => {
   }
 });
 
-app.post("/api/validation-runs/start", async (req, res) => {
+app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
   try {
     const { run_type, trigger_source, notes } = req.body;
 
@@ -711,14 +844,14 @@ app.post("/api/validation-runs/start", async (req, res) => {
   }
 });
 
-app.put("/api/contacts/:id", async (req, res) => {
+app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const {
       date_contacted,
       recruiter_name,
       company,
-      level,
+      role_level,
       role_type,
       location,
       comp_range,
@@ -759,7 +892,7 @@ app.put("/api/contacts/:id", async (req, res) => {
         date_contacted || null,
         recruiter_name || null,
         company || null,
-        level || null,
+        role_level || null,
         role_type || null,
         location || null,
         comp_range || null,
@@ -821,7 +954,7 @@ app.put("/api/analytics/heartbeat", async (req, res) => {
     res.status(500).json({ error: "Heartbeat failed" });
   }
 });
-app.delete("/api/contacts/:id", async (req, res) => {
+app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -840,7 +973,7 @@ app.delete("/api/contacts/:id", async (req, res) => {
   }
 });
 
-app.put("/api/validation-runs/:id/complete", async (req, res) => {
+app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -878,7 +1011,7 @@ app.put("/api/validation-runs/:id/complete", async (req, res) => {
   }
 });
 
-app.post("/api/reports", async (req, res) => {
+app.post("/api/reports", requireAuth, async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
@@ -949,7 +1082,7 @@ if (uniqueIds.length !== 4) {
   }
 });
 
-app.get("/api/analytics/summary", async (req, res) => {
+app.get("/api/analytics/summary", requireAuth, async (req, res) => {
   try {
     const [[totals]] = await pool.query(
       `
@@ -1018,7 +1151,7 @@ app.post("/api/analytics/start", async (req, res) => {
   }
 });
 
-app.get("/api/analytics/trend", async (req, res) => {
+app.get("/api/analytics/trend", requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `
@@ -1041,7 +1174,7 @@ app.get("/api/analytics/trend", async (req, res) => {
   }
 });
 
-app.get("/api/analytics/active-users", async (req, res) => {
+app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `
@@ -1060,7 +1193,7 @@ app.get("/api/analytics/active-users", async (req, res) => {
   }
 });
 
-app.get("/api/analytics/stale-sessions", async (req, res) => {
+app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `
@@ -1079,64 +1212,7 @@ app.get("/api/analytics/stale-sessions", async (req, res) => {
   }
 });
 
-app.get('/setup-db', async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS recruiter_tracker (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        date_contacted DATE,
-        recruiter_name VARCHAR(255),
-        company VARCHAR(255),
-        role_level VARCHAR(100),
-        role_type VARCHAR(100),
-        location VARCHAR(255),
-        comp_range VARCHAR(100),
-        status VARCHAR(50),
-        relationship_status VARCHAR(50),
-        phone VARCHAR(50),
-        email VARCHAR(255),
-        address VARCHAR(255),
-        website VARCHAR(255),
-        notes TEXT,
-        reported_to_unemployment VARCHAR(10),
-        follow_up_date DATE
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS weekly_reports (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        week_start DATE,
-        week_end DATE,
-        submitted BOOLEAN DEFAULT FALSE,
-        submitted_at TIMESTAMP NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS report_job_contacts (
-        report_id INT,
-        recruiter_tracker_id INT
-      );
-    `);
-
-    await pool.query(`
-      INSERT INTO recruiter_tracker 
-      (date_contacted, recruiter_name, company, role_level, role_type, location, comp_range, status, relationship_status)
-      VALUES
-      (CURDATE(), 'John Smith', 'Amazon', 'Director', 'QE Transformation', 'Remote', '$150K-$170K', 'Active', 'Warm'),
-      (CURDATE(), 'Sarah Johnson', 'Microsoft', 'Manager', 'QA Operations', 'Nashville', '$130K-$150K', 'Active', 'Active'),
-      (CURDATE(), 'Mike Brown', 'Google', 'Lead', 'DevOps Platform', 'Remote', '$160K-$180K', 'Active', 'Warm');
-    `);
-
-    res.send("Database setup complete!");
-  } catch (err) {
-    console.error("❌ setup-db failed:", err);
-    res.status(500).send(`ERROR: ${err.message}`);
-  }
-});
-
-app.get("/api/companies/details", async (req, res) => {
+app.get("/api/companies/details", requireAuth, async (req, res) => {
   try {
     const company = (req.query.company || "").trim();
 
@@ -1181,15 +1257,6 @@ app.get("/api/companies/details", async (req, res) => {
     console.error("GET /api/companies/details failed:", error);
     res.status(500).json({ error: "Failed to fetch company details." });
   }
-});
-
-app.get('/env-check', (req, res) => {
-  res.json({
-    host: process.env.MYSQLHOST,
-    user: process.env.MYSQLUSER,
-    db: process.env.MYSQLDATABASE,
-    port: process.env.MYSQLPORT
-  });
 });
 
 app.get("/hello", (req, res) => {

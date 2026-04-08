@@ -309,3 +309,46 @@ button.secondary {
   background-color: #e8f5e9;
   font-weight: bold;
 }
+
+
+.careerops-section {
+  display: none;
+}
+
+.careerops-section.active-section {
+  display: block;
+}
+
+.careerops-nav {
+  border-bottom: 1px solid #ccc;
+}
+
+#formMessage {
+  margin: 10px 0 14px 0;
+}
+
+#formMessage .success-box {
+  background: #eaf7ed;
+  border: 1px solid #b7dfc2;
+  color: #1f7a35;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+#formMessage .error-box {
+  background: #fdeaea;
+  border: 1px solid #f1b5b5;
+  color: #b42318;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+#closeWeeklyReportDetailBtn {
+  display: inline-block !important;
+  background: red;
+  color: white;
+  padding: 8px 12px;
+  border: 1px solid black;
+}
