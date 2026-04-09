@@ -25,11 +25,11 @@ It is a <b>quality engineering system</b>.
 <hr>
 <h2>Build Status</h2>
 <p align="center">
-<img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg"/>
-<img src="https://img.shields.io/badge/node-20.x-green"/>
-<img src="https://img.shields.io/badge/tests-vitest%20passing-brightgreen"/>
-<img src="https://img.shields.io/badge/e2e-playwright-blue"/>
-<img src="https://img.shields.io/badge/framework-cypress-blue"/>
+  <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg" alt="CareerOps CI" />
+  <img src="https://img.shields.io/badge/node-20.x-green" alt="Node 20.x" />
+  <img src="https://img.shields.io/badge/unit%20tests-vitest%20passing-brightgreen" alt="Vitest passing" />
+  <img src="https://img.shields.io/badge/e2e-playwright%20passing-blue" alt="Playwright passing" />
+  <img src="https://img.shields.io/badge/framework-playwright-blue" alt="Playwright framework" />
 </p>
 
 <hr>
