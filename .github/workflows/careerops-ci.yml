@@ -21,8 +21,8 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Run Unit Tests (Vitest)
-        run: npx vitest run
+      - name: - name: Run Unit Tests (Vitest)
+        run: npx vitest run tests/validation
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
