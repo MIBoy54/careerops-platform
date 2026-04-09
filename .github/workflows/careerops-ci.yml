@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,7 +33,8 @@ jobs:
       - name: Start App
         run: |
           DEMO_MODE=true npm start &
-          sleep 10
+          npx wait-on http://localhost:3000
 
       - name: Run E2E Tests (Playwright)
         run: npx playwright test tests/e2e/detailViewerPage tests/e2e/weeklyReportPage
+One note
