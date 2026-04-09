@@ -67,7 +67,19 @@ app.use(
 );
 
 function requireAuth(req, res, next) {
+  if (DEMO_MODE) {
+    if (!req.session.user) {
+      req.session.user = {
+        id: 0,
+        email: "admin@example.com",
+        full_name: "Demo User"
+      };
+    }
+    return next();
+  }
+
   console.log("requireAuth session user:", req.session?.user);
+
   if (!req.session.user) {
     return res.status(401).json({ error: "Authentication required." });
   }
@@ -191,6 +203,14 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
 });
 
 app.get("/api/auth/me", requireAuth, async (req, res) => {
+  if (DEMO_MODE && !req.session.user) {
+    req.session.user = {
+      id: 0,
+      email: "admin@example.com",
+      full_name: "Demo User"
+    };
+  }
+
   if (!req.session.user) {
     return res.status(401).json({ error: "Not authenticated." });
   }
