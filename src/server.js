@@ -280,7 +280,11 @@ app.get("/setup-db", async (req, res) => {
   }
 });
 
-app.get("/", requireAuth, async (req, res) => {
+app.get("/", async (req, res) => {
+  if (!req.session.user && !DEMO_MODE) {
+    return res.redirect("/login.html");
+  }
+
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
