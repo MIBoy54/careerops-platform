@@ -54,37 +54,40 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "change-this-in-env",
+    secret: process.env.SESSION_SECRET || "careerops-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 8
+      secure: false, // IMPORTANT for Railway (no HTTPS termination in Node)
+      httpOnly: true
     }
   })
 );
 
 function requireAuth(req, res, next) {
-  if (DEMO_MODE) {
-    if (!req.session.user) {
-      req.session.user = {
-        id: 0,
-        email: "admin@example.com",
-        full_name: "Demo User"
-      };
+  try {
+    if (DEMO_MODE) {
+      if (!req.session?.user) {
+        req.session.user = {
+          id: 0,
+          email: "admin@example.com",
+          full_name: "Demo User"
+        };
+      }
+      return next();
     }
-    return next();
+
+    console.log("requireAuth session user:", req.session?.user);
+
+    if (!req.session?.user) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    next();
+  } catch (err) {
+    console.error("Auth error:", err);
+    return res.status(500).json({ error: "Auth failure" });
   }
-
-  console.log("requireAuth session user:", req.session?.user);
-
-  if (!req.session.user) {
-    return res.status(401).json({ error: "Authentication required." });
-  }
-
-  next();
 }
 
 app.post("/api/auth/register", async (req, res) => {
@@ -301,12 +304,17 @@ app.get("/setup-db", async (req, res) => {
   }
 });
 
-app.get("/", async (req, res) => {
-  if (!req.session.user && !DEMO_MODE) {
-    return res.redirect("/login.html");
-  }
+app.get("/", (req, res) => {
+  try {
+    if (!req.session?.user && !DEMO_MODE) {
+      return res.redirect("/login.html");
+    }
 
-  res.sendFile(path.join(__dirname, "../ui/index.html"));
+    return res.sendFile(path.join(__dirname, "../ui/index.html"));
+  } catch (err) {
+    console.error("Root route error:", err);
+    return res.status(500).send("Server error");
+  }
 });
 
 app.get("/api/contacts", requireAuth, async (req, res) => {
