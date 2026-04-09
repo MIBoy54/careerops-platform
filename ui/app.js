@@ -1,5 +1,5 @@
 console.log("app.js loaded");
-const DEMO_MODE = false; // Set to true to enable demo mode (no data changes, demo banner shown)
+const DEMO_MODE = true; // Set to true to enable demo mode (no data changes, demo banner shown)
 
 function renderDemoBanner() {
   if (!DEMO_MODE) return;
