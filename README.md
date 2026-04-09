@@ -1,7 +1,19 @@
 <h1 align="center">CareerOps Platform</h1>
-<p align="center"><b><i>This architecture reflects a shift from tool-driven automation to system-driven quality engineering.</i></b></p>
-<p align="center">CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</p>
-
+<p align="center"><b><i>This platform demonstrates how quality can be designed into a system rather than enforced through tooling alone.</i></b></p>
+<p>Key capabilities:</p>
+<ul>
+  <li>Role-based quality control (Admin vs Read-Only users)</li>
+  <li>End-to-end validation run tracking (UI + API sources)</li>
+  <li>Human-readable telemetry and execution analytics</li>
+  <li>Controlled data mutation with enforced governance</li>
+  <li>Demo-safe architecture to prevent unintended system changes</li>
+</ul>
+<p>This reflects a Quality Engineering operating model where:</p>
+<ul>
+  <li>Risk is visible in real time</li>
+  <li>Execution is observable and measurable</li>
+  <li>Quality is embedded in workflows, not dependent on manual intervention</li>
+</ul>
 <hr>
 
 <p>
@@ -470,6 +482,7 @@ Automation does not create quality.<br>
 Systems do.<br><br>
 
 Quality is not validated at the end of delivery — it is enforced throughout the system.<br><br>
+<p align="center">CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</p>
 
 The future of Quality Engineering is not more tests.<br>
 It is better system design.
