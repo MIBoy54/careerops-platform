@@ -25,7 +25,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, "../ui")));
-res.sendFile(path.join(__dirname, "../ui/index.html"));
 
 console.log("DB ENV CHECK", {
   DB_HOST: process.env.DB_HOST,
