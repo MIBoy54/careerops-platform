@@ -37,4 +37,3 @@ jobs:
 
       - name: Run E2E Tests (Playwright)
         run: npx playwright test tests/e2e/detailViewerPage tests/e2e/weeklyReportPage
-One note
