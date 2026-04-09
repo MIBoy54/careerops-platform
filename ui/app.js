@@ -1,5 +1,55 @@
 console.log("app.js loaded");
-const DEMO_MODE = true; // Set to true to enable demo mode (no data changes, demo banner shown)
+const DEMO_MODE = false; // Set to true to enable demo mode (no data changes, demo banner shown)
+
+function isAdminUser() {
+  return window.currentUser?.role === "admin";
+}
+
+function applyRoleBasedAccess() {
+  const admin = isAdminUser();
+
+  const formFields = document.querySelectorAll(
+    "#contactForm input, #contactForm select, #contactForm textarea, #contactForm button"
+  );
+
+  formFields.forEach((el) => {
+    el.disabled = !admin;
+  });
+
+  if (generateReportBtn) {
+    generateReportBtn.disabled = !admin || selectedIds.size !== 4;
+  }
+
+  if (viewButton) {
+    viewButton.disabled = selectedIds.size === 0;
+  }
+
+  // 🔥 ADD THIS BLOCK
+  if (!admin) {
+    let banner = document.getElementById("readOnlyBanner");
+
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "readOnlyBanner";
+      banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+      banner.style.background = "#f57c00";
+      banner.style.color = "white";
+      banner.style.textAlign = "center";
+      banner.style.padding = "8px";
+      banner.style.fontWeight = "bold";
+      banner.style.letterSpacing = "0.5px";
+      banner.style.position = "fixed";
+      banner.style.top = "0";
+      banner.style.left = "0";
+      banner.style.right = "0";
+      banner.style.zIndex = "9999";
+      banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+
+      document.body.prepend(banner);
+      document.body.style.paddingTop = "40px";
+    }
+  }
+}
 
 function renderDemoBanner() {
   if (!DEMO_MODE) return;
@@ -78,6 +128,20 @@ function getAnalyticsSessionId() {
   return sessionId;
 }
 
+function formatSeconds(seconds) {
+  if (!seconds && seconds !== 0) return "";
+
+  const totalSeconds = Math.floor(Number(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${totalSeconds % 60}s`;
+  return `${totalSeconds}s`;
+}
+
 async function startAnalyticsSession() {
   console.log("startAnalyticsSession called");
 
@@ -115,10 +179,10 @@ async function loadAnalyticsSummary() {
     Number(data.totals.unique_visitors ?? 0).toLocaleString();
 
   document.getElementById("totalTime").textContent =
-    Number(data.totals.total_time_spent_seconds ?? 0).toLocaleString();
+    formatSeconds(data.totals.total_time_spent_seconds ?? 0);
 
   document.getElementById("avgTime").textContent =
-    Number(data.totals.avg_time_spent_seconds ?? 0).toLocaleString();
+    formatSeconds(data.totals.avg_time_spent_seconds ?? 0);
 
   document.getElementById("lastUpdated").textContent =
   new Date().toLocaleTimeString();
@@ -134,7 +198,7 @@ async function loadAnalyticsSummary() {
         <td>${page.page_path}</td>
         <td>${page.visits}</td>
         <td>${page.unique_visitors}</td>
-        <td>${page.total_time_spent_seconds}</td>
+        <td>${formatSeconds(page.total_time_spent_seconds)}</td>
       `;
 
       tbody.appendChild(row);
@@ -160,6 +224,33 @@ async function sendAnalyticsHeartbeat(seconds = 15) {
   if (!response.ok) {
     throw new Error("Failed to send analytics heartbeat");
   }
+}
+
+function formatDuration(ms) {
+  if (!ms && ms !== 0) return "";
+
+  const minutes = Math.floor(ms / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  return `${minutes}m`;
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return "";
+
+  const d = new Date(dateString);
+
+  return d.toLocaleString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
 }
 
 async function loadAnalyticsTrend() {
@@ -314,9 +405,9 @@ function renderValidationRunsTable() {
         <td>${run.id ?? ""}</td>
         <td>${escapeHtml(run.run_type ?? "")}</td>
         <td>${escapeHtml(run.status ?? "")}</td>
-        <td>${escapeHtml(run.started_at ?? "")}</td>
-        <td>${escapeHtml(run.completed_at ?? "")}</td>
-        <td>${run.duration_ms ?? ""}</td>
+        <td>${formatDateTime(run.started_at)}</td>
+        <td>${formatDateTime(run.completed_at)}</td>
+        <td>${formatDuration(run.duration_ms)}</td>
         <td>${escapeHtml(run.trigger_source ?? "")}</td>
         <td>${escapeHtml(run.notes ?? "")}</td>
       </tr>
@@ -457,19 +548,19 @@ function renderValidationRunsTable() {
     contacts = await response.json();
   }
 
-  function updateSelectionCount() {
-    if (selectionCountEl) {
-      selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
-    }
-
-    if (generateReportBtn) {
-      generateReportBtn.disabled = selectedIds.size !== 4;
-    }
-
-    if (viewButton) {
-      viewButton.disabled = selectedIds.size === 0;
-    }
+function updateSelectionCount() {
+  if (selectionCountEl) {
+    selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
   }
+
+  if (generateReportBtn) {
+    generateReportBtn.disabled = !isAdminUser() || selectedIds.size !== 4;
+  }
+
+  if (viewButton) {
+    viewButton.disabled = selectedIds.size === 0;
+  }
+}
 
   function getSelectedContacts() {
     return contacts.filter((c) => selectedIds.has(c.id));
@@ -757,50 +848,60 @@ function wireEditButtons() {
     });
   }
 
-  function renderTable() {
-    const tableBody = document.querySelector("#contactsTable tbody");
-    if (!tableBody) return;
+function renderTable() {
+  const tableBody = document.querySelector("#contactsTable tbody");
+  console.log("tableBody found:", !!tableBody);
+  console.log("contacts count:", contacts.length);
 
-    tableBody.innerHTML = "";
+  if (!tableBody) return;
 
-    const filteredContacts = contacts
-      .filter((c) => (c.reported_unemployment || "No") === "No")
-      .sort((a, b) => {
-        const dateCompare = String(b.date_contacted || "").localeCompare(
-          String(a.date_contacted || "")
-        );
-        if (dateCompare !== 0) {
-          return dateCompare;
-        }
-        return String(a.status || "").localeCompare(String(b.status || ""));
-      });
+  tableBody.innerHTML = "";
 
-    filteredContacts.forEach((c) => {
-      const row = document.createElement("tr");
+const filteredContacts = contacts
+  .filter((c) => {
+    const status = String(c.status || "").trim().toLowerCase();
+    return status !== "rejected" && status !== "closed";
+  })
+  .sort((a, b) => {
+    const dateCompare = String(b.date_contacted || "").localeCompare(
+      String(a.date_contacted || "")
+    );
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+    return String(a.status || "").localeCompare(String(b.status || ""));
+  });
 
-      row.innerHTML = `
-      <td>
-        <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""
-        } />
-      </td>
-      <td>${formatDate(c.date_contacted)}</td>
-      <td>${escapeHtml(c.company || "")}</td>
-      <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
-      <td>${escapeHtml(c.reported_unemployment || "No")}</td>
-      <td>
-        <button type="button" class="edit-btn" data-id="${c.id}">Edit</button>
-        <button type="button" class="delete-btn" data-id="${c.id}">Delete</button>
-      </td>
-    `;
+  console.log("filteredContacts count:", filteredContacts.length);
 
-      tableBody.appendChild(row);
-    });
+  filteredContacts.forEach((c) => {
+    const row = document.createElement("tr");
 
-    wireSelectionCheckboxes();
-    wireEditButtons();
-    wireDeleteButtons();
-    updateSelectionCount();
-  }
+row.innerHTML = `
+  <td>
+    <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />
+  </td>
+  <td>${formatDate(c.date_contacted)}</td>
+  <td>${escapeHtml(c.company || "")}</td>
+  <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
+  <td>${escapeHtml(c.reported_unemployment || "No")}</td>
+  <td>
+    ${isAdminUser() ? `
+      <button type="button" class="edit-btn" data-id="${c.id}">Edit</button>
+      <button type="button" class="delete-btn" data-id="${c.id}">Delete</button>
+    ` : ""}
+  </td>
+`;
+
+    tableBody.appendChild(row);
+  });
+
+wireSelectionCheckboxes();
+wireEditButtons();
+wireDeleteButtons();
+updateSelectionCount();
+applyRoleBasedAccess();
+}
 
 function showSection(sectionId) {
   document.querySelectorAll(".careerops-section").forEach((section) => {
@@ -855,11 +956,14 @@ console.log("🚀 DOMContentLoaded fired");
 document.addEventListener("DOMContentLoaded", async () => {
   renderDemoBanner();
 
-  const user = await checkAuth();
-  if (!user) {
-    window.location.href = "/login.html";
-    return;
-  }
+const user = await checkAuth();
+if (!user) {
+  window.location.href = "/login.html";
+  return;
+}
+
+window.currentUser = user;
+console.log("currentUser:", window.currentUser);
 
   form = document.getElementById("contactForm");
   errorsDiv = document.getElementById("formErrors");
@@ -876,10 +980,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   weeklyReportDetailEl = document.getElementById("weekly-report-detail");
   closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
   viewButton = document.getElementById("viewButton");
-viewButton = document.getElementById("viewButton");
 const startValidationRunBtn = document.getElementById("startValidationRunBtn");
 const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
 
+applyRoleBasedAccess();
 viewButton?.addEventListener("click", () => {
   const selected = getSelectedContacts();
 
@@ -901,6 +1005,8 @@ console.log("📡 About to call loadContacts");
   document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
     showSection("landingPage");
   });
+
+  applyRoleBasedAccess();
 
   document.getElementById("backBtn")?.addEventListener("click", () => {
     goBackSection();

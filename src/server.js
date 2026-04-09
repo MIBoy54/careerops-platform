@@ -168,26 +168,27 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-req.session.user = {
-  id: user.id,
-  email: user.email,
-  full_name: user.full_name
-};
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.email === "b.r.lewis@outlook.com" ? "admin" : "guest"
+    };
 
-const acceptsHtml = (req.headers.accept || "").includes("text/html");
+    const acceptsHtml = (req.headers.accept || "").includes("text/html");
 
-if (acceptsHtml) {
-  return res.redirect("/");
-}
+    if (acceptsHtml) {
+      return res.redirect("/");
+    }
 
-res.json({
-  message: "Login successful.",
-  user: req.session.user
-});
-} catch (error) {
-  console.error("Login error:", error);
-  return res.status(500).json({ error: error.message });
-}
+    res.json({
+      message: "Login successful.",
+      user: req.session.user
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
@@ -308,13 +309,10 @@ app.get("/", async (req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
-app.get("/route-check", requireAuth, async (req, res) => {
-  res.send("route-check works");
-});
-
 app.get("/api/contacts", requireAuth, async (req, res) => {
   console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
+
   try {
     if (DEMO_MODE) {
       return res.json([
@@ -346,7 +344,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
         date_contacted,
         recruiter_name,
         company,
-        role_level AS role_level,
+        role_level,
         role_type,
         location,
         comp_range,
@@ -360,8 +358,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
         website,
         notes
       FROM recruiter_tracker
-      WHERE status NOT IN ('Rejected', 'Closed')
-      ORDER BY date_contacted DESC
+      ORDER BY id DESC
     `);
 
     res.json(rows);
@@ -371,10 +368,10 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/validation-runs', async (req, res) => {
-  console.log('HIT NEW /api/validation-runs ROUTE');
-  try {
-    const [rows] = await pool.query(`
+    app.get('/api/validation-runs', async (req, res) => {
+      console.log('HIT NEW /api/validation-runs ROUTE');
+      try {
+        const [rows] = await pool.query(`
       SELECT
         id,
         run_type,
@@ -389,23 +386,23 @@ app.get('/api/validation-runs', async (req, res) => {
       ORDER BY id DESC
     `);
 
-    res.json(rows);
-  } catch (err) {
-    console.error('validation-runs failed:', err);
-    res.status(500).json({ error: 'Failed to load validation run history.' });
-  }
-});
+        res.json(rows);
+      } catch (err) {
+        console.error('validation-runs failed:', err);
+        res.status(500).json({ error: 'Failed to load validation run history.' });
+      }
+    });
 
-app.get("/api/companies/search", requireAuth, async (req, res) => {
-  try {
-    const { q } = req.query;
+    app.get("/api/companies/search", requireAuth, async (req, res) => {
+      try {
+        const { q } = req.query;
 
-    if (!q || q.trim().length < 2) {
-      return res.json([]);
-    }
+        if (!q || q.trim().length < 2) {
+          return res.json([]);
+        }
 
-    const [rows] = await pool.query(
-      `
+        const [rows] = await pool.query(
+          `
       SELECT DISTINCT company
       FROM recruiter_tracker
       WHERE company IS NOT NULL
@@ -414,19 +411,19 @@ app.get("/api/companies/search", requireAuth, async (req, res) => {
       ORDER BY company ASC
       LIMIT 10
       `,
-      [`%${q}%`]
-    );
+          [`%${q}%`]
+        );
 
-    res.json(rows.map((row) => row.company));
-  } catch (error) {
-    console.error("GET /api/companies/search failed:", error);
-    res.status(500).json({ error: "Failed to search companies" });
-  }
-});
+        res.json(rows.map((row) => row.company));
+      } catch (error) {
+        console.error("GET /api/companies/search failed:", error);
+        res.status(500).json({ error: "Failed to search companies" });
+      }
+    });
 
-app.get("/api/reports", requireAuth, async (req, res) => {
-  try {
-const [rows] = await pool.query(`
+    app.get("/api/reports", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(`
   SELECT
     wr.id,
     wr.week_start,
@@ -447,25 +444,25 @@ const [rows] = await pool.query(`
   ORDER BY wr.week_start DESC, wr.id DESC
 `);
 
-    res.json(rows);
-  } catch (error) {
-    console.error("GET /api/reports failed:", error);
-    res.status(500).json({ error: "Failed to load weekly reports" });
-  }
-});
+        res.json(rows);
+      } catch (error) {
+        console.error("GET /api/reports failed:", error);
+        res.status(500).json({ error: "Failed to load weekly reports" });
+      }
+    });
 
-app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
-  try {
-    const { start, end } = req.query;
+    app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
+      try {
+        const { start, end } = req.query;
 
-    if (!start || !end) {
-      return res.status(400).json({
-        error: "start and end query parameters are required. Example: /api/reports/unemployment?start=2026-03-19&end=2026-03-25"
-      });
-    }
+        if (!start || !end) {
+          return res.status(400).json({
+            error: "start and end query parameters are required. Example: /api/reports/unemployment?start=2026-03-19&end=2026-03-25"
+          });
+        }
 
-    const [rows] = await pool.query(
-      `
+        const [rows] = await pool.query(
+          `
       SELECT
         id,
         DATE_FORMAT(date_contacted, '%m/%d/%Y') AS date_contacted,
@@ -488,31 +485,31 @@ app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
         AND DATE(date_contacted) BETWEEN ? AND ?
       ORDER BY date_contacted DESC, id DESC
       `,
-      [start, end]
-    );
+          [start, end]
+        );
 
-    res.json({
-      report_start: start,
-      report_end: end,
-      total_jobs_reported: rows.length,
-      jobs: rows
+        res.json({
+          report_start: start,
+          report_end: end,
+          total_jobs_reported: rows.length,
+          jobs: rows
+        });
+      } catch (error) {
+        console.error("Unemployment report failed:", error);
+        res.status(500).json({ error: "Error generating unemployment report" });
+      }
     });
-  } catch (error) {
-    console.error("Unemployment report failed:", error);
-    res.status(500).json({ error: "Error generating unemployment report" });
-  }
-});
 
-app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
-  try {
-    const { start, end } = req.query;
+    app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
+      try {
+        const { start, end } = req.query;
 
-    if (!start || !end) {
-      return res.status(400).send("Start and end dates required");
-    }
+        if (!start || !end) {
+          return res.status(400).send("Start and end dates required");
+        }
 
-    const [rows] = await pool.query(
-      `
+        const [rows] = await pool.query(
+          `
       SELECT
         id,
         DATE_FORMAT(date_contacted, '%m/%d/%Y') AS date_contacted,
@@ -534,56 +531,56 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         AND DATE(follow_up_date) BETWEEN ? AND ?
       ORDER BY follow_up_date DESC, id DESC
       `,
-      [start, end]
-    );
+          [start, end]
+        );
 
-    if (!rows.length) {
-      return res.status(404).send("No data for selected range");
-    }
+        if (!rows.length) {
+          return res.status(404).send("No data for selected range");
+        }
 
-    const headers = [
-      "ID",
-      "Date Contacted",
-      "Recruiter Name",
-      "Company",
-      "Role Level",
-      "Role Type",
-      "Location",
-      "Comp Range",
-      "Status",
-      "Relationship Status",
-      "Phone",
-      "Email",
-      "Address",
-      "Website",
-      "Notes"
-    ].join(",");
+        const headers = [
+          "ID",
+          "Date Contacted",
+          "Recruiter Name",
+          "Company",
+          "Role Level",
+          "Role Type",
+          "Location",
+          "Comp Range",
+          "Status",
+          "Relationship Status",
+          "Phone",
+          "Email",
+          "Address",
+          "Website",
+          "Notes"
+        ].join(",");
 
-    const csv = [
-      headers,
-      ...rows.map(row =>
-        Object.values(row)
-          .map(value => `"${(value ?? "").toString().replace(/"/g, '""')}"`)
-          .join(",")
-      )
-    ].join("\n");
+        const csv = [
+          headers,
+          ...rows.map(row =>
+            Object.values(row)
+              .map(value => `"${(value ?? "").toString().replace(/"/g, '""')}"`)
+              .join(",")
+          )
+        ].join("\n");
 
-    res.header("Content-Type", "text/csv");
-    res.attachment(`unemployment_report_${start}_to_${end}.csv`);
-    res.send(csv);
+        res.header("Content-Type", "text/csv");
+        res.attachment(`unemployment_report_${start}_to_${end}.csv`);
+        res.send(csv);
 
-  } catch (error) {
-    console.error("Unemployment CSV export failed:", error);
-    res.status(500).send("Error generating CSV");
-  }
-});
+      } catch (error) {
+        console.error("Unemployment CSV export failed:", error);
+        res.status(500).send("Error generating CSV");
+      }
+    });
 
-app.get("/api/reports/:id", requireAuth, async (req, res) => {
-  try {
-    const reportId = req.params.id;
+    app.get("/api/reports/:id", requireAuth, async (req, res) => {
+      try {
+        const reportId = req.params.id;
 
-    const [reportRows] = await pool.query(
-      `
+        const [reportRows] = await pool.query(
+          `
       SELECT
         id,
         week_start,
@@ -593,17 +590,17 @@ app.get("/api/reports/:id", requireAuth, async (req, res) => {
       FROM weekly_reports
       WHERE id = ?
       `,
-      [reportId]
-    );
+          [reportId]
+        );
 
-    if (!reportRows.length) {
-      return res.status(404).json({ error: "Report not found" });
-    }
+        if (!reportRows.length) {
+          return res.status(404).json({ error: "Report not found" });
+        }
 
-    const report = reportRows[0];
+        const report = reportRows[0];
 
-    const [employerRows] = await pool.query(
-      `
+        const [employerRows] = await pool.query(
+          `
       SELECT
         rt.id,
         rt.date_contacted,
@@ -627,22 +624,22 @@ app.get("/api/reports/:id", requireAuth, async (req, res) => {
       WHERE rjc.report_id = ?
       ORDER BY rt.date_contacted DESC, rt.id DESC
       `,
-      [reportId]
-    );
+          [reportId]
+        );
 
-    res.json({
-      ...report,
-      employers: employerRows
+        res.json({
+          ...report,
+          employers: employerRows
+        });
+      } catch (error) {
+        console.error("GET /api/reports/:id failed:", error);
+        res.status(500).json({ error: "Failed to load weekly report detail" });
+      }
     });
-  } catch (error) {
-    console.error("GET /api/reports/:id failed:", error);
-    res.status(500).json({ error: "Failed to load weekly report detail" });
-  }
-});
 
-app.get("/api/contacts/export", requireAuth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
+    app.get("/api/contacts/export", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(`
       SELECT
         id,
         date_contacted,
@@ -663,59 +660,63 @@ app.get("/api/contacts/export", requireAuth, async (req, res) => {
       ORDER BY date_contacted DESC
     `);
 
-    if (rows.length === 0) {
-      return res.status(404).send("No data found");
-    }
+        if (rows.length === 0) {
+          return res.status(404).send("No data found");
+        }
 
-    const headers = [
-      "ID",
-      "Date Contacted",
-      "Recruiter Name",
-      "Company",
-      "Role Level",
-      "Role Type",
-      "Location",
-      "Comp Range",
-      "Status",
-      "Relationship Status",
-      "Phone",
-      "Email",
-      "Address",
-      "Website",
-      "Notes"
-    ].join(",");
+        const headers = [
+          "ID",
+          "Date Contacted",
+          "Recruiter Name",
+          "Company",
+          "Role Level",
+          "Role Type",
+          "Location",
+          "Comp Range",
+          "Status",
+          "Relationship Status",
+          "Phone",
+          "Email",
+          "Address",
+          "Website",
+          "Notes"
+        ].join(",");
 
-    const csv = [
-      headers,
-      ...rows.map(row =>
-        Object.values(row)
-          .map((value, index) => {
-            if (index === 1 && value) {
-              const d = new Date(value);
-              const formatted = `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d
-                .getDate()
-                .toString()
-                .padStart(2, "0")}/${d.getFullYear()}`;
-              return `"${formatted}"`;
-            }
+        const csv = [
+          headers,
+          ...rows.map(row =>
+            Object.values(row)
+              .map((value, index) => {
+                if (index === 1 && value) {
+                  const d = new Date(value);
+                  const formatted = `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d
+                    .getDate()
+                    .toString()
+                    .padStart(2, "0")}/${d.getFullYear()}`;
+                  return `"${formatted}"`;
+                }
 
-            return `"${(value ?? "").toString().replace(/"/g, '""')}"`;
-          })
-          .join(",")
-      )
-    ].join("\n");
+                return `"${(value ?? "").toString().replace(/"/g, '""')}"`;
+              })
+              .join(",")
+          )
+        ].join("\n");
 
-    res.header("Content-Type", "text/csv");
-    res.attachment("recruiter_export.csv");
-    res.send(csv);
-  } catch (error) {
-    console.error("CSV export failed:", error);
-    res.status(500).send("Error generating CSV");
-  }
-});
+        res.header("Content-Type", "text/csv");
+        res.attachment("recruiter_export.csv");
+        res.send(csv);
+      } catch (error) {
+        console.error("CSV export failed:", error);
+        res.status(500).send("Error generating CSV");
+      }
+    });
 
 app.post("/api/contacts", requireAuth, async (req, res) => {
   try {
+    if (req.session?.user?.role !== "admin") {
+      return res.status(403).json({ error: "Read-only mode." });
+    }
+
     const {
       date_contacted,
       recruiter_name,
@@ -786,38 +787,38 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   }
 });
 
-app.get("/api/analytics/sessions-today", requireAuth, async (req, res) => {
-  try {
-    const [tableCheck] = await pool.query(`
+    app.get("/api/analytics/sessions-today", requireAuth, async (req, res) => {
+      try {
+        const [tableCheck] = await pool.query(`
       SELECT COUNT(*) AS count
       FROM information_schema.tables
       WHERE table_schema = DATABASE()
         AND table_name = 'analytics_sessions'
     `);
 
-    if (!tableCheck[0]?.count) {
-      return res.json({ sessions_today: 0 });
-    }
+        if (!tableCheck[0]?.count) {
+          return res.json({ sessions_today: 0 });
+        }
 
-    const [rows] = await pool.query(`
+        const [rows] = await pool.query(`
       SELECT COUNT(*) AS sessions_today
       FROM analytics_sessions
       WHERE DATE(created_at) = CURDATE()
     `);
 
-    res.json({
-      sessions_today: rows[0]?.sessions_today ?? 0
+        res.json({
+          sessions_today: rows[0]?.sessions_today ?? 0
+        });
+      } catch (error) {
+        console.error("GET /api/analytics/sessions-today failed:", error);
+        res.json({ sessions_today: 0 });
+      }
     });
-  } catch (error) {
-    console.error("GET /api/analytics/sessions-today failed:", error);
-    res.json({ sessions_today: 0 });
-  }
-});
 
-app.get("/api/validation-runs", requireAuth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `
+    app.get("/api/validation-runs", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(
+          `
       SELECT
         id,
         run_type,
@@ -831,21 +832,21 @@ app.get("/api/validation-runs", requireAuth, async (req, res) => {
       FROM validation_runs
       ORDER BY id DESC
       `
-    );
+        );
 
-    res.json(rows);
-  } catch (error) {
-    console.error("GET /api/validation-runs failed:", error);
-    res.status(500).json({ error: "Failed to load validation run history." });
-  }
-});
+        res.json(rows);
+      } catch (error) {
+        console.error("GET /api/validation-runs failed:", error);
+        res.status(500).json({ error: "Failed to load validation run history." });
+      }
+    });
 
-app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
-  try {
-    const { run_type, trigger_source, notes } = req.body;
+    app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
+      try {
+        const { run_type, trigger_source, notes } = req.body;
 
-    const [result] = await pool.query(
-      `
+        const [result] = await pool.query(
+          `
       INSERT INTO validation_runs (
         run_type,
         status,
@@ -855,21 +856,25 @@ app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
       )
       VALUES (?, 'STARTED', NOW(), ?, ?)
       `,
-      [run_type, trigger_source || null, notes || null]
-    );
+          [run_type, trigger_source || null, notes || null]
+        );
 
-    res.status(201).json({
-      id: result.insertId,
-      message: "Validation run started."
+        res.status(201).json({
+          id: result.insertId,
+          message: "Validation run started."
+        });
+      } catch (error) {
+        console.error("POST /api/validation-runs/start failed:", error);
+        res.status(500).json({ error: "Failed to start validation run." });
+      }
     });
-  } catch (error) {
-    console.error("POST /api/validation-runs/start failed:", error);
-    res.status(500).json({ error: "Failed to start validation run." });
-  }
-});
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
+    if (req.session?.user?.role !== "admin") {
+      return res.status(403).json({ error: "Read-only mode." });
+    }
+
     const { id } = req.params;
     const {
       date_contacted,
@@ -940,27 +945,27 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.put("/api/analytics/heartbeat", async (req, res) => {
-  try {
-    const { session_id, page_path, seconds } = req.body;
+    app.put("/api/analytics/heartbeat", async (req, res) => {
+      try {
+        const { session_id, page_path, seconds } = req.body;
 
-    if (!session_id || !page_path || typeof seconds !== "number") {
-      return res.status(400).json({ error: "Invalid heartbeat payload" });
-    }
+        if (!session_id || !page_path || typeof seconds !== "number") {
+          return res.status(400).json({ error: "Invalid heartbeat payload" });
+        }
 
-    await pool.query(
-      `
+        await pool.query(
+          `
       UPDATE visitor_analytics
       SET
         last_seen = NOW(),
         time_spent_seconds = time_spent_seconds + ?
       WHERE session_id = ? AND page_path = ?
       `,
-      [seconds, session_id, page_path]
-    );
+          [seconds, session_id, page_path]
+        );
 
-    await pool.query(
-      `
+        await pool.query(
+          `
       INSERT INTO analytics_heartbeat_events (
         session_id,
         page_path,
@@ -969,17 +974,22 @@ app.put("/api/analytics/heartbeat", async (req, res) => {
       )
       VALUES (?, ?, NOW(), ?)
       `,
-      [session_id, page_path, seconds]
-    );
+          [session_id, page_path, seconds]
+        );
 
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Heartbeat update failed:", error);
-    res.status(500).json({ error: "Heartbeat failed" });
-  }
-});
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("Heartbeat update failed:", error);
+        res.status(500).json({ error: "Heartbeat failed" });
+      }
+    });
+
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
+    if (req.session?.user?.role !== "admin") {
+      return res.status(403).json({ error: "Read-only mode." });
+    }
+
     const { id } = req.params;
 
     await pool.query(
@@ -997,26 +1007,26 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
+    app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
 
-    const [rows] = await pool.query(
-      `SELECT started_at FROM validation_runs WHERE id = ?`,
-      [id]
-    );
+        const [rows] = await pool.query(
+          `SELECT started_at FROM validation_runs WHERE id = ?`,
+          [id]
+        );
 
-    if (!rows.length) {
-      return res.status(404).json({ error: "Validation run not found." });
-    }
+        if (!rows.length) {
+          return res.status(404).json({ error: "Validation run not found." });
+        }
 
-    const startedAt = new Date(rows[0].started_at);
-    const completedAt = new Date();
-    const durationMs = completedAt.getTime() - startedAt.getTime();
+        const startedAt = new Date(rows[0].started_at);
+        const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
 
-    await pool.query(
-      `
+        await pool.query(
+          `
       UPDATE validation_runs
       SET
         status = ?,
@@ -1025,91 +1035,91 @@ app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
         notes = COALESCE(?, notes)
       WHERE id = ?
       `,
-      [status, durationMs, notes || null, id]
-    );
+          [status, durationMs, notes || null, id]
+        );
 
-    res.json({ message: "Validation run completed." });
-  } catch (error) {
-    console.error("PUT /api/validation-runs/:id/complete failed:", error);
-    res.status(500).json({ error: "Failed to complete validation run." });
-  }
-});
+        res.json({ message: "Validation run completed." });
+      } catch (error) {
+        console.error("PUT /api/validation-runs/:id/complete failed:", error);
+        res.status(500).json({ error: "Failed to complete validation run." });
+      }
+    });
 
-app.post("/api/reports", requireAuth, async (req, res) => {
-  const connection = await pool.getConnection();
+    app.post("/api/reports", requireAuth, async (req, res) => {
+      const connection = await pool.getConnection();
 
-  try {
-const { selectedIds } = req.body;
+      try {
+        const { selectedIds } = req.body;
 
-if (!Array.isArray(selectedIds) || selectedIds.length !== 4) {
-  return res.status(400).json({
-    error: "Exactly 4 employers must be selected."
-  });
-}
+        if (!Array.isArray(selectedIds) || selectedIds.length !== 4) {
+          return res.status(400).json({
+            error: "Exactly 4 employers must be selected."
+          });
+        }
 
-const uniqueIds = [...new Set(selectedIds)];
+        const uniqueIds = [...new Set(selectedIds)];
 
-if (uniqueIds.length !== 4) {
-  return res.status(400).json({
-    error: "Selected employers must be unique."
-  });
-}
+        if (uniqueIds.length !== 4) {
+          return res.status(400).json({
+            error: "Selected employers must be unique."
+          });
+        }
 	
-    await connection.beginTransaction();
+        await connection.beginTransaction();
 
-	const [reportResult] = await connection.query(
-	  `
+        const [reportResult] = await connection.query(
+          `
 	  INSERT INTO weekly_reports (week_start, week_end, submitted, submitted_at)
 	  VALUES (?, ?, 1, NOW())
 	  `,
-	  [getWeekStart(), getWeekEnd()]
-	);
+          [getWeekStart(), getWeekEnd()]
+        );
 
-    const reportId = reportResult.insertId;
+        const reportId = reportResult.insertId;
 
-	const placeholders = uniqueIds.map(() => "(?, ?)").join(", ");
-	const values = uniqueIds.flatMap((id) => [reportId, id]);
+        const placeholders = uniqueIds.map(() => "(?, ?)").join(", ");
+        const values = uniqueIds.flatMap((id) => [reportId, id]);
 
-    await connection.query(
-      `
+        await connection.query(
+          `
       INSERT INTO report_job_contacts (report_id, recruiter_tracker_id)
       VALUES ${placeholders}
       `,
-      values
-    );
+          values
+        );
 
-	const updatePlaceholders = uniqueIds.map(() => "?").join(", ");
+        const updatePlaceholders = uniqueIds.map(() => "?").join(", ");
 
-	await connection.query(
-	  `
+        await connection.query(
+          `
 	  UPDATE recruiter_tracker
 	  SET
 		reported_to_unemployment = 'Yes',
 		follow_up_date = CURDATE()
 	  WHERE id IN (${updatePlaceholders})
 	  `,
-	  uniqueIds
-	);
+          uniqueIds
+        );
 
-    await connection.commit();
+        await connection.commit();
 
-    res.status(201).json({
-      message: "Weekly report generated successfully",
-      reportId
+        res.status(201).json({
+          message: "Weekly report generated successfully",
+          reportId
+        });
+      } catch (error) {
+        await connection.rollback();
+        console.error("POST /api/reports failed:", error);
+        res.status(500).json({ error: "Failed to generate weekly report" });
+      } finally {
+        connection.release();
+      }
     });
-  } catch (error) {
-    await connection.rollback();
-    console.error("POST /api/reports failed:", error);
-    res.status(500).json({ error: "Failed to generate weekly report" });
-  } finally {
-    connection.release();
-  }
-});
 
-app.get("/api/analytics/summary", requireAuth, async (req, res) => {
-  try {
-    const [[totals]] = await pool.query(
-      `
+    app.get("/api/analytics/summary", requireAuth, async (req, res) => {
+      try {
+        const [[totals]] = await pool.query(
+          `
       SELECT
         COUNT(*) AS total_visits,
         COUNT(DISTINCT session_id) AS unique_visitors,
@@ -1117,10 +1127,10 @@ app.get("/api/analytics/summary", requireAuth, async (req, res) => {
         COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds
       FROM visitor_analytics
       `
-    );
+        );
 
-    const [pages] = await pool.query(
-      `
+        const [pages] = await pool.query(
+          `
       SELECT
         page_path,
         COUNT(*) AS visits,
@@ -1131,29 +1141,29 @@ app.get("/api/analytics/summary", requireAuth, async (req, res) => {
       GROUP BY page_path
       ORDER BY visits DESC
       `
-    );
+        );
 
-    res.status(200).json({ totals, pages });
-  } catch (error) {
-    console.error("GET /api/analytics/summary failed:", error);
-    res.status(500).json({ error: "Failed to load analytics summary." });
-  }
-});
+        res.status(200).json({ totals, pages });
+      } catch (error) {
+        console.error("GET /api/analytics/summary failed:", error);
+        res.status(500).json({ error: "Failed to load analytics summary." });
+      }
+    });
 
-function isValidSessionId(value) {
-  return typeof value === "string" && value.trim().length >= 10 && value.trim().length <= 100;
-}
-
-app.post("/api/analytics/start", async (req, res) => {
-  try {
-    const { session_id, page_path } = req.body;
-
-    if (!isValidSessionId(session_id) || !page_path) {
-      return res.status(400).json({ error: "session_id and page_path are required." });
+    function isValidSessionId(value) {
+      return typeof value === "string" && value.trim().length >= 10 && value.trim().length <= 100;
     }
 
-    await pool.query(
-      `
+    app.post("/api/analytics/start", async (req, res) => {
+      try {
+        const { session_id, page_path } = req.body;
+
+        if (!isValidSessionId(session_id) || !page_path) {
+          return res.status(400).json({ error: "session_id and page_path are required." });
+        }
+
+        await pool.query(
+          `
       INSERT INTO visitor_analytics (
         session_id,
         page_path,
@@ -1165,20 +1175,20 @@ app.post("/api/analytics/start", async (req, res) => {
       ON DUPLICATE KEY UPDATE
         last_seen = NOW()
       `,
-      [session_id.trim(), page_path]
-    );
+          [session_id.trim(), page_path]
+        );
 
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("POST /api/analytics/start failed:", error);
-    res.status(500).json({ error: "Failed to start analytics session." });
-  }
-});
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("POST /api/analytics/start failed:", error);
+        res.status(500).json({ error: "Failed to start analytics session." });
+      }
+    });
 
-app.get("/api/analytics/trend", requireAuth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `
+    app.get("/api/analytics/trend", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(
+          `
       SELECT
         DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00') AS minute_bucket,
         COUNT(*) AS heartbeat_count,
@@ -1189,63 +1199,63 @@ app.get("/api/analytics/trend", requireAuth, async (req, res) => {
       GROUP BY DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00')
       ORDER BY minute_bucket ASC
       `
-    );
+        );
 
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error("GET /api/analytics/trend failed:", error);
-    res.status(500).json({ error: "Failed to load analytics trend." });
-  }
-});
+        res.status(200).json(rows);
+      } catch (error) {
+        console.error("GET /api/analytics/trend failed:", error);
+        res.status(500).json({ error: "Failed to load analytics trend." });
+      }
+    });
 
-app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `
+    app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(
+          `
       SELECT COUNT(DISTINCT session_id) AS active_users
       FROM visitor_analytics
       WHERE last_seen >= NOW() - INTERVAL ${ACTIVE_THRESHOLD_MINUTES} MINUTE
       `
-    );
+        );
 
-    res.status(200).json({
-      active_users: rows[0]?.active_users ?? 0
+        res.status(200).json({
+          active_users: rows[0]?.active_users ?? 0
+        });
+      } catch (error) {
+        console.error("GET /api/analytics/active-users failed:", error);
+        res.status(500).json({ error: "Failed to load active users." });
+      }
     });
-  } catch (error) {
-    console.error("GET /api/analytics/active-users failed:", error);
-    res.status(500).json({ error: "Failed to load active users." });
-  }
-});
 
-app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `
+    app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
+      try {
+        const [rows] = await pool.query(
+          `
       SELECT COUNT(DISTINCT session_id) AS stale_sessions
       FROM visitor_analytics
       WHERE last_seen < NOW() - INTERVAL ${STALE_THRESHOLD_MINUTES} MINUTE
       `
-    );
+        );
 
-    res.status(200).json({
-      stale_sessions: rows[0]?.stale_sessions ?? 0
+        res.status(200).json({
+          stale_sessions: rows[0]?.stale_sessions ?? 0
+        });
+      } catch (error) {
+        console.error("GET /api/analytics/stale-sessions failed:", error);
+        res.status(500).json({ error: "Failed to load stale sessions." });
+      }
     });
-  } catch (error) {
-    console.error("GET /api/analytics/stale-sessions failed:", error);
-    res.status(500).json({ error: "Failed to load stale sessions." });
-  }
-});
 
-app.get("/api/companies/details", requireAuth, async (req, res) => {
-  try {
-    const company = (req.query.company || "").trim();
+    app.get("/api/companies/details", requireAuth, async (req, res) => {
+      try {
+        const company = (req.query.company || "").trim();
 
-    if (!company) {
-      return res.status(400).json({ error: "Company is required." });
-    }
+        if (!company) {
+          return res.status(400).json({ error: "Company is required." });
+        }
 
-    const [rows] = await pool.query(
-      `
+        const [rows] = await pool.query(
+          `
       SELECT
         id,
         date_contacted,
@@ -1267,50 +1277,50 @@ app.get("/api/companies/details", requireAuth, async (req, res) => {
       ORDER BY id DESC
       LIMIT 1
       `,
-      [company]
-    );
+          [company]
+        );
 
-    if (!rows.length) {
-      return res.status(404).json({ error: "No company record found." });
-    }
+        if (!rows.length) {
+          return res.status(404).json({ error: "No company record found." });
+        }
 
-    console.log("Company details returned:", rows[0]);
+        console.log("Company details returned:", rows[0]);
 
-    res.json(rows[0]);
-  } catch (error) {
-    console.error("GET /api/companies/details failed:", error);
-    res.status(500).json({ error: "Failed to fetch company details." });
-  }
-});
-
-app.get("/hello", (req, res) => {
-  res.send("hello");
-});
-
-app.get("/db-ping", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT 1 AS ok");
-    res.json(rows[0]);
-  } catch (err) {
-    console.error("db-ping failed:", err);
-    res.status(500).json({
-      error: err.message,
-      code: err.code,
-      errno: err.errno
+        res.json(rows[0]);
+      } catch (error) {
+        console.error("GET /api/companies/details failed:", error);
+        res.status(500).json({ error: "Failed to fetch company details." });
+      }
     });
-  }
-});
 
-app.get("/env-check", (req, res) => {
-  res.json({
-    DB_HOST: process.env.DB_HOST,
-    DB_NAME: process.env.DB_NAME,
-    DB_USER: process.env.DB_USER,
-    DB_PORT: process.env.DB_PORT,
-    DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-  });
-});
+    app.get("/hello", (req, res) => {
+      res.send("hello");
+    });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    app.get("/db-ping", async (req, res) => {
+      try {
+        const [rows] = await pool.query("SELECT 1 AS ok");
+        res.json(rows[0]);
+      } catch (err) {
+        console.error("db-ping failed:", err);
+        res.status(500).json({
+          error: err.message,
+          code: err.code,
+          errno: err.errno
+        });
+      }
+    });
+
+    app.get("/env-check", (req, res) => {
+      res.json({
+        DB_HOST: process.env.DB_HOST,
+        DB_NAME: process.env.DB_NAME,
+        DB_USER: process.env.DB_USER,
+        DB_PORT: process.env.DB_PORT,
+        DB_PASSWORD_SET: !!process.env.DB_PASSWORD
+      });
+    });
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
