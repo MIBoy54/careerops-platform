@@ -24,8 +24,6 @@ const STALE_THRESHOLD_MINUTES = 5;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, "../ui")));
-
 console.log("DB ENV CHECK", {
   DB_HOST: process.env.DB_HOST,
   DB_NAME: process.env.DB_NAME,
