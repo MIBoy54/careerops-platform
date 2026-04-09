@@ -22,7 +22,7 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 console.log("DB ENV CHECK", {
   DB_HOST: process.env.DB_HOST,
@@ -50,6 +50,11 @@ const pool = mysql.createPool({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  console.log(`REQ ${req.method} ${req.url}`);
+  next();
+});
 
 app.use(
   session({
@@ -205,6 +210,10 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
   });
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   if (DEMO_MODE && !req.session.user) {
     req.session.user = {
@@ -305,11 +314,20 @@ app.get("/setup-db", async (req, res) => {
 
 app.get("/", (req, res) => {
   try {
+    const indexPath = path.join(__dirname, "../ui/index.html");
+    console.log("ROOT HIT", {
+      hasUser: !!req.session?.user,
+      demoMode: DEMO_MODE,
+      indexPath
+    });
+
     if (!req.session?.user && !DEMO_MODE) {
+      console.log("ROOT REDIRECT -> /login.html");
       return res.redirect("/login.html");
     }
 
-    return res.sendFile(path.join(__dirname, "../ui/index.html"));
+    console.log("ROOT SENDFILE ->", indexPath);
+    return res.sendFile(indexPath);
   } catch (err) {
     console.error("Root route error:", err);
     return res.status(500).send("Server error");
@@ -1327,6 +1345,14 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         DB_PASSWORD_SET: !!process.env.DB_PASSWORD
       });
     });
+
+    process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION:", err);
+});
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
