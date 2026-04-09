@@ -18,12 +18,14 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
 
-
 const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(express.static(path.join(__dirname, "../ui")));
+res.sendFile(path.join(__dirname, "../ui/index.html"));
 
 console.log("DB ENV CHECK", {
   DB_HOST: process.env.DB_HOST,
