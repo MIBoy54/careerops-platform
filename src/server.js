@@ -22,7 +22,7 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 console.log("DB ENV CHECK", {
   DB_HOST: process.env.DB_HOST,

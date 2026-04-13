@@ -5,9 +5,6 @@ on:
     branches: [ main ]
   pull_request:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,10 +16,10 @@ jobs:
       - name: Use Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 20
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Unit Tests (Vitest)
         run: npx vitest run tests/validation
@@ -33,7 +30,7 @@ jobs:
       - name: Start App
         run: |
           DEMO_MODE=true npm start &
-          npx wait-on http://localhost:3000
+          npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run E2E Tests (Playwright)
         run: npx playwright test tests/e2e/detailViewerPage tests/e2e/weeklyReportPage
