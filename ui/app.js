@@ -851,8 +851,6 @@ function wireEditButtons() {
 
 function renderTable() {
   const tableBody = document.querySelector("#contactsTable tbody");
-  console.log("tableBody found:", !!tableBody);
-  console.log("contacts count:", contacts.length);
 
   if (!tableBody) return;
 
@@ -872,8 +870,6 @@ const filteredContacts = contacts
     }
     return String(a.status || "").localeCompare(String(b.status || ""));
   });
-
-  console.log("filteredContacts count:", filteredContacts.length);
 
   filteredContacts.forEach((c) => {
     const row = document.createElement("tr");
