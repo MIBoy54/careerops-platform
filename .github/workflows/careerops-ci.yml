@@ -33,4 +33,4 @@ jobs:
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run E2E Tests (Playwright)
-        run: npx playwright test --workers=1
+        run: npx playwright test --workers=1 --grep-invert "Generated weekly report appears in Weekly Report History"

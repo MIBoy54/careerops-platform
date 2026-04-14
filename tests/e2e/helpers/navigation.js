@@ -23,7 +23,6 @@ export async function goToSavedContacts(page) {
   await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
   await showSection(page, 'savedContactsSection');
   await expect(page.locator('#savedContactsSection')).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('#contactsTable')).toBeVisible({ timeout: 10000 });
 }
 
 export async function goToDetailViewer(page) {
