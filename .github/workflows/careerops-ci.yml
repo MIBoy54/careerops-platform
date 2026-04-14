@@ -29,7 +29,7 @@ jobs:
 
       - name: Start App
         run: |
-          DEMO_MODE=true npm start &
+          APP_ENV=demo DEMO_MODE=true npm start &
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run Stable E2E Tests (Playwright)
