@@ -538,15 +538,16 @@ function renderValidationRunsTable() {
     }
   }
 
-  async function loadContacts() {
-    const response = await fetch("/api/contacts");
+async function loadContacts() {
+  const response = await fetch("/api/contacts");
 
-    if (!response.ok) {
-      throw new Error("Failed to load contacts");
-    }
-
-    contacts = await response.json();
+  if (!response.ok) {
+    throw new Error("Failed to load contacts");
   }
+
+  contacts = await response.json();
+  renderTable();
+}
 
 function updateSelectionCount() {
   if (selectionCountEl) {

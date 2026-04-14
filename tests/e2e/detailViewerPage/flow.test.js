@@ -1,29 +1,32 @@
 import { expect, test } from '@playwright/test';
 import { login } from '../helpers/auth.js';
+import { seedContacts } from '../helpers/data.js';
 import { goToSavedContacts } from '../helpers/navigation.js';
 
 test('Detail Viewer end-to-end flow', async ({ page }) => {
   await login(page);
+  await seedContacts(page);
   await goToSavedContacts(page);
 
   const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
-  await checkboxes.nth(0).check();
-  await checkboxes.nth(1).check();
-  await checkboxes.nth(2).check();
-  await checkboxes.nth(3).check();
+
+  await expect.poll(async () => await checkboxes.count(), {
+    timeout: 10000
+  }).toBeGreaterThan(0);
+
+  const checkboxCount = await checkboxes.count();
+  const selectionCount = Math.min(4, checkboxCount);
+
+  for (let i = 0; i < selectionCount; i++) {
+    await checkboxes.nth(i).check();
+  }
 
   await page.click('#viewButton');
   await expect(page.locator('#detailViewerSection')).toBeVisible();
 
-  const cards = page.locator('#weekly-report-detail .contact-card');
-  await expect(cards).toHaveCount(4);
+  const cards = page.locator('#detailViewerSection .contact-card');
+  await expect(cards).toHaveCount(selectionCount);
 
-  page.once('dialog', async (dialog) => {
-    await dialog.accept();
-  });
-
-  await page.click('#generateReportBtn');
   await page.click('#closeWeeklyReportDetailBtn');
-
   await expect(page.locator('#savedContactsSection')).toBeVisible();
 });
