@@ -22,10 +22,10 @@ const dbMap = {
   dev: 'careerops_dev',
   qa: 'careerops_qa',
   prod: 'careerops',
-  demo: 'careerops_demo'
+  demo: 'railway'
 };
 
-const DB_NAME = dbMap[APP_ENV];
+const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV];
 
 if (!DB_NAME) {
   throw new Error(`Invalid APP_ENV: ${APP_ENV}`);
