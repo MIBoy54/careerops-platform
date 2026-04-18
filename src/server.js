@@ -16,13 +16,12 @@ console.log("🔥 LOADING SERVER FILE:", __filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const APP_ENV = process.env.APP_ENV || 'careerops';
+const APP_ENV = process.env.APP_ENV || 'local';
 
-const dbMap = {
-  dev: 'careerops_dev',
-  qa: 'careerops_qa',
-  prod: 'careerops',
-  demo: 'railway'
+const dbNameMap = {
+  local: 'careerops',
+  demo: 'default',
+  production: 'default'
 };
 
 const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV];
