@@ -485,7 +485,7 @@ function renderValidationRunsTable() {
       } catch (error) {
         console.error("Analytics heartbeat failed:", error);
       }
-    }, 15000);
+    }, 600000);
   }
 
   function renderErrors(target, errors) {
