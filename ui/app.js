@@ -99,6 +99,9 @@ let analyticsHeartbeatInterval = null;
 let validationRuns = [];
 let latestValidationRunId = null;
 let currentSectionIndex = 0;
+let savedContacts = [];
+let currentSortField = "date_contacted";
+let currentSortDirection = "desc";
 
 const sectionOrder = [
   "landingPage",
@@ -523,6 +526,48 @@ function renderValidationRunsTable() {
     return String(value).split("T")[0];
   }
 
+function sortSavedContacts(contacts, field, direction) {
+  return [...contacts].sort((a, b) => {
+    if (field === "date_contacted") {
+      const valueA = String(a.date_contacted || "").trim();
+      const valueB = String(b.date_contacted || "").trim();
+
+      return direction === "asc"
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    }
+
+    if (field === "company") {
+      const valueA = String(a.company || "").trim();
+      const valueB = String(b.company || "").trim();
+
+      const companyCompare = valueA.localeCompare(valueB, undefined, {
+        sensitivity: "base",
+        numeric: true
+      });
+
+      if (companyCompare !== 0) {
+        return direction === "asc" ? companyCompare : -companyCompare;
+      }
+
+      const dateA = String(a.date_contacted || "").trim();
+      const dateB = String(b.date_contacted || "").trim();
+
+      return dateB.localeCompare(dateA);
+    }
+
+    const valueA = String(a[field] || "").trim();
+    const valueB = String(b[field] || "").trim();
+
+    const compare = valueA.localeCompare(valueB, undefined, {
+      sensitivity: "base",
+      numeric: true
+    });
+
+    return direction === "asc" ? compare : -compare;
+  });
+}
+
   function getStatusClass(status) {
     switch (status) {
       case "Applied":
@@ -546,6 +591,7 @@ async function loadContacts() {
   }
 
   contacts = await response.json();
+  savedContacts = [...contacts];
   renderTable();
 }
 
@@ -851,53 +897,92 @@ function wireEditButtons() {
 
 function renderTable() {
   const tableBody = document.querySelector("#contactsTable tbody");
+  const savedContactsSummary = document.getElementById("savedContactsSummary");
 
   if (!tableBody) return;
 
   tableBody.innerHTML = "";
 
-const filteredContacts = contacts
-  .filter((c) => {
+  const activeContacts = contacts.filter((c) => {
     const status = String(c.status || "").trim().toLowerCase();
-    return status !== "rejected" && status !== "closed";
-  })
-  .sort((a, b) => {
-    const dateCompare = String(b.date_contacted || "").localeCompare(
-      String(a.date_contacted || "")
-    );
-    if (dateCompare !== 0) {
-      return dateCompare;
-    }
-    return String(a.status || "").localeCompare(String(b.status || ""));
+    return status !== "rejected" && status !== "closed" && status !== "submitted";
   });
 
-  filteredContacts.forEach((c) => {
+  const totalSaved = activeContacts.length;
+
+  const totalReported = activeContacts.filter((c) => {
+    return String(c.reported_unemployment || "No").trim().toLowerCase() === "yes";
+  }).length;
+
+  if (savedContactsSummary) {
+    savedContactsSummary.textContent =
+      `Total Saved: ${totalSaved} | Total Reported: ${totalReported}`;
+  }
+
+  const filteredContacts = activeContacts.filter((c) => {
+    return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
+  });
+
+  const sortedContacts = sortSavedContacts(
+    filteredContacts,
+    currentSortField,
+    currentSortDirection
+  );
+
+  sortedContacts.forEach((c) => {
     const row = document.createElement("tr");
 
-row.innerHTML = `
-  <td>
-    <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />
-  </td>
-  <td>${formatDate(c.date_contacted)}</td>
-  <td>${escapeHtml(c.company || "")}</td>
-  <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
-  <td>${escapeHtml(c.reported_unemployment || "No")}</td>
-  <td>
-    ${isAdminUser() ? `
-      <button type="button" class="edit-btn" data-id="${c.id}">Edit</button>
-      <button type="button" class="delete-btn" data-id="${c.id}">Delete</button>
-    ` : ""}
-  </td>
-`;
+    row.innerHTML = `
+      <td>
+        <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />
+      </td>
+      <td>${formatDate(c.date_contacted)}</td>
+      <td>${escapeHtml(c.company || "")}</td>
+      <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
+      <td>${escapeHtml(c.reported_unemployment || "No")}</td>
+      <td>
+        ${isAdminUser() ? `
+          <button type="button" class="edit-btn" data-id="${c.id}">Edit</button>
+          <button type="button" class="delete-btn" data-id="${c.id}">Delete</button>
+        ` : ""}
+      </td>
+    `;
 
     tableBody.appendChild(row);
   });
 
-wireSelectionCheckboxes();
-wireEditButtons();
-wireDeleteButtons();
-updateSelectionCount();
-applyRoleBasedAccess();
+  wireSelectionCheckboxes();
+  wireEditButtons();
+  wireDeleteButtons();
+  updateSelectionCount();
+  applyRoleBasedAccess();
+}
+
+function wireSavedContactsSorting() {
+  const sortDateHeader = document.getElementById("sortDateHeader");
+  const sortCompanyHeader = document.getElementById("sortCompanyHeader");
+
+  sortDateHeader?.addEventListener("click", () => {
+    if (currentSortField === "date_contacted") {
+      currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+    } else {
+      currentSortField = "date_contacted";
+      currentSortDirection = "desc";
+    }
+
+    renderTable();
+  });
+
+  sortCompanyHeader?.addEventListener("click", () => {
+    if (currentSortField === "company") {
+      currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+    } else {
+      currentSortField = "company";
+      currentSortDirection = "asc";
+    }
+
+    renderTable();
+  });
 }
 
 function showSection(sectionId) {
@@ -976,9 +1061,9 @@ console.log("currentUser:", window.currentUser);
   weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
   weeklyReportDetailEl = document.getElementById("weekly-report-detail");
   closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
-  viewButton = document.getElementById("viewButton");
-const startValidationRunBtn = document.getElementById("startValidationRunBtn");
-const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+  const startValidationRunBtn = document.getElementById("startValidationRunBtn");
+  const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+  wireSavedContactsSorting();
 
 applyRoleBasedAccess();
 viewButton?.addEventListener("click", () => {

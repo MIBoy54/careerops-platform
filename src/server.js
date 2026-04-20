@@ -926,6 +926,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       status,
       relationship_status,
       reported_unemployment,
+      date_reported,
       next_follow_up_date,
       phone,
       email,
@@ -933,28 +934,37 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       website,
       notes
     } = req.body;
+    
+    let finalReportedUnemployment = reported_unemployment || "No";
+    let finalDateReported = date_reported || null;
+
+    if (String(status || "").trim().toLowerCase() === "submitted") {
+      finalReportedUnemployment = "Yes";
+      finalDateReported = new Date();
+    }
 
     await pool.query(
       `
-      UPDATE recruiter_tracker
-      SET
-        date_contacted = ?,
-        recruiter_name = ?,
-        company = ?,
-        role_level = ?,
-        role_type = ?,
-        location = ?,
-        comp_range = ?,
-        status = ?,
-        relationship_status = ?,
-        reported_to_unemployment = ?,
-        follow_up_date = ?,
-        phone = ?,
-        email = ?,
-        address = ?,
-        website = ?,
-        notes = ?
-      WHERE id = ?
+        UPDATE recruiter_tracker
+        SET
+          date_contacted = ?,
+          recruiter_name = ?,
+          company = ?,
+          role_level = ?,
+          role_type = ?,
+          location = ?,
+          comp_range = ?,
+          status = ?,
+          relationship_status = ?,
+          reported_to_unemployment = ?,
+          date_reported = ?,
+          next_follow_up_date = ?,
+          phone = ?,
+          email = ?,
+          address = ?,
+          website = ?,
+          notes = ?
+        WHERE id = ?
       `,
       [
         date_contacted || null,
@@ -966,7 +976,8 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         comp_range || null,
         status || null,
         relationship_status || null,
-        reported_unemployment || "No",
+        finalReportedUnemployment,
+        finalDateReported,
         next_follow_up_date || null,
         phone || null,
         email || null,
