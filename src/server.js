@@ -353,30 +353,6 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
   try {
-    if (DEMO_MODE) {
-      return res.json([
-        {
-          id: 1,
-          date_contacted: "2026-04-03",
-          recruiter_name: "Bruce Lewis",
-          company: "CareerOps Demo Company",
-          role_level: "Director",
-          role_type: "QE Transformation",
-          location: "Remote",
-          comp_range: "$130K-$150K",
-          status: "Active",
-          relationship_status: "Warm",
-          reported_unemployment: "No",
-          next_follow_up_date: "2026-04-10",
-          phone: "555-555-5555",
-          email: "demo@example.com",
-          address: "Nashville, TN",
-          website: "https://example.com",
-          notes: "Demo record"
-        }
-      ]);
-    }
-
     const [rows] = await pool.query(`
       SELECT
         id,
