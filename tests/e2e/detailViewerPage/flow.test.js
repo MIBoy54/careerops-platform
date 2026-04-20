@@ -6,6 +6,15 @@ import { goToSavedContacts } from '../helpers/navigation.js';
 test('Detail Viewer end-to-end flow', async ({ page }) => {
   await login(page);
   await seedContacts(page);
+
+  const apiContacts = await page.evaluate(async () => {
+    const response = await fetch('/api/contacts');
+    return await response.json();
+  });
+
+  console.log('API contacts after seed:', apiContacts);
+  expect(apiContacts.length).toBeGreaterThan(0);
+
   await goToSavedContacts(page);
 
   const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');

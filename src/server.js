@@ -1010,7 +1010,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           relationship_status = ?,
           reported_to_unemployment = ?,
           date_reported = ?,
-          next_follow_up_date = ?,
+          follow_up_date = ?,
           phone = ?,
           email = ?,
           address = ?,
@@ -1169,7 +1169,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
-        const uniqueIds = [...new Set(selectedIds)];
+        const { selectedIds = [] } = req.body;
+        const uniqueIds = [...new Set(selectedIds.map(Number))];
 
         if (uniqueIds.length !== 4) {
           return res.status(400).json({

@@ -575,6 +575,7 @@ function sortSavedContacts(contacts, field, direction) {
   }
 
 async function loadContacts() {
+  console.log("LOAD CONTACTS CALLED");
   const response = await fetch("/api/contacts");
 
   if (!response.ok) {
@@ -881,6 +882,7 @@ function wireDeleteButtons() {
   });
 }
 function renderTable() {
+  console.log("RENDER TABLE CALLED", contacts);
   const tableBody = document.querySelector("#contactsTable tbody");
   const savedContactsSummary = document.getElementById("savedContactsSummary");
 
@@ -1074,21 +1076,6 @@ console.log("🚀 DOMContentLoaded fired");
         button.addEventListener("click", () => {
           showSection(button.dataset.target);
         });
-      });
-
-
-      applyRoleBasedAccess();
-
-      document.getElementById("backBtn")?.addEventListener("click", () => {
-        goBackSection();
-      });
-
-      document.getElementById("nextBtn")?.addEventListener("click", () => {
-        goNextSection();
-      });
-
-      document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-        await logout();
       });
 
       const today = new Date().toISOString().split("T")[0];
