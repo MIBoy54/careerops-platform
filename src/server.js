@@ -726,9 +726,12 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
       }
     });
 
-app.post("/api/contacts", requireAuth, async (req, res) => {
+app.post("/api/contacts", requireAuth, async (req, res) => { 
   try {
-    if (req.session?.user?.role !== "admin") {
+    const isDemoSandbox = DEMO_MODE === true;
+    const isAdmin = req.session?.user?.role === "admin";
+
+    if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
