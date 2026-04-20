@@ -889,7 +889,10 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
-    if (req.session?.user?.role !== "admin") {
+    const isDemoSandbox = DEMO_MODE === true;
+    const isAdmin = req.session?.user?.role === "admin";
+
+    if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
@@ -1015,7 +1018,10 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
-    if (req.session?.user?.role !== "admin") {
+    const isDemoSandbox = DEMO_MODE === true;
+    const isAdmin = req.session?.user?.role === "admin";
+
+    if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
@@ -1077,14 +1083,13 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
     app.post("/api/reports", requireAuth, async (req, res) => {
       const connection = await pool.getConnection();
 
-      try {
-        const { selectedIds } = req.body;
+  try {
+    const isDemoSandbox = DEMO_MODE === true;
+    const isAdmin = req.session?.user?.role === "admin";
 
-        if (!Array.isArray(selectedIds) || selectedIds.length !== 4) {
-          return res.status(400).json({
-            error: "Exactly 4 employers must be selected."
-          });
-        }
+    if (!isDemoSandbox && !isAdmin) {
+      return res.status(403).json({ error: "Read-only mode." });
+    }
 
         const uniqueIds = [...new Set(selectedIds)];
 

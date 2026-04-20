@@ -896,32 +896,6 @@ function wireDeleteButtons() {
     });
   });
 }
-
-        try {
-          const response = await fetch(`/api/contacts/${id}`, {
-            method: "DELETE"
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || "Failed to delete contact");
-          }
-
-          selectedIds.clear();
-          await loadContacts();
-          renderTable();
-          renderMessage(messageDiv, "Contact deleted successfully.");
-          renderErrors(errorsDiv, []);
-          clearWeeklyReportDetail();
-        } catch (error) {
-          console.error("Delete failed:", error);
-          renderMessage(messageDiv, "Failed to delete contact.", "error");
-        }
-      });
-    });
-  }
-
 function renderTable() {
   const tableBody = document.querySelector("#contactsTable tbody");
   const savedContactsSummary = document.getElementById("savedContactsSummary");
