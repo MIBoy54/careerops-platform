@@ -1,8 +1,8 @@
 console.log("app.js loaded");
-const DEMO_MODE = false; // Set to true to enable demo mode (no data changes, demo banner shown)
+const DEMO_MODE = true; // Set to true to enable demo mode (no data changes, demo banner shown)
 
 function isAdminUser() {
-  return window.currentUser?.role === "admin";
+  return DEMO_MODE || window.currentUser?.role === "admin";
 }
 
 function applyRoleBasedAccess() {
@@ -26,29 +26,36 @@ function applyRoleBasedAccess() {
 
   // 🔥 ADD THIS BLOCK
   if (!admin) {
-    let banner = document.getElementById("readOnlyBanner");
+let banner = document.getElementById("readOnlyBanner");
 
-    if (!banner) {
-      banner = document.createElement("div");
-      banner.id = "readOnlyBanner";
-      banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
-      banner.style.background = "#f57c00";
-      banner.style.color = "white";
-      banner.style.textAlign = "center";
-      banner.style.padding = "8px";
-      banner.style.fontWeight = "bold";
-      banner.style.letterSpacing = "0.5px";
-      banner.style.position = "fixed";
-      banner.style.top = "0";
-      banner.style.left = "0";
-      banner.style.right = "0";
-      banner.style.zIndex = "9999";
-      banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+if (!banner) {
+  banner = document.createElement("div");
+  banner.id = "readOnlyBanner";
+  banner.style.background = "#f57c00";
+  banner.style.color = "white";
+  banner.style.textAlign = "center";
+  banner.style.padding = "8px";
+  banner.style.fontWeight = "bold";
+  banner.style.letterSpacing = "0.5px";
+  banner.style.position = "fixed";
+  banner.style.top = "0";
+  banner.style.left = "0";
+  banner.style.right = "0";
+  banner.style.zIndex = "9999";
+  banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
 
-      document.body.prepend(banner);
-      document.body.style.paddingTop = "40px";
-    }
-  }
+  document.body.prepend(banner);
+  document.body.style.paddingTop = "40px";
+}
+
+if (DEMO_MODE) {
+  banner.textContent = "CAREEROPS PLATFORM • DEMO MODE • SANDBOX ENVIRONMENT";
+  banner.style.display = "block";
+} else if (!admin) {
+  banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+  banner.style.display = "block";
+} else {
+  banner.style.display = "none";
 }
 
 function renderDemoBanner() {
@@ -858,17 +865,37 @@ function wireEditButtons() {
   });
 }
 
-  function wireDeleteButtons() {
-    const deleteButtons = document.querySelectorAll(".delete-btn");
+function wireDeleteButtons() {
+  const deleteButtons = document.querySelectorAll(".delete-btn");
 
-    deleteButtons.forEach((button) => {
-      button.addEventListener("click", async () => {
-        const id = Number(button.dataset.id);
+  deleteButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = Number(button.dataset.id);
 
-        if (DEMO_MODE) {
-          renderMessage(messageDiv, "Demo Mode: Delete disabled.", "error");
-          return;
+      try {
+        const response = await fetch(`/api/contacts/${id}`, {
+          method: "DELETE"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to delete contact");
         }
+
+        selectedIds.clear();
+        await loadContacts();
+        renderTable();
+        renderMessage(messageDiv, "Contact deleted successfully.");
+        renderErrors(errorsDiv, []);
+        clearWeeklyReportDetail();
+      } catch (error) {
+        console.error("Delete failed:", error);
+        renderMessage(messageDiv, "Failed to delete contact.", "error");
+      }
+    });
+  });
+}
 
         try {
           const response = await fetch(`/api/contacts/${id}`, {
@@ -1322,10 +1349,6 @@ closeWeeklyReportDetailBtn?.addEventListener("click", () => {
         renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
         return;
       }
-      if (DEMO_MODE) {
-        renderMessage(messageDiv, "Demo Mode: Weekly report generation is disabled.", "error");
-        return;
-      }
       if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
         return;
       }
@@ -1372,11 +1395,6 @@ closeWeeklyReportDetailBtn?.addEventListener("click", () => {
           date_reported: document.getElementById("date_reported")?.value,
           notes: document.getElementById("unemployment_notes")?.value.trim()
         };
-        if (DEMO_MODE) {
-          renderMessage(messageDiv, "Demo Mode: Unemployment report not saved.", "error");
-          unemploymentForm.reset();
-          return;
-        }
         try {
           const response = await fetch("/api/unemployment-report", {
             method: "PUT",
