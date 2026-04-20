@@ -362,6 +362,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   try {
     // 👉 CI shortcut (no DB)
     if (isCIMode) {
+      console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
       return res.json(inMemoryContacts);
     }
 
@@ -749,19 +750,23 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
     }
 
     // 👉 CI shortcut (no DB)
-    if (isCIMode) {
-      const newContact = {
-        id: inMemoryContactId++,
-        ...req.body
-      };
+if (isCIMode) {
+  console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
 
-      inMemoryContacts.push(newContact);
+  const newContact = {
+    id: inMemoryContactId++,
+    ...req.body
+  };
 
-      return res.status(201).json({
-        message: "Contact created successfully",
-        id: newContact.id
-      });
-    }
+  inMemoryContacts.push(newContact);
+
+  console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
+
+  return res.status(201).json({
+    message: "Contact created successfully",
+    id: newContact.id
+  });
+}
 
     const {
       date_contacted,
