@@ -1,7 +1,7 @@
 export async function seedContacts(page) {
   for (let i = 1; i <= 4; i++) {
     await page.evaluate(async (i) => {
-      await fetch('/api/contacts', {
+      const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -17,6 +17,11 @@ export async function seedContacts(page) {
           reported_unemployment: 'No'
         })
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`seedContacts failed for record ${i}: ${response.status} ${text}`);
+      }
     }, i);
   }
 }
