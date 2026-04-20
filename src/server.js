@@ -754,6 +754,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       notes
     } = req.body;
 
+    console.log("POST /api/contacts payload:", req.body);
     const [result] = await pool.query(
       `
       INSERT INTO recruiter_tracker (
@@ -800,7 +801,13 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       id: result.insertId
     });
   } catch (error) {
-    console.error("POST /api/contacts failed:", error);
+    console.error("POST /api/contacts failed:", {
+  message: error.message,
+  code: error.code,
+  errno: error.errno,
+  sqlMessage: error.sqlMessage,
+  sqlState: error.sqlState
+});
     res.status(500).json({ error: "Failed to create contact" });
   }
 });
