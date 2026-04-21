@@ -15,6 +15,8 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   console.log('API contacts after seed:', apiContacts);
   expect(apiContacts.length).toBeGreaterThan(0);
 
+  await page.reload();
+  await page.waitForLoadState('networkidle');
   await goToSavedContacts(page);
 
   const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
