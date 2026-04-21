@@ -33,7 +33,9 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   }
 
   await page.click('#viewButton');
-  await expect(page.locator('#detailViewerSection')).toBeVisible();
+  await expect(page.locator('#detailViewerSection')).toHaveClass(/active-section/, {
+    timeout: 10000
+  });
 
   const cards = page.locator('#detailViewerSection .contact-card');
   await expect(cards).toHaveCount(selectionCount);
