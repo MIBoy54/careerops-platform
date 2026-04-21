@@ -1,9 +1,11 @@
 import { expect } from '@playwright/test';
 
 export async function goToSavedContacts(page) {
-  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
+  const button = page.locator('[data-target="savedContactsSection"]');
 
-  await page.locator('[data-target="savedContactsSection"]').click();
+  await expect(button).toBeVisible({ timeout: 10000 });
+
+  await button.click();
 
   await expect(page.locator('#savedContactsSection')).toHaveClass(/active-section/, {
     timeout: 10000
