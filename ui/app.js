@@ -1000,6 +1000,8 @@ function wireSavedContactsSorting() {
 }
 
 function showSection(sectionId) {
+  console.log("SHOW SECTION:", sectionId);
+
   document.querySelectorAll(".careerops-section").forEach((section) => {
     section.classList.remove("active-section");
   });
@@ -1009,6 +1011,8 @@ function showSection(sectionId) {
     target.classList.add("active-section");
     currentSectionIndex = sectionOrder.indexOf(sectionId);
     updateNavButtons();
+  } else {
+    console.error("SECTION NOT FOUND:", sectionId);
   }
 }
 
@@ -1100,11 +1104,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     await logout();
   });
 
-  document.querySelectorAll("[data-target]").forEach((button) => {
-    button.addEventListener("click", () => {
-      showSection(button.dataset.target);
-    });
+  document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  console.log("NAV CLICK: savedContactsSection");
+  showSection("savedContactsSection");
+});
+
+document.querySelectorAll("[data-target]").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+
+    const target = button.dataset.target;
+    if (!target) return;
+
+    console.log("NAV CLICK:", target);
+    showSection(target);
   });
+});
 
   const today = new Date().toISOString().split("T")[0];
   contacts = [];
