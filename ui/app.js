@@ -1,11 +1,14 @@
 console.log("app.js loaded");
-const DEMO_MODE = true;
+const DEMO_MODE = false;
+const APP_ENV = globalThis.APP_ENV || "production";
 
 import { validateContact } from "../src/validateContact.js";
 
 function isAdminUser() {
-  return DEMO_MODE || window.currentUser?.role === "admin";
+  return APP_ENV === "demo" || globalThis.currentUser?.role === "admin";
 }
+
+console.log("FRONTEND APP_ENV:", APP_ENV);
 
 function applyRoleBasedAccess() {
   const admin = isAdminUser();

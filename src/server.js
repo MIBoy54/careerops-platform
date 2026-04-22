@@ -16,15 +16,15 @@ console.log("🔥 LOADING SERVER FILE:", __filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const APP_ENV = process.env.APP_ENV || 'local';
+const APP_ENV = (process.env.APP_ENV || 'production').trim()
 
 const dbNameMap = {
-  local: 'careerops',
+  production: 'careerops',
   demo: 'careerops_demo',
-  production: 'careerops'
-};
+  dev: 'careerops_dev'
+}
 
-const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV];
+const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV] || 'careerops'
 
 if (!DB_NAME) {
   throw new Error(`Invalid APP_ENV: ${APP_ENV}`);
@@ -37,6 +37,10 @@ const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 const isCIMode = process.env.CI === "true";
 
