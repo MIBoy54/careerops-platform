@@ -36,6 +36,12 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
+
+app.use((req, res, next) => {
+  console.log(`REQ ${req.method} ${req.url}`);
+  next();
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', () => {
