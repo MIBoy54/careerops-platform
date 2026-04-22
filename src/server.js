@@ -92,29 +92,26 @@ app.use(
 );
 
 function requireAuth(req, res, next) {
-  try {
-    if (DEMO_MODE) {
-      if (!req.session?.user) {
-        req.session.user = {
-          id: 0,
-          email: "admin@example.com",
-          full_name: "Demo User"
-        };
-      }
-      return next();
+  console.log("requireAuth session user:", req.session.user);
+
+  // Allow demo environment to behave like logged-in sandbox
+  if (APP_ENV === "demo") {
+    if (!req.session.user) {
+      req.session.user = {
+        id: 0,
+        email: "guest@careerops.com",
+        full_name: "Demo User",
+        role: "admin"
+      };
     }
-
-    console.log("requireAuth session user:", req.session?.user);
-
-    if (!req.session?.user) {
-      return res.status(401).json({ error: "Authentication required." });
-    }
-
-    next();
-  } catch (err) {
-    console.error("Auth error:", err);
-    return res.status(500).json({ error: "Auth failure" });
+    return next();
   }
+
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  next();
 }
 
 app.post("/api/auth/register", async (req, res) => {
