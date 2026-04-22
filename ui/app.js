@@ -49,7 +49,7 @@ function applyRoleBasedAccess() {
     document.body.prepend(banner);
     document.body.style.paddingTop = "40px";
   }
-
+}
 if (APP_ENV === "demo") {
   banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
   banner.style.display = "block";
@@ -1056,6 +1056,36 @@ console.log("🚀 DOMContentLoaded fired");
 document.addEventListener("DOMContentLoaded", async () => {
   renderDemoBanner();
 
+  document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
+    showSection("landingPage");
+  });
+
+  document.getElementById("backBtn")?.addEventListener("click", () => {
+    goBackSection();
+  });
+
+  document.getElementById("nextBtn")?.addEventListener("click", () => {
+    goNextSection();
+  });
+
+  document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    console.log("NAV CLICK: savedContactsSection");
+    showSection("savedContactsSection");
+  });
+
+  document.querySelectorAll("[data-target]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      const target = button.dataset.target;
+      if (!target) return;
+
+      console.log("NAV CLICK:", target);
+      showSection(target);
+    });
+  });
+
   const user = await checkAuth();
   if (!user) {
     window.location.href = "/login.html";
@@ -1087,6 +1117,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyRoleBasedAccess();
   console.log("📡 About to call loadContacts");
+
+  const today = new Date().toISOString().split("T")[0];
+  contacts = [];
+  selectedIds.clear();
+  editId = null;
 
   document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
     showSection("landingPage");
@@ -1452,9 +1487,8 @@ document.querySelectorAll("[data-target]").forEach((button) => {
   }
 
   if (completeValidationRunBtn) {
-    completeValidationRunBtn.addEventListener("click", async () => {
-      await completeValidationRun();
-    });
-  }
-
+  completeValidationRunBtn.addEventListener("click", async () => {
+    await completeValidationRun();
+  });
+}
 });
