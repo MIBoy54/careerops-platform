@@ -18,6 +18,8 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const APP_ENV = (process.env.APP_ENV || 'production').trim()
 
+const IS_SANDBOX = APP_ENV === "demo";
+
 const dbNameMap = {
   production: 'careerops',
   demo: 'careerops_demo',
@@ -100,13 +102,12 @@ app.use(
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
 
-  // Allow demo environment to behave like logged-in sandbox
-  if (APP_ENV === "demo") {
+  if (IS_SANDBOX) {
     if (!req.session.user) {
       req.session.user = {
         id: 0,
         email: "guest@careerops.com",
-        full_name: "Demo User",
+        full_name: "Sandbox User",
         role: "admin"
       };
     }
@@ -241,19 +242,14 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/api/auth/me", requireAuth, async (req, res) => {
-  if (DEMO_MODE && !req.session.user) {
-    req.session.user = {
-      id: 0,
-      email: "admin@example.com",
-      full_name: "Demo User"
-    };
-  }
-
   if (!req.session.user) {
     return res.status(401).json({ error: "Not authenticated." });
   }
 
-  res.json({ user: req.session.user });
+  res.json({
+    user: req.session.user,
+    app_env: APP_ENV
+  });
 });
 
 app.use(express.static(path.join(__dirname, "../ui")));
@@ -748,7 +744,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
 
 app.post("/api/contacts", requireAuth, async (req, res) => { 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
+    const isDemoSandbox = IS_SANDBOX;
     const isAdmin = req.session?.user?.role === "admin";
     const isCIMode = process.env.CI === "true";
 

@@ -1,6 +1,5 @@
 console.log("app.js loaded");
-const DEMO_MODE = false;
-const APP_ENV = globalThis.APP_ENV || "production";
+let APP_ENV = "production";
 
 import { validateContact } from "../src/validateContact.js";
 
@@ -51,21 +50,19 @@ function applyRoleBasedAccess() {
     document.body.style.paddingTop = "40px";
   }
 
-  if (DEMO_MODE) {
-    banner.textContent = "CAREEROPS PLATFORM • DEMO MODE • SANDBOX ENVIRONMENT";
-    banner.style.display = "block";
-  } else if (!admin) {
-    banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
-    banner.style.display = "block";
-  } else {
-    banner.style.display = "none";
-  }
+if (APP_ENV === "demo") {
+  banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
+  banner.style.display = "block";
+} else if (!admin) {
+  banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+  banner.style.display = "block";
+} else {
+  banner.style.display = "none";
 }
 
 function renderDemoBanner() {
-  if (!DEMO_MODE) return;
-
-  console.log("DEMO banner running...");
+  if (APP_ENV !== "demo") return;
+  console.log("SANDBOX banner running...");
 }
 
 
@@ -812,7 +809,7 @@ function renderSelectedContacts(selected) {
     }
   }
 
- async function checkAuth() {
+async function checkAuth() {
   const response = await fetch("/api/auth/me");
 
   if (!response.ok) {
@@ -820,8 +817,9 @@ function renderSelectedContacts(selected) {
   }
 
   const data = await response.json();
+  APP_ENV = data.app_env || "production";
   return data.user;
-} 
+}
 
   function wireSelectionCheckboxes() {
     const checkboxes = document.querySelectorAll(".select-checkbox");
