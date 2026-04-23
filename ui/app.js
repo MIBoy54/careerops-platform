@@ -1160,11 +1160,6 @@ document.querySelectorAll("[data-target]").forEach((button) => {
   });
 });
 
-  const today = new Date().toISOString().split("T")[0];
-  contacts = [];
-  selectedIds.clear();
-  editId = null;
-
   try {
     await startAnalyticsSession();
     startAnalyticsHeartbeat();
