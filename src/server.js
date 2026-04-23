@@ -1444,7 +1444,3 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION:", err);
 });
-
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
