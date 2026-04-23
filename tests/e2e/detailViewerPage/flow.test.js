@@ -19,11 +19,21 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   await goToSavedContacts(page);
 
-  const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
+const contactRows = page.locator('#contactsTable tbody tr');
 
-  await expect.poll(async () => await checkboxes.count(), {
-    timeout: 10000
-  }).toBeGreaterThan(0);
+await expect.poll(async () => {
+  const rowCount = await contactRows.count();
+  console.log('Saved Contacts row count:', rowCount);
+  return rowCount;
+}, {
+  timeout: 10000
+}).toBeGreaterThan(0);
+
+const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
+
+await expect.poll(async () => await checkboxes.count(), {
+  timeout: 10000
+}).toBeGreaterThan(0);
 
   const checkboxCount = await checkboxes.count();
   const selectionCount = Math.min(4, checkboxCount);
