@@ -49,6 +49,16 @@ function applyRoleBasedAccess() {
     document.body.prepend(banner);
     document.body.style.paddingTop = "40px";
   }
+
+  if (APP_ENV === "demo") {
+    banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
+    banner.style.display = "block";
+  } else if (!admin) {
+    banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
 }
 if (APP_ENV === "demo") {
   banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
