@@ -4,13 +4,14 @@ let APP_ENV = "production";
 import { validateContact } from "../src/validateContact.js";
 
 function isAdminUser() {
-  return APP_ENV === "demo" || globalThis.currentUser?.role === "admin";
+  return globalThis.currentUser?.role === "admin";
 }
 
 console.log("FRONTEND APP_ENV:", APP_ENV);
 
 function applyRoleBasedAccess() {
   const admin = isAdminUser();
+  const isDemo = APP_ENV === "demo";
 
   const formFields = document.querySelectorAll(
     "#contactForm input, #contactForm select, #contactForm textarea, #contactForm button"
@@ -50,10 +51,12 @@ function applyRoleBasedAccess() {
     document.body.style.paddingTop = "40px";
   }
 
-  if (APP_ENV === "demo") {
-    banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
+  if (isDemo) {
+    banner.textContent = admin
+      ? "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT • ADMIN VIEW"
+      : "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT • GUEST VIEW • READ ONLY";
     banner.style.display = "block";
- } else if (!isAdminUser()) { 
+  } else if (!admin) {
     banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
     banner.style.display = "block";
   } else {

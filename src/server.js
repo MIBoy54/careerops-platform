@@ -108,7 +108,7 @@ function requireAuth(req, res, next) {
         id: 0,
         email: "guest@careerops.com",
         full_name: "Sandbox User",
-        role: "admin"
+        role: "guest"
       };
     }
     return next();
@@ -1427,17 +1427,17 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       }
     });
 
-    app.get("/env-check", (req, res) => {
-      res.json({
-        DB_HOST: process.env.DB_HOST,
-        DB_NAME: process.env.DB_NAME,
-        DB_USER: process.env.DB_USER,
-        DB_PORT: process.env.DB_PORT,
-        DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-      });
-    });
+app.get("/env-check", (req, res) => {
+  res.json({
+    DB_HOST: process.env.DB_HOST,
+    DB_NAME: process.env.DB_NAME,
+    DB_USER: process.env.DB_USER,
+    DB_PORT: process.env.DB_PORT,
+    DB_PASSWORD_SET: !!process.env.DB_PASSWORD
+  });
+});
 
-    process.on("uncaughtException", (err) => {
+process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
 
