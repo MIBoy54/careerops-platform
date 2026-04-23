@@ -1278,8 +1278,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
           return res.status(400).json({ error: "session_id and page_path are required." });
         }
 
-        await pool.query(
-          `
+    await pool.query(
+      `
       INSERT INTO visitor_analytics (
         session_id,
         page_path,
@@ -1288,12 +1288,9 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         time_spent_seconds
       )
       VALUES (?, ?, NOW(), NOW(), 0)
-      ON DUPLICATE KEY UPDATE
-        last_seen = NOW()
       `,
-          [session_id.trim(), page_path]
-        );
-
+      [session_id.trim(), page_path]
+    );
         res.status(200).json({ success: true });
       } catch (error) {
         console.error("POST /api/analytics/start failed:", error);
