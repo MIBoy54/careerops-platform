@@ -602,13 +602,23 @@ function handleViewSelectedClick() {
 
 async function loadContacts() {
   console.log("LOAD CONTACTS CALLED");
-  const response = await fetch("/api/contacts");
+
+  const response = await fetch("/api/contacts", {
+    credentials: "same-origin"
+  });
+
+  console.log("LOAD CONTACTS STATUS:", response.status);
 
   if (!response.ok) {
-    throw new Error("Failed to load contacts");
+    const errorText = await response.text();
+    console.error("LOAD CONTACTS RESPONSE BODY:", errorText);
+    throw new Error(`Failed to load contacts (${response.status})`);
   }
 
   contacts = await response.json();
+  console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
+  console.log("LOAD CONTACTS RESULT:", contacts);
+
   savedContacts = [...contacts];
   renderTable();
 }
@@ -911,7 +921,7 @@ function wireDeleteButtons() {
 function renderTable() {
   console.log("RENDER TABLE CALLED", contacts);
   const tableBody = document.querySelector("#contactsTable tbody");
-  const savedContactsSummary = document.getElementById("savedContactsSummary");
+  console.log("TABLE BODY FOUND:", !!tableBody);
 
   if (!tableBody) return;
 
@@ -922,20 +932,13 @@ function renderTable() {
     return status !== "rejected" && status !== "closed" && status !== "submitted";
   });
 
-  const totalSaved = activeContacts.length;
-
-  const totalReported = activeContacts.filter((c) => {
-    return String(c.reported_unemployment || "No").trim().toLowerCase() === "yes";
-  }).length;
-
-  if (savedContactsSummary) {
-    savedContactsSummary.textContent =
-      `Total Saved: ${totalSaved} | Total Reported: ${totalReported}`;
-  }
+  console.log("ACTIVE CONTACTS COUNT:", activeContacts.length);
 
   const filteredContacts = activeContacts.filter((c) => {
     return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
   });
+
+  console.log("FILTERED CONTACTS COUNT:", filteredContacts.length);
 
   const sortedContacts = sortSavedContacts(
     filteredContacts,
