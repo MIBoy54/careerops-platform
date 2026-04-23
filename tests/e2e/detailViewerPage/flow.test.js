@@ -4,6 +4,14 @@ import { seedContacts } from '../helpers/data.js';
 import { goToSavedContacts } from '../helpers/navigation.js';
 
 test('Detail Viewer end-to-end flow', async ({ page }) => {
+  page.on('console', (msg) => {
+    console.log('BROWSER LOG:', msg.text());
+  });
+
+  page.on('pageerror', (err) => {
+    console.log('PAGE ERROR:', err.message);
+  });
+
   await login(page);
   await seedContacts(page);
 
@@ -19,21 +27,21 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   await goToSavedContacts(page);
 
-const contactRows = page.locator('#contactsTable tbody tr');
+  const contactRows = page.locator('#contactsTable tbody tr');
 
-await expect.poll(async () => {
-  const rowCount = await contactRows.count();
-  console.log('Saved Contacts row count:', rowCount);
-  return rowCount;
-}, {
-  timeout: 10000
-}).toBeGreaterThan(0);
+  await expect.poll(async () => {
+    const rowCount = await contactRows.count();
+    console.log('Saved Contacts row count:', rowCount);
+    return rowCount;
+  }, {
+    timeout: 10000
+  }).toBeGreaterThan(0);
 
-const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
+  const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
 
-await expect.poll(async () => await checkboxes.count(), {
-  timeout: 10000
-}).toBeGreaterThan(0);
+  await expect.poll(async () => await checkboxes.count(), {
+    timeout: 10000
+  }).toBeGreaterThan(0);
 
   const checkboxCount = await checkboxes.count();
   const selectionCount = Math.min(4, checkboxCount);
