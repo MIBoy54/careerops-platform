@@ -1278,22 +1278,28 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
           return res.status(400).json({ error: "session_id and page_path are required." });
         }
 
-    await pool.query(
-      `
-      INSERT INTO visitor_analytics (
-        session_id,
-        page_path,
-        first_seen,
-        last_seen,
-        time_spent_seconds
-      )
-      VALUES (?, ?, NOW(), NOW(), 0)
-      `,
-      [session_id.trim(), page_path]
-    );
+      await pool.query(
+        `
+        INSERT INTO visitor_analytics (
+          session_id,
+          page_path,
+          first_seen,
+          last_seen,
+          time_spent_seconds
+        )
+        VALUES (?, ?, NOW(), NOW(), 0)
+        `,
+        [session_id.trim(), page_path]
+      );
         res.status(200).json({ success: true });
       } catch (error) {
-        console.error("POST /api/analytics/start failed:", error);
+        console.error("POST /api/analytics/start failed:", {
+          message: error.message,
+          code: error.code,
+          errno: error.errno,
+          sqlMessage: error.sqlMessage,
+          sqlState: error.sqlState
+        });
         res.status(500).json({ error: "Failed to start analytics session." });
       }
     });
