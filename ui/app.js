@@ -60,21 +60,11 @@ function applyRoleBasedAccess() {
     banner.style.display = "none";
   }
 }
-if (APP_ENV === "demo") {
-  banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
-  banner.style.display = "block";
-} else if (!admin) {
-  banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
-  banner.style.display = "block";
-} else {
-  banner.style.display = "none";
-}
 
 function renderDemoBanner() {
   if (APP_ENV !== "demo") return;
   console.log("SANDBOX banner running...");
 }
-
 
 let selectedIds = new Set();
 let contacts = [];
