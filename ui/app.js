@@ -53,7 +53,7 @@ function applyRoleBasedAccess() {
   if (APP_ENV === "demo") {
     banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
     banner.style.display = "block";
-  } else if (!admin) {
+ } else if (!isAdminUser()) { 
     banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
     banner.style.display = "block";
   } else {
