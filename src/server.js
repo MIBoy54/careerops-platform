@@ -48,10 +48,6 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 const isCIMode = process.env.CI === "true";
 
 let inMemoryContacts = [];
@@ -1461,4 +1457,8 @@ process.on("uncaughtException", (err) => {
 
 process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION:", err);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
