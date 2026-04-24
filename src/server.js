@@ -1300,8 +1300,10 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
           code: error.code,
           errno: error.errno,
           sqlMessage: error.sqlMessage,
-          sqlState: error.sqlState
+          sqlState: error.sqlState,
+          sql: error.sql
         });
+
         res.status(500).json({ error: "Failed to start analytics session." });
       }
     });
