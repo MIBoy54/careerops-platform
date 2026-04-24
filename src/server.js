@@ -79,6 +79,19 @@ const pool = mysql.createPool({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+app.get("/api/analytics/ping", (req, res) => {
+  console.log("REQ GET /api/analytics/ping");
+  res.json({
+    success: true,
+    app: "careerops-platform",
+    env: process.env.APP_ENV,
+    db: process.env.DB_NAME,
+    time: new Date().toISOString()
+  });
+});
+
 app.use(express.static(path.join(__dirname, "../ui")));
 app.use("/src", express.static(path.join(__dirname)));
 app.use((req, res, next) => {
@@ -248,17 +261,6 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
   res.json({
     user: req.session.user,
     app_env: APP_ENV
-  });
-});
-
-app.get("/api/analytics/ping", (req, res) => {
-  console.log("REQ GET /api/analytics/ping");
-  res.json({
-    success: true,
-    app: "careerops-platform",
-    env: process.env.APP_ENV,
-    db: process.env.DB_NAME,
-    time: new Date().toISOString()
   });
 });
 
