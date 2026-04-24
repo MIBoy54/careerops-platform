@@ -79,7 +79,8 @@ const pool = mysql.createPool({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use(express.static(path.join(__dirname, "../ui")));
+app.use("/src", express.static(path.join(__dirname)));
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
   next();
@@ -260,10 +261,6 @@ app.get("/api/analytics/ping", (req, res) => {
     time: new Date().toISOString()
   });
 });
-
-app.use(express.static(path.join(__dirname, "../ui")));
-app.use("/src", express.static(path.join(__dirname)));
-app.use(express.urlencoded({ extended: true }));
 
 function getWeekStart() {
   const today = new Date();
