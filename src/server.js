@@ -227,6 +227,17 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.get("/api/analytics/ping", (req, res) => {
+  console.log("REQ GET /api/analytics/ping");
+  res.json({
+    success: true,
+    app: "careerops-platform",
+    env: process.env.APP_ENV,
+    db: process.env.DB_NAME,
+    time: new Date().toISOString()
+  });
+});
+
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
   req.session.destroy((err) => {
     if (err) {
