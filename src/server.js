@@ -241,6 +241,17 @@ app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
 
+app.get("/api/analytics/ping", (req, res) => {
+  console.log("REQ GET /api/analytics/ping");
+  res.json({
+    success: true,
+    app: "careerops-platform",
+    env: APP_ENV,
+    db: DB_NAME,
+    time: new Date().toISOString()
+  });
+});
+
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: "Not authenticated." });
@@ -249,17 +260,6 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
   res.json({
     user: req.session.user,
     app_env: APP_ENV
-  });
-});
-
-app.get("/api/analytics/ping", (req, res) => {
-  console.log("REQ GET /api/analytics/ping");
-  res.json({
-    success: true,
-    app: "careerops-platform",
-    env: process.env.APP_ENV,
-    db: DB_NAME,
-    time: new Date().toISOString()
   });
 });
 
