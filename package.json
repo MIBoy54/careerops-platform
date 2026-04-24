@@ -1,6 +1,6 @@
 {
   "name": "careerops-platform",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Test-Driven Career Operations — applying CI/CD, automation, and quality engineering principles to employment search workflows.",
   "main": "src/server.js",
   "scripts": {
