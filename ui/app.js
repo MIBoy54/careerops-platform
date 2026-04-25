@@ -4,10 +4,17 @@ let APP_ENV = "production";
 import { validateContact } from "../src/validateContact.js";
 
 function isAdminUser() {
+  return ["admin", "guest"].includes(globalThis.currentUser?.role);
+}
+
+function canHardDelete() {
   return globalThis.currentUser?.role === "admin";
 }
 
-console.log("FRONTEND APP_ENV:", APP_ENV);
+function canWriteDatabase() {
+  return globalThis.currentUser?.role === "admin";
+}
+console.log("FRONTEND APP_ENV:", globalThis.APP_ENV || "not set");
 
 function applyRoleBasedAccess() {
   const admin = isAdminUser();
@@ -22,7 +29,7 @@ function applyRoleBasedAccess() {
   });
 
   if (generateReportBtn) {
-    generateReportBtn.disabled = !admin || selectedIds.size !== 4;
+    generateReportBtn.disabled = !canWriteDatabase() || selectedIds.size !== 4;
   }
 
   if (viewButton) {
@@ -51,17 +58,14 @@ function applyRoleBasedAccess() {
     document.body.style.paddingTop = "40px";
   }
 
-  if (isDemo) {
-    banner.textContent = admin
-      ? "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT • ADMIN VIEW"
-      : "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT • GUEST VIEW • READ ONLY";
-    banner.style.display = "block";
-  } else if (!admin) {
-    banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
-    banner.style.display = "block";
-  } else {
-    banner.style.display = "none";
-  }
+if (isDemo) {
+  banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
+  banner.style.display = "block";
+} else if (!canWriteDatabase()) {
+  banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+  banner.style.display = "block";
+} else {
+  banner.style.display = "none";
 }
 
 function renderDemoBanner() {
@@ -895,6 +899,11 @@ function wireDeleteButtons() {
 
   deleteButtons.forEach((button) => {
     button.addEventListener("click", async () => {
+      if (!canHardDelete()) {
+        renderMessage(messageDiv, "Delete is disabled for guest demo users.", "error");
+        return;
+      }
+
       const id = Number(button.dataset.id);
 
       try {
@@ -961,11 +970,9 @@ function renderTable() {
       <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
       <td>${escapeHtml(c.reported_unemployment || "No")}</td>
       <td>
-        ${isAdminUser() ? `
-          <button type="button" class="edit-btn" data-id="${c.id}">Edit</button>
-          <button type="button" class="delete-btn" data-id="${c.id}">Delete</button>
-        ` : ""}
-      </td>
+      ${isAdminUser() ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>` : ""}
+      ${canHardDelete() ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>` : ""}
+            </td>
     `;
 
     tableBody.appendChild(row);
@@ -1074,22 +1081,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     goNextSection();
   });
 
-  document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    console.log("NAV CLICK: savedContactsSection");
-    showSection("savedContactsSection");
-  });
-
-  document.querySelectorAll("[data-target]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-
-      const target = button.dataset.target;
-      if (!target) return;
-
-      console.log("NAV CLICK:", target);
-      showSection(target);
-    });
+  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+    await logout();
   });
 
   const user = await checkAuth();
@@ -1128,22 +1121,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   contacts = [];
   selectedIds.clear();
   editId = null;
-
-  document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
-    showSection("landingPage");
-  });
-
-  document.getElementById("backBtn")?.addEventListener("click", () => {
-    goBackSection();
-  });
-
-  document.getElementById("nextBtn")?.addEventListener("click", () => {
-    goNextSection();
-  });
-
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    await logout();
-  });
 
   document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
   event.preventDefault();
