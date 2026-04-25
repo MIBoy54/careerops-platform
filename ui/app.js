@@ -58,14 +58,15 @@ function applyRoleBasedAccess() {
     document.body.style.paddingTop = "40px";
   }
 
-if (isDemo) {
-  banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
-  banner.style.display = "block";
-} else if (!canWriteDatabase()) {
-  banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
-  banner.style.display = "block";
-} else {
-  banner.style.display = "none";
+  if (isDemo) {
+    banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
+    banner.style.display = "block";
+  } else if (!canWriteDatabase()) {
+    banner.textContent = "CAREEROPS PLATFORM • GUEST VIEW • READ ONLY";
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
 }
 
 function renderDemoBanner() {
@@ -1464,7 +1465,7 @@ document.querySelectorAll("[data-target]").forEach((button) => {
     });
   }
 
-  if (completeValidationRunBtn) {
+if (completeValidationRunBtn) {
   completeValidationRunBtn.addEventListener("click", async () => {
     await completeValidationRun();
   });

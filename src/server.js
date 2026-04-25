@@ -1295,6 +1295,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
           time_spent_seconds
         )
         VALUES (?, ?, NOW(), NOW(), 0)
+        ON DUPLICATE KEY UPDATE
+          last_seen = NOW()
         `,
         [session_id.trim(), page_path]
       );
