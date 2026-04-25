@@ -1278,6 +1278,7 @@ document.querySelectorAll("[data-target]").forEach((button) => {
       document.getElementById("company").value = companyDetails.company || "";
       document.getElementById("recruiter_name").value = companyDetails.recruiter_name || "";
       document.getElementById("location").value = companyDetails.location || "";
+      document.getElementById("comp_range").value = company.comp_range || "";
       document.getElementById("role_level").value = companyDetails.role_level || "";
       document.getElementById("role_type").value = companyDetails.role_type || "";
       document.getElementById("status").value = companyDetails.status || "";
