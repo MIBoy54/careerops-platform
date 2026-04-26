@@ -624,6 +624,18 @@ async function loadContacts() {
   }
 
   contacts = await response.json();
+
+  document.getElementById("totalSaved").textContent = contacts.length;
+
+  document.getElementById("totalSaved").textContent = contacts.length;
+
+  document.getElementById("totalReported").textContent =
+    contacts.filter(c =>
+      String(c.reported_to_unemployment || c.reported_unemployment || "")
+        .trim()
+        .toLowerCase() === "yes"
+    ).length;
+
   console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
   console.log("LOAD CONTACTS RESULT:", contacts);
 
@@ -1278,7 +1290,7 @@ document.querySelectorAll("[data-target]").forEach((button) => {
       document.getElementById("company").value = companyDetails.company || "";
       document.getElementById("recruiter_name").value = companyDetails.recruiter_name || "";
       document.getElementById("location").value = companyDetails.location || "";
-      document.getElementById("comp_range").value = company.comp_range || "";
+      document.getElementById("comp_range").value = companyDetails.comp_range || "";
       document.getElementById("role_level").value = companyDetails.role_level || "";
       document.getElementById("role_type").value = companyDetails.role_type || "";
       document.getElementById("status").value = companyDetails.status || "";

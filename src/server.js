@@ -988,7 +988,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       status,
       relationship_status,
       reported_unemployment,
-      date_reported,
       next_follow_up_date,
       phone,
       email,
@@ -998,11 +997,8 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     } = req.body;
     
     let finalReportedUnemployment = reported_unemployment || "No";
-    let finalDateReported = date_reported || null;
-
     if (String(status || "").trim().toLowerCase() === "submitted") {
       finalReportedUnemployment = "Yes";
-      finalDateReported = new Date();
     }
 
     await pool.query(
@@ -1019,7 +1015,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           status = ?,
           relationship_status = ?,
           reported_to_unemployment = ?,
-          date_reported = ?,
           follow_up_date = ?,
           phone = ?,
           email = ?,
@@ -1039,7 +1034,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         status || null,
         relationship_status || null,
         finalReportedUnemployment,
-        finalDateReported,
         next_follow_up_date || null,
         phone || null,
         email || null,
