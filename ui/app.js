@@ -629,12 +629,12 @@ async function loadContacts() {
 
   document.getElementById("totalSaved").textContent = contacts.length;
 
-  document.getElementById("totalReported").textContent =
-    contacts.filter(c =>
-      String(c.reported_to_unemployment || c.reported_unemployment || "")
-        .trim()
-        .toLowerCase() === "yes"
-    ).length;
+document.getElementById("totalReported").textContent =
+  contacts.filter(c =>
+    String(c.reported_unemployment || "")
+      .trim()
+      .toLowerCase() === "yes"
+  ).length;
 
   console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
   console.log("LOAD CONTACTS RESULT:", contacts);
