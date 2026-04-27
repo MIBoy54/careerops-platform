@@ -367,7 +367,8 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
-  const isCIMode = process.env.CI === "true";
+ const isCIMode =
+  process.env.CI === "true" && process.env.APP_ENV !== "demo";
 
   try {
     if (isCIMode) {
