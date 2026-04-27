@@ -48,7 +48,9 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-const isCIMode = process.env.CI === "true";
+function isCIMode() {
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
 let inMemoryContacts = [];
 let inMemoryContactId = 1;
@@ -367,8 +369,9 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
- const isCIMode =
-  process.env.CI === "true" && process.env.APP_ENV !== "demo";
+ function isCIMode() {
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
   try {
     if (isCIMode) {
@@ -757,7 +760,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   try {
     const isDemoSandbox = IS_SANDBOX;
     const isAdmin = req.session?.user?.role === "admin";
-    const isCIMode = process.env.CI === "true";
+    function isCIMode() {
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
     if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
@@ -946,7 +951,9 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
-    const isCIMode = process.env.CI === "true";
+    function isCIMode() {
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
     if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
@@ -1098,7 +1105,9 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
-    const isCIMode = process.env.CI === "true";
+    function isCIMode() {
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
     if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
