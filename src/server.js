@@ -188,7 +188,7 @@ app.post("/api/auth/login", async (req, res) => {
         id: 0,
         email: trimmedEmail,
         full_name: "Sandbox User",
-        role: "guest"
+        role: "admin"
       };
 
       return res.json({
