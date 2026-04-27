@@ -378,20 +378,20 @@ app.get("/", (req, res) => {
     return res.status(500).send("Server error");
   }
 });
-
 app.get("/api/contacts", requireAuth, async (req, res) => {
-  console.log("HIT PROTECTED /api/contacts ROUTE");
+ 
+ console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
- function isCIMode() {
+function isCIMode() {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
 }
 
-  try {
-    if (isCIMode) {
-      console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
-      return res.json(inMemoryContacts);
-    }
+try {
+  if (isCIMode()) {
+    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
+    return res.json(inMemoryContacts);
+  }
 
     const [rows] = await pool.query(`
       SELECT
