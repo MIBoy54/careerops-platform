@@ -367,7 +367,10 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
-  const isCIMode = process.env.CI === "true";
+  const isCIMode =
+  process.env.CI === "true" &&
+  process.env.APP_ENV !== "demo" &&
+  process.env.APP_ENV !== "production";
 
   try {
     if (isCIMode) {
@@ -756,7 +759,10 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   try {
     const isDemoSandbox = IS_SANDBOX;
     const isAdmin = req.session?.user?.role === "admin";
-    const isCIMode = process.env.CI === "true";
+    const isCIMode =
+    process.env.CI === "true" &&
+    process.env.APP_ENV !== "demo" &&
+    process.env.APP_ENV !== "production";
 
     if (!isDemoSandbox && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
