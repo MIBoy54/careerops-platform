@@ -511,13 +511,14 @@ try {
 
     app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
       try {
-        const { start, end } = req.query;
+        const isDemoSandbox = DEMO_MODE === true;
+        const isAdmin = req.session?.user?.role === "admin";
 
-        if (!start || !end) {
-          return res.status(400).json({
-            error: "start and end query parameters are required. Example: /api/reports/unemployment?start=2026-03-19&end=2026-03-25"
-          });
+        if (isDemoSandbox && !isAdmin) {
+          return res.status(403).json({ error: "Read-only mode." });
         }
+
+        const { start, end } = req.query;
 
         const [rows] = await pool.query(
           `
