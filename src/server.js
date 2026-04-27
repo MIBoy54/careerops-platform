@@ -404,6 +404,8 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
     console.error("GET /api/contacts failed:", error);
     res.status(500).json({ error: "Failed to fetch contacts" });
   }
+console.log("GET /api/contacts ROW COUNT:", rows.length);
+console.log("GET /api/contacts FIRST ROW:", rows[0]);
 });
 
     app.get('/api/validation-runs', async (req, res) => {
@@ -750,6 +752,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
     });
 
 app.post("/api/contacts", requireAuth, async (req, res) => { 
+  console.log("POST /api/contacts BODY:", req.body);
   try {
     const isDemoSandbox = IS_SANDBOX;
     const isAdmin = req.session?.user?.role === "admin";
