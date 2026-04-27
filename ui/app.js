@@ -821,7 +821,7 @@ function renderSelectedContacts(selected) {
         row.innerHTML = `
         <td>${formatDate(report.week_start)}</td>
         <td>${formatDate(report.week_end)}</td>
-        <td>${report.submitted ?? 0}</td>
+        <td>${Number(report.submitted) > 0 ? "Yes" : "No"}</td>
         <td>${formatDate(report.submitted_at)}</td>
         <td>
           <button type="button" class="view-report-btn" data-id="${report.id}">View</button>
