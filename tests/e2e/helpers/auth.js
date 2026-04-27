@@ -10,7 +10,7 @@ export async function login(page) {
     return;
   }
 
-  await page.goto('/login.html');
+  await page.goto('/login.html', { waitUntil: 'domcontentloaded' });
 
   await expect(page.locator('#email')).toBeVisible({ timeout: 10000 });
   await page.fill('#email', 'b.r.lewis@outlook.com');
