@@ -370,7 +370,6 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
   const isCIMode = process.env.CI === "true";
 
   try {
-    // 👉 CI shortcut (no DB)
     if (isCIMode) {
       console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
       return res.json(inMemoryContacts);
@@ -399,13 +398,14 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
       ORDER BY id DESC
     `);
 
-    res.json(rows);
+    console.log("GET /api/contacts ROW COUNT:", rows.length);
+    console.log("GET /api/contacts FIRST ROW:", rows[0]);
+
+    return res.json(rows);
   } catch (error) {
     console.error("GET /api/contacts failed:", error);
-    res.status(500).json({ error: "Failed to fetch contacts" });
+    return res.status(500).json({ error: "Failed to fetch contacts" });
   }
-console.log("GET /api/contacts ROW COUNT:", rows.length);
-console.log("GET /api/contacts FIRST ROW:", rows[0]);
 });
 
     app.get('/api/validation-runs', async (req, res) => {
