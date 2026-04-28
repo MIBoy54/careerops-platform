@@ -877,13 +877,11 @@ function wireEditButtons() {
       const id = Number(button.dataset.id);
       const contact = contacts.find((item) => item.id === id);
 
-      if (!contact) return;
+    if (!contact) return;
 
-      editId = id;
-      selectedIds.clear();
-      updateSelectionCount();
+    editId = id;
 
-      Object.keys(contact).forEach((key) => {
+    Object.keys(contact).forEach((key) => {
         const field = form?.elements?.[key];
         if (field) {
           field.value =
