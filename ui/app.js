@@ -875,11 +875,13 @@ function wireEditButtons() {
   editButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const id = Number(button.dataset.id);
+      console.log("EDIT BUTTON DATA ID:", button.dataset.id);
+      console.log("EDIT ID NUMBER:", id);
       const contact = contacts.find((item) => item.id === id);
 
-    if (!contact) return;
+      if (!contact) return;
 
-    editId = id;
+      editId = id;
 
     Object.keys(contact).forEach((key) => {
         const field = form?.elements?.[key];
@@ -1209,6 +1211,9 @@ document.querySelectorAll("[data-target]").forEach((button) => {
     try {
       let response;
       let result;
+
+      console.log("SAVE editId:", editId);
+      console.log("SAVE URL:", `/api/contacts/${editId}`);
 
       if (editId !== null) {
         response = await fetch(`/api/contacts/${editId}`, {

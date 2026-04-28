@@ -784,7 +784,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
     }
 
     // 👉 CI shortcut (no DB)
-if (isCIMode) {
+if (isCIMode()) {
   console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
 
   const newContact = {
@@ -975,7 +975,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     }
 
     // 👉 CI shortcut (no DB)
-    if (isCIMode) {
+    if (isCIMode()) { 
       const id = Number(req.params.id);
       const index = inMemoryContacts.findIndex((c) => c.id === id);
 
@@ -1129,7 +1129,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
     }
 
     // 👉 CI shortcut (no DB)
-    if (isCIMode) {
+    if (isCIMode()) {
       const id = Number(req.params.id);
       inMemoryContacts = inMemoryContacts.filter((c) => c.id !== id);
       return res.json({ message: "Contact deleted successfully" });
