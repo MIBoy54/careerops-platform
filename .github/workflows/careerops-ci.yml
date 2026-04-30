@@ -33,6 +33,7 @@ jobs:
 
       - name: Run Unit Tests (DEV Gate)
         run: npx vitest run tests/unit
+
       - name: Install Playwright Browsers
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         run: npx playwright install --with-deps
