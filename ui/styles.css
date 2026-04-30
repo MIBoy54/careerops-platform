@@ -352,3 +352,37 @@ button.secondary {
   padding: 8px 12px;
   border: 1px solid black;
 }
+
+/* Button states */
+button {
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+button:not(:disabled) {
+  background-color: #2e7d32;
+  color: #ffffff;
+  border-color: #2e7d32;
+  cursor: pointer;
+}
+
+button:not(:disabled):hover {
+  background-color: #1b5e20;
+  border-color: #1b5e20;
+}
+
+button:disabled {
+  background-color: #e0e0e0;
+  color: #757575;
+  border-color: #d0d0d0;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+button.delete-btn {
+  background-color: #c62828;
+  color: #fff;
+}
+
+button.delete-btn:hover {
+  background-color: #8e0000;
+}
