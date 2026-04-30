@@ -1,50 +1,19 @@
 <h1 align="center">CareerOps Platform</h1>
-<p align="center"><b><i>This platform demonstrates how quality can be designed into a system rather than enforced through tooling alone.</i></b></p>
-<p>Key capabilities:</p>
-<ul>
-  <li>Role-based quality control (Admin vs Read-Only users)</li>
-  <li>End-to-end validation run tracking (UI + API sources)</li>
-  <li>Human-readable telemetry and execution analytics</li>
-  <li>Controlled data mutation with enforced governance</li>
-  <li>Demo-safe architecture to prevent unintended system changes</li>
-</ul>
-<p>This reflects a Quality Engineering operating model where:</p>
-<ul>
-  <li>Risk is visible in real time</li>
-  <li>Execution is observable and measurable</li>
-  <li>Quality is embedded in workflows, not dependent on manual intervention</li>
-</ul>
-<hr>
 
-<p>
-CareerOps is a system-level Quality Engineering platform demonstrating how modern engineering practices enforce quality, validation, and compliance through architecture—not just testing.
-
-This project showcases how to design systems where:
+<p align="center">
+<b><i>A CI-driven Quality Engineering system demonstrating how quality is enforced through architecture, not tooling.</i></b>
 </p>
 
-<ul>
-<li>Quality is enforced through CI/CD pipelines</li>
-<li>Validation is embedded across UI, API, and data layers</li>
-<li>Operational workflows are fully traceable and auditable</li>
-<li>Compliance requirements are programmatically validated</li>
-</ul>
+<p>
+CareerOps is a system-level platform demonstrating how modern engineering practices embed validation, observability, and governance directly into workflows.
+</p>
 
 <p>
 This is not a test automation project.<br>
-It is a <b>quality engineering system</b>.
+It is a <b>multi-layered quality system</b>.
 </p>
-
 <hr>
-<h2>Build Status</h2>
-<p align="center">
-  <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg" alt="CareerOps CI" />
-  <img src="https://img.shields.io/badge/node-20.x-green" alt="Node 20.x" />
-  <img src="https://img.shields.io/badge/unit%20tests-vitest%20passing-brightgreen" alt="Vitest passing" />
-  <img src="https://img.shields.io/badge/e2e-playwright%20passing-blue" alt="Playwright passing" />
-  <img src="https://img.shields.io/badge/framework-playwright-blue" alt="Playwright framework" />
-</p>
 
-<hr>
 <h2>Overview</h2>
 <p>
 CareerOps demonstrates how modern engineering practices can be applied to operational workflows, including:
@@ -58,44 +27,51 @@ CareerOps demonstrates how modern engineering practices can be applied to operat
 <p>
 The system is built around a CI-first architecture where validation occurs automatically through GitHub Actions.
 </p>
-
 <hr>
-<h2>System Capabilities</h2>
-<h3>Core System</h3>
-<ui>
-  <li>Recruiter Contact Management System (UI + API + Validation)</li>
-  <li>API Layer with Validation + CI Integration (Vitest + GitHub Actions)</li>
-  <li>MySQL Data Model for Recruiter & Reporting Workflows</li>
-</ui>
-<h3>Workflow Engine</h3>
-<ui>
-  <li>Weekly Compliance Reporting Engine (Selection → Persist → Export)</li>
-  <li>End-to-End Workflow Automation (Contact → Report → History → Export)</li>
-</ui>
-<h3>Reporting & Visibility</h3>
-<ui>
-  <li>Weekly Report History & Detail Viewer</li>
-  <li>CSV Export for Compliance Reporting</li>
-</ui>
-<h3>Enhancements</h3>
-<ui>
-  <li>Company/Agency Search-as-you-type</li>
-  <li>Role Type dropdown standardization</li>
-  <li>Email validation improvements</li>
-  <li>Follow-up date field standardization</li>
-</ui>
 
-<hr>
-<h2>What This Demonstrates</h2>
+<h2>CI/CD Quality Gate Model</h2>
 <ul>
-<li>End-to-end workflow design from UI → API → database</li>
-<li>Relational data modeling for audit and traceability</li>
-<li>CI-enforced validation integrated into development lifecycle</li>
-<li>Separation of concerns across UI, service, and data layers</li>
-<li>Compliance-aware system design with historical reconstruction</li>
+  <li><b>DEV Gate</b> → Unit validation (Vitest)</li>
+  <li><b>QA Gate</b> → Smoke validation (Playwright)</li>
+  <li><b>DEMO Gate</b> → Full end-to-end validation</li>
+  <li><b>LIVE Gate</b> → Production-safe deployment with enforced validation</li>
 </ul>
 
+<p>
+Each stage enforces progressively deeper system validation, preventing unstable changes from progressing through the pipeline.
+</p>
 <hr>
+
+<h2>Build Status</h2>
+<p align="center">
+  <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg" />
+  <img src="https://img.shields.io/badge/node-20.x-green" />
+  <img src="https://img.shields.io/badge/unit%20tests-vitest%20passing-brightgreen" />
+  <img src="https://img.shields.io/badge/e2e-playwright%20passing-blue" />
+</p>
+<hr>
+
+<h3>Key Capabilities</h3>
+<ul>
+  <li>Multi-stage CI/CD quality gates (DEV → QA → DEMO → LIVE)</li>
+  <li>End-to-end validation across UI, API, and data layers</li>
+  <li>Deterministic test execution with controlled data seeding</li>
+  <li>Run history tracking and audit-ready validation telemetry</li>
+  <li>Role-based governance (Admin vs Read-Only)</li>
+  <li>Demo-safe architecture preventing unintended system mutation</li>
+</ul>
+<p>
+This platform demonstrates a shift from <b>test execution</b> to <b>quality system design</b>:
+</p>
+
+<ul>
+<li>Quality is enforced through CI/CD pipelines</li>
+<li>Validation is embedded across system layers</li>
+<li>Execution is observable and measurable</li>
+<li>Risk is surfaced early through structured quality gates</li>
+</ul>
+<hr>
+
 <h2>System Architecture Layers</h2>
 <p>This platform is structured as a multi-layered <b>quality engineering system</b>, designed to move from execution to observability and enforcement:</p>
 
@@ -117,6 +93,44 @@ The system is built around a CI-first architecture where validation occurs autom
   <li>Systems scale quality—not tools alone</li>
 </ul>
 <hr>
+
+<h2>System Capabilities</h2>
+<h3>Core System</h3>
+<ul>
+  <li>Recruiter Contact Management System (UI + API + Validation)</li>
+  <li>API Layer with Validation + CI Integration (Vitest + GitHub Actions)</li>
+  <li>MySQL Data Model for Recruiter & Reporting Workflows</li>
+</ul>
+<h3>Workflow Engine</h3>
+<ul>
+  <li>Weekly Compliance Reporting Engine (Selection → Persist → Export)</li>
+  <li>End-to-End Workflow Automation (Contact → Report → History → Export)</li>
+</ul>
+<h3>Reporting & Visibility</h3>
+<ul>
+  <li>Weekly Report History & Detail Viewer</li>
+  <li>CSV Export for Compliance Reporting</li>
+</ul>
+<h3>Enhancements</h3>
+<ul>
+  <li>Company/Agency Search-as-you-type</li>
+  <li>Role Type dropdown standardization</li>
+  <li>Email validation improvements</li>
+  <li>Follow-up date field standardization</li>
+</ul>
+
+<hr>
+<h2>What This Demonstrates</h2>
+<ul>
+<li>End-to-end workflow design from UI → API → database</li>
+<li>Relational data modeling for audit and traceability</li>
+<li>CI-enforced validation integrated into development lifecycle</li>
+<li>Separation of concerns across UI, service, and data layers</li>
+<li>Compliance-aware system design with historical reconstruction</li>
+</ul>
+
+<hr>
+
 <h2>Architecture</h2>
 <table>
   <tr>
@@ -136,8 +150,8 @@ The system is built around a CI-first architecture where validation occurs autom
     <td>Unit testing framework</td>
   </tr>
   <tr>
-    <td>Playwright / Cypress</td>
-    <td>Automation testing (planned)</td>
+    <td>Playwright</td>
+    <td>CI-validated smoke and end-to-end testing</td>
   </tr>
   <tr>
     <td>MySQL</td>
@@ -312,9 +326,9 @@ careerops-platform/
 │   └── validateWeeklyReport.js
 │
 ├── tests/
-│   ├── contactValidation.test.js
-│   ├── dataValidation.test.js
-│   └── weeklyReport.test.js
+│   ├── unit/
+│   ├── smoke/
+│   └── e2e/
 │
 ├── ui/
 │   ├── app.js
@@ -478,11 +492,17 @@ This demonstrates how compliance rules and data quality requirements are program
 <hr>
 <h2>Perspective</h2>
 <p>
-Automation does not create quality.<br>
-Systems do.<br><br>
+Quality is not achieved through more tests.<br>
+It is achieved through better system design.<br><br>
 
-Quality is not validated at the end of delivery — it is enforced throughout the system.<br><br>
-<p align="center">CI-Driven Quality Engineering | Operational Workflow Platform | Compliance-Aware Architecture</p>
+Automation does not create quality — systems do.<br><br>
+
+CareerOps demonstrates how engineering discipline, CI/CD pipelines, and structured validation models transform quality from a reactive function into an enforced system capability.
+</p>
+
+<p align="center">
+<b>CI-Driven Quality Engineering | System-Level Validation | Architecture-Led Quality</b>
+</p>
 
 The future of Quality Engineering is not more tests.<br>
 It is better system design.
