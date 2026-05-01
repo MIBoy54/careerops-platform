@@ -14,7 +14,7 @@ export async function login(page) {
 
   await expect(page.locator('#email')).toBeVisible({ timeout: 10000 });
   await page.fill('#email', 'b.r.lewis@outlook.com');
-  await page.fill('#password', '27@67Hampden!');
+  await page.fill('#password', '27@67Hampden');
 
   const [response] = await Promise.all([
     page.waitForResponse(resp => resp.url().includes('/api/auth/login')),
