@@ -784,9 +784,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
 }
 
-    if (!isDemoSandbox && !isAdmin) {
-      return res.status(403).json({ error: "Read-only mode." });
-    }
+  if (DEMO_MODE && !isAdmin) {
+    return res.status(403).json({ error: "Read-only mode." });
+  }
 
     // 👉 CI shortcut (no DB)
 if (isCIMode()) {
@@ -975,7 +975,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
 }
 
-    if (!isDemoSandbox && !isAdmin) {
+    if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
@@ -1129,7 +1129,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
 }
 
-    if (!isDemoSandbox && !isAdmin) {
+    if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
@@ -1201,8 +1201,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
-
-    if (!isDemoSandbox && !isAdmin) {
+    if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
     }
 
