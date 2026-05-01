@@ -16,7 +16,12 @@ console.log("🔥 NEW BUILD VERSION LOADED");
 
 console.log("🔥 LOADING SERVER FILE:", __filename);
 
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+const envFile =
+  process.env.APP_ENV === "demo"
+    ? "../.env.demo"
+    : "../.env";
+
+dotenv.config({ path: path.resolve(__dirname, envFile) });
 
 const APP_ENV = (process.env.APP_ENV || 'production').trim()
 
@@ -1483,4 +1488,7 @@ process.on("unhandledRejection", (err) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+});
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
