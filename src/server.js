@@ -1369,10 +1369,11 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       try {
         const [rows] = await pool.query(
           `
-      SELECT COUNT(DISTINCT session_id) AS active_users
-      FROM visitor_analytics
-      WHERE last_seen >= NOW() - INTERVAL ${ACTIVE_THRESHOLD_MINUTES} MINUTE
-      `
+          SELECT COUNT(DISTINCT session_id) AS active_users
+          FROM visitor_analytics
+          WHERE last_seen >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+          `,
+          [ACTIVE_THRESHOLD_MINUTES]
         );
 
         res.status(200).json({
@@ -1388,10 +1389,11 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       try {
         const [rows] = await pool.query(
           `
-      SELECT COUNT(DISTINCT session_id) AS stale_sessions
-      FROM visitor_analytics
-      WHERE last_seen < NOW() - INTERVAL ${STALE_THRESHOLD_MINUTES} MINUTE
-      `
+          SELECT COUNT(DISTINCT session_id) AS stale_sessions
+          FROM visitor_analytics
+          WHERE last_seen < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+          `,
+          [STALE_THRESHOLD_MINUTES]
         );
 
         res.status(200).json({
