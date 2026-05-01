@@ -1385,7 +1385,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         });
       } catch (error) {
         console.error("GET /api/analytics/active-users failed:", error);
-        res.status(500).json({ error: "Failed to load active users." });
+        res.status(500).json({ error: error.message });
       }
     });
 
@@ -1409,7 +1409,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         });
       } catch (error) {
         console.error("GET /api/analytics/stale-sessions failed:", error);
-        res.status(500).json({ error: "Failed to load stale sessions." });
+        res.status(500).json({ error: error.message });
       }
     });
 
