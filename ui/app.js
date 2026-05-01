@@ -38,31 +38,38 @@ function applyRoleBasedAccess() {
 
   let banner = document.getElementById("readOnlyBanner");
 
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "readOnlyBanner";
-    banner.style.background = "#f57c00";
-    banner.style.color = "white";
-    banner.style.textAlign = "center";
-    banner.style.padding = "8px";
-    banner.style.fontWeight = "bold";
-    banner.style.letterSpacing = "0.5px";
-    banner.style.position = "fixed";
-    banner.style.top = "0";
-    banner.style.left = "0";
-    banner.style.right = "0";
-    banner.style.zIndex = "9999";
-    banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+if (!banner) {
+  banner = document.createElement("div");
 
-    document.body.prepend(banner);
-    document.body.style.paddingTop = "40px";
-  }
-    if (isDemo) {
-      banner.textContent = "CAREEROPS PLATFORM • SANDBOX ENVIRONMENT";
-      banner.style.display = "block";
-    } else {
-      banner.style.display = "none";
-    }
+  banner.id = "readOnlyBanner";
+  banner.style.background = "#f57c00";
+  banner.style.color = "white";
+  banner.style.textAlign = "center";
+  banner.style.padding = "8px";
+  banner.style.fontWeight = "bold";
+  banner.style.letterSpacing = "0.5px";
+  banner.style.position = "fixed";
+  banner.style.top = "0";
+  banner.style.left = "0";
+  banner.style.right = "0";
+  banner.style.zIndex = "9999";
+  banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+
+  document.body.prepend(banner);
+  document.body.style.paddingTop = "40px";
+}
+
+} // ✅ closes applyRoleBasedAccess
+
+function updateEnvironmentBanner() {
+  const banner = document.getElementById("environmentBanner");
+  if (!banner) return;
+
+  banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
+  banner.style.display = "block";
+  banner.style.backgroundColor = "#f59e0b";
+  banner.style.color = "#000";
+}
 
 function renderDemoBanner() {
   if (APP_ENV !== "demo") return;
@@ -1101,7 +1108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.currentUser = user;
   console.log("currentUser:", window.currentUser);
-
+  updateEnvironmentBanner();
   form = document.getElementById("contactForm");
   errorsDiv = document.getElementById("formErrors");
   messageDiv = document.getElementById("formMessage");
@@ -1470,15 +1477,10 @@ document.querySelectorAll("[data-target]").forEach((button) => {
     }, 150);
   });
 
-  if (startValidationRunBtn) {
-    startValidationRunBtn.addEventListener("click", async () => {
-      await startValidationRun();
-    });
-  }
-
 if (completeValidationRunBtn) {
   completeValidationRunBtn.addEventListener("click", async () => {
     await completeValidationRun();
   });
 }
+
 });
