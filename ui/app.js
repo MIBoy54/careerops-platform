@@ -36,41 +36,31 @@ function applyRoleBasedAccess() {
     viewButton.disabled = selectedIds.size === 0;
   }
 
-  let banner = document.getElementById("readOnlyBanner");
+  let banner = document.getElementById("environmentBanner");
 
-if (!banner) {
-  banner = document.createElement("div");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "environmentBanner";
 
-  banner.id = "readOnlyBanner";
-  banner.style.background = "#f57c00";
-  banner.style.color = "white";
-  banner.style.textAlign = "center";
-  banner.style.padding = "8px";
-  banner.style.fontWeight = "bold";
-  banner.style.letterSpacing = "0.5px";
-  banner.style.position = "fixed";
-  banner.style.top = "0";
-  banner.style.left = "0";
-  banner.style.right = "0";
-  banner.style.zIndex = "9999";
-  banner.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+    banner.style.background = "#f59e0b";
+    banner.style.color = "#000";
+    banner.style.textAlign = "center";
+    banner.style.padding = "8px";
+    banner.style.fontWeight = "bold";
+    banner.style.letterSpacing = "0.5px";
+    banner.style.position = "fixed";
+    banner.style.top = "0";
+    banner.style.left = "0";
+    banner.style.right = "0";
+    banner.style.zIndex = "9999";
 
-  document.body.prepend(banner);
-  document.body.style.paddingTop = "40px";
-}
+    document.body.prepend(banner);
+    document.body.style.paddingTop = "40px";
+  }
 
-} // ✅ closes applyRoleBasedAccess
-
-function updateEnvironmentBanner() {
-  const banner = document.getElementById("environmentBanner");
-  if (!banner) return;
-
+  // ✅ PUT IT RIGHT HERE
   banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
-  banner.style.display = "block";
-  banner.style.backgroundColor = "#f59e0b";
-  banner.style.color = "#000";
 }
-
 function renderDemoBanner() {
   if (APP_ENV !== "demo") return;
   console.log("SANDBOX banner running...");
@@ -1108,7 +1098,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.currentUser = user;
   console.log("currentUser:", window.currentUser);
-  updateEnvironmentBanner();
   form = document.getElementById("contactForm");
   errorsDiv = document.getElementById("formErrors");
   messageDiv = document.getElementById("formMessage");
