@@ -1367,6 +1367,9 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
       try {
+        const [dbCheck] = await pool.query("SELECT DATABASE() AS db");
+        console.log("ACTIVE USERS DB:", dbCheck);
+
         const activeCutoff = new Date(
           Date.now() - ACTIVE_THRESHOLD_MINUTES * 60 * 1000
         );
@@ -1391,6 +1394,9 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
       try {
+        const [dbCheck] = await pool.query("SELECT DATABASE() AS db");
+        console.log("STALE SESSIONS DB:", dbCheck);
+
         const staleCutoff = new Date(
           Date.now() - STALE_THRESHOLD_MINUTES * 60 * 1000
         );
