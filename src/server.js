@@ -1367,13 +1367,17 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
       try {
+        const activeCutoff = new Date(
+          Date.now() - ACTIVE_THRESHOLD_MINUTES * 60 * 1000
+        );
+
         const [rows] = await pool.query(
           `
           SELECT COUNT(DISTINCT session_id) AS active_users
           FROM visitor_analytics
-          WHERE last_seen >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+          WHERE last_seen >= ?
           `,
-          [ACTIVE_THRESHOLD_MINUTES]
+          [activeCutoff]
         );
 
         res.status(200).json({
@@ -1387,13 +1391,17 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
       try {
+        const staleCutoff = new Date(
+          Date.now() - STALE_THRESHOLD_MINUTES * 60 * 1000
+        );
+
         const [rows] = await pool.query(
           `
           SELECT COUNT(DISTINCT session_id) AS stale_sessions
           FROM visitor_analytics
-          WHERE last_seen < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+          WHERE last_seen < ?
           `,
-          [STALE_THRESHOLD_MINUTES]
+          [staleCutoff]
         );
 
         res.status(200).json({
