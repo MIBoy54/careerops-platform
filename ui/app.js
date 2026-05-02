@@ -1204,7 +1204,7 @@ document.querySelectorAll("[data-target]").forEach((button) => {
       let result;
 
       console.log("SAVE editId:", editId);
-      console.log("SAVE URL:", `/api/contacts/${editId}`);
+      console.log("SAVE URL:", editId !== null ? `/api/contacts/${editId}` : "/api/contacts");
 
       if (editId !== null) {
         response = await fetch(`/api/contacts/${editId}`, {

@@ -881,7 +881,7 @@ if (isCIMode()) {
       sqlMessage: error.sqlMessage,
       sqlState: error.sqlState
     });
-    res.status(500).json({ error: "Failed to create contact" });
+    res.status(500).json({ error: error.message });
   }
 });
 
