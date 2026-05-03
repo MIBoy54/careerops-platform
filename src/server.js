@@ -383,6 +383,7 @@ app.get("/", (req, res) => {
     return res.status(500).send("Server error");
   }
 });
+
 app.get("/api/contacts", requireAuth, async (req, res) => {
  
  console.log("HIT PROTECTED /api/contacts ROUTE");
@@ -1343,24 +1344,20 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     app.get("/api/analytics/trend", requireAuth, async (req, res) => {
       try {
-        const [rows] = await pool.query(
-          `
-      SELECT
-        DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00') AS minute_bucket,
-        COUNT(*) AS heartbeat_count,
-        COUNT(DISTINCT session_id) AS unique_sessions,
-        COALESCE(SUM(seconds), 0) AS total_seconds
-      FROM analytics_heartbeat_events
-      WHERE event_time >= NOW() - INTERVAL 8 HOUR
-      GROUP BY DATE_FORMAT(event_time, '%Y-%m-%d %H:%i:00')
-      ORDER BY minute_bucket ASC
-      `
-        );
+        const [rows] = await pool.query(`
+          SELECT
+            DATE_FORMAT(last_seen, '%Y-%m-%d %H:%i:00') AS minute_bucket,
+            SUM(time_spent_seconds) AS total_seconds
+          FROM visitor_analytics
+          WHERE last_seen >= DATE_SUB(NOW(), INTERVAL 8 HOUR)
+          GROUP BY minute_bucket
+          ORDER BY minute_bucket ASC
+        `);
 
-        res.status(200).json(rows);
+        res.json(rows);
       } catch (error) {
-        console.error("GET /api/analytics/trend failed:", error);
-        res.status(500).json({ error: "Failed to load analytics trend." });
+        console.error("Analytics trend failed:", error);
+        res.status(500).json({ error: "Failed to load analytics trend" });
       }
     });
 

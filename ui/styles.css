@@ -386,3 +386,11 @@ button.delete-btn {
 button.delete-btn:hover {
   background-color: #8e0000;
 }
+
+.careerops-section {
+  display: none;
+}
+
+.careerops-section.active-section {
+  display: block;
+}

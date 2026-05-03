@@ -38,7 +38,7 @@ function applyRoleBasedAccess() {
 
   let banner = document.getElementById("environmentBanner");
 
-  if (!banner) {
+    if (!banner) {
     banner = document.createElement("div");
     banner.id = "environmentBanner";
 
@@ -55,15 +55,17 @@ function applyRoleBasedAccess() {
     banner.style.zIndex = "9999";
 
     document.body.prepend(banner);
-    document.body.style.paddingTop = "40px";
   }
 
-  // ✅ PUT IT RIGHT HERE
-  banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
-}
-function renderDemoBanner() {
-  if (APP_ENV !== "demo") return;
-  console.log("SANDBOX banner running...");
+  if (isDemo) {
+    banner.style.display = "block";
+    banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
+    document.body.style.paddingTop = "40px";
+  } else {
+    banner.style.display = "none";
+    banner.textContent = "";
+    document.body.style.paddingTop = "0";
+  }
 }
 
 let selectedIds = new Set();
@@ -1033,6 +1035,7 @@ function showSection(sectionId) {
     console.error("SECTION NOT FOUND:", sectionId);
   }
 }
+window.showSection = showSection;
 
 function updateNavButtons() {
   const backBtn = document.getElementById("backBtn");
@@ -1071,8 +1074,16 @@ async function logout() {
 }  
 
 console.log("🚀 DOMContentLoaded fired");
+
 document.addEventListener("DOMContentLoaded", async () => {
-  renderDemoBanner();
+  const user = await checkAuth();
+
+  if (!user) {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  window.currentUser = user;
 
   document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
     showSection("landingPage");
@@ -1089,13 +1100,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     await logout();
   });
-
-  const user = await checkAuth();
-  if (!user) {
-    window.location.href = "/login.html";
-    return;
-  }
-
   window.currentUser = user;
   console.log("currentUser:", window.currentUser);
   form = document.getElementById("contactForm");
@@ -1127,22 +1131,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   editId = null;
 
   document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  console.log("NAV CLICK: savedContactsSection");
-  showSection("savedContactsSection");
-});
-
-document.querySelectorAll("[data-target]").forEach((button) => {
-  button.addEventListener("click", (event) => {
     event.preventDefault();
-
-    const target = button.dataset.target;
-    if (!target) return;
-
-    console.log("NAV CLICK:", target);
-    showSection(target);
+    console.log("NAV CLICK: savedContactsSection");
+    showSection("savedContactsSection");
   });
-});
+
+  document.querySelectorAll("[data-target]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      const target = button.dataset.target;
+      if (!target) return;
+
+      console.log("NAV CLICK:", target);
+      showSection(target);
+    });
+  });
 
   try {
     await startAnalyticsSession();
@@ -1466,10 +1470,9 @@ document.querySelectorAll("[data-target]").forEach((button) => {
     }, 150);
   });
 
-if (completeValidationRunBtn) {
-  completeValidationRunBtn.addEventListener("click", async () => {
-    await completeValidationRun();
-  });
-}
-
+  if (completeValidationRunBtn) {
+    completeValidationRunBtn.addEventListener("click", async () => {
+      await completeValidationRun();
+    });
+  }
 });
