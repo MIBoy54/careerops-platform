@@ -18,7 +18,17 @@ console.log("FRONTEND APP_ENV:", globalThis.APP_ENV || "not set");
 
 function applyRoleBasedAccess() {
   const admin = isAdminUser();
-  const isDemo = APP_ENV === "demo";
+
+  const isDemo =
+    APP_ENV === "demo" ||
+    window.location.hostname.includes("demo") ||
+    window.location.hostname.includes("sandbox");
+
+  console.log("BANNER CHECK:", {
+    APP_ENV,
+    host: window.location.hostname,
+    isDemo
+  });
 
   const formFields = document.querySelectorAll(
     "#contactForm input, #contactForm select, #contactForm textarea, #contactForm button"
@@ -35,6 +45,8 @@ function applyRoleBasedAccess() {
   if (viewButton) {
     viewButton.disabled = selectedIds.size === 0;
   }
+
+console.log("IS DEMO:", isDemo, "HOST:", window.location.hostname);
 
   let banner = document.getElementById("environmentBanner");
 
@@ -1084,6 +1096,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   window.currentUser = user;
+
+applyRoleBasedAccess();
 
   document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
     showSection("landingPage");
