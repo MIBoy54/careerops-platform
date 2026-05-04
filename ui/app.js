@@ -690,14 +690,12 @@ function updateSelectionCount() {
   }
 
   if (generateReportBtn) {
-    const shouldEnable =
-      isAdminUser() &&
-      count === 4 &&
-      !isDemoEnvironment();
+    const disabled =
+      isDemoEnvironment() || !canWriteDatabase() || selectedIds.size !== 4;
 
-    generateReportBtn.disabled = !shouldEnable;
-    generateReportBtn.classList.toggle("disabled-btn", !shouldEnable);
-  }
+    generateReportBtn.disabled = disabled;
+    generateReportBtn.classList.toggle("disabled-btn", disabled);
+}
 }
 
   function getSelectedContacts() {
@@ -1011,7 +1009,7 @@ function renderTable() {
       <td>${escapeHtml(c.reported_unemployment || "No")}</td>
       <td>
       ${isAdminUser() ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>` : ""}
-      ${canHardDelete() ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>` : ""}
+      ${isAdminUser() ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>` : ""}
             </td>
     `;
 
