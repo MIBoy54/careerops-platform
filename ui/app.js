@@ -363,7 +363,10 @@ async function loadSessionsToday() {
 
 async function loadValidationRuns() {
   try {
-    const response = await fetch("/api/validation-runs");
+      const response = await fetch(`/api/validation-runs?ts=${Date.now()}`, {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
 
     if (!response.ok) {
       throw new Error("Failed to load validation runs");
@@ -427,15 +430,16 @@ function renderValidationRunsTable() {
     const messageDiv = document.getElementById("validationRunMessage");
 
     try {
-      const response = await fetch("/api/validation-runs/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run_type: "UI Validation Run",
-          trigger_source: "UI",
-          notes: "Started from CareerOps UI"
-        })
-      });
+        const response = await fetch("/api/validation-runs/start", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run_type: "UI Validation Run",
+            trigger_source: "UI",
+            notes: "Started from CareerOps UI"
+          })
+        });
 
       if (!response.ok) {
         throw new Error("Failed to start validation run");
@@ -461,14 +465,15 @@ function renderValidationRunsTable() {
         return;
       }
 
-      const response = await fetch(`/api/validation-runs/${latestValidationRunId}/complete`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "COMPLETED",
-          notes: "Completed from CareerOps UI"
-        })
-      });
+    const response = await fetch(`/api/validation-runs/${latestValidationRunId}/complete`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "COMPLETED",
+        notes: "Completed from CareerOps UI"
+      })
+    });
 
       if (!response.ok) {
         throw new Error("Failed to complete validation run");

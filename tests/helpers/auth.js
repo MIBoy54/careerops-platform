@@ -6,13 +6,15 @@ export async function login(page) {
   const authCheck = await page.request.get('/api/auth/me');
 
   if (authCheck.ok()) {
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#logoutBtn')).toBeVisible({ timeout: 10000 });
     return;
   }
 
-  await page.goto('/login.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
+  await page.goto('/login.html', { waitUntil: 'domcontentloaded' });
 
   await expect(page.locator('#email')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#password')).toBeVisible({ timeout: 10000 });
+
   await page.fill('#email', 'b.r.lewis@outlook.com');
   await page.fill('#password', '27@67Hampden');
 
@@ -27,6 +29,10 @@ export async function login(page) {
     throw new Error(`Login failed: ${response.status()}`);
   }
 
+  // Wait for redirect properly
+  await page.waitForURL('**/', { timeout: 10000 }).catch(() => {});
   await page.goto('/');
-  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
+
+  // Strong assertion (better than just body)
+  await expect(page.locator('#logoutBtn')).toBeVisible({ timeout: 10000 });
 }
