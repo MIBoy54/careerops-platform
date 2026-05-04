@@ -1154,6 +1154,12 @@ applyRoleBasedAccess();
   companySuggestions = document.getElementById("companySuggestions");
   selectionCountEl = document.getElementById("selectionCount");
   generateReportBtn = document.getElementById("generateReportBtn");
+
+if (isDemoEnvironment() && generateReportBtn) {
+  generateReportBtn.disabled = true;
+  generateReportBtn.classList.add("disabled-btn");
+  generateReportBtn.title = "Disabled in DEMO/Sandbox";
+}
   viewButton = document.getElementById("viewButton");
   viewButton?.addEventListener("click", handleViewSelectedClick);
   weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
