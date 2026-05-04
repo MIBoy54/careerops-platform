@@ -658,19 +658,20 @@ function updateSelectionCount() {
   const checkedBoxes = document.querySelectorAll(".select-checkbox:checked");
 
   selectedIds = new Set(
-    Array.from(checkedBoxes).map((checkbox) => Number(checkbox.dataset.id))
+    Array.from(checkedBoxes).map((cb) => Number(cb.dataset.id))
   );
 
+  const count = selectedIds.size;
+
   if (selectionCountEl) {
-    selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
+    selectionCountEl.textContent = `Selected for Weekly Report: ${count} of 4`;
   }
 
   if (generateReportBtn) {
-    generateReportBtn.disabled = !isAdminUser() || selectedIds.size !== 4;
-  }
+    const shouldEnable = isAdminUser() && count === 4;
 
-  if (viewButton) {
-    viewButton.disabled = selectedIds.size === 0;
+    generateReportBtn.disabled = !shouldEnable;
+    generateReportBtn.classList.toggle("disabled-btn", !shouldEnable);
   }
 }
 
