@@ -655,6 +655,12 @@ document.getElementById("totalReported").textContent =
 }
 
 function updateSelectionCount() {
+  const checkedBoxes = document.querySelectorAll(".select-checkbox:checked");
+
+  selectedIds = new Set(
+    Array.from(checkedBoxes).map((checkbox) => Number(checkbox.dataset.id))
+  );
+
   if (selectionCountEl) {
     selectionCountEl.textContent = `Selected for Weekly Report: ${selectedIds.size} of 4`;
   }
