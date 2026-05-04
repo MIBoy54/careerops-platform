@@ -1146,34 +1146,42 @@ applyRoleBasedAccess();
   selectionCountEl = document.getElementById("selectionCount");
   generateReportBtn = document.getElementById("generateReportBtn");
 
-if (isDemoEnvironment() && generateReportBtn) {
-  generateReportBtn.disabled = true;
-  generateReportBtn.classList.add("disabled-btn");
-  generateReportBtn.title = "Disabled in DEMO/Sandbox";
-}
-  viewButton = document.getElementById("viewButton");
-  viewButton?.addEventListener("click", handleViewSelectedClick);
-  weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
-  weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
-  weeklyReportDetailEl = document.getElementById("weekly-report-detail");
-  closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
-  const startValidationRunBtn = document.getElementById("startValidationRunBtn");
-  const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
-  wireSavedContactsSorting();
+    if (isDemoEnvironment() && generateReportBtn) {
+      generateReportBtn.disabled = true;
+      generateReportBtn.classList.add("disabled-btn");
+      generateReportBtn.title = "Disabled in DEMO/Sandbox";
+    }
+      viewButton = document.getElementById("viewButton");
+      viewButton?.addEventListener("click", handleViewSelectedClick);
+      weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
+      weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
+      weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+      closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
+      const startValidationRunBtn = document.getElementById("startValidationRunBtn");
+      const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+      const documentationBtn = document.getElementById("documentationBtn");
 
-  applyRoleBasedAccess();
-  console.log("📡 About to call loadContacts");
+      documentationBtn?.addEventListener("click", () => {
+        window.open(
+          "https://github.com/MIBoy54/careerops-platform/blob/main/README.md",
+          "_blank"
+        );
+      });
+      wireSavedContactsSorting();
 
-  const today = new Date().toISOString().split("T")[0];
-  contacts = [];
-  selectedIds.clear();
-  editId = null;
+      applyRoleBasedAccess();
+      console.log("📡 About to call loadContacts");
 
-  document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    console.log("NAV CLICK: savedContactsSection");
-    showSection("savedContactsSection");
-  });
+      const today = new Date().toISOString().split("T")[0];
+      contacts = [];
+      selectedIds.clear();
+      editId = null;
+
+      document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        console.log("NAV CLICK: savedContactsSection");
+        showSection("savedContactsSection");
+      });
 
   document.querySelectorAll("[data-target]").forEach((button) => {
     button.addEventListener("click", (event) => {
