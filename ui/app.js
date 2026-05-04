@@ -1489,6 +1489,12 @@ applyRoleBasedAccess();
     }, 150);
   });
 
+  if (startValidationRunBtn) {
+  startValidationRunBtn.addEventListener("click", async () => {
+    await startValidationRun();
+  });
+}
+
   if (completeValidationRunBtn) {
     completeValidationRunBtn.addEventListener("click", async () => {
       await completeValidationRun();
