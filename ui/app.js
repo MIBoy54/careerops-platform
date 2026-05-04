@@ -362,11 +362,10 @@ async function loadSessionsToday() {
 }
 
 async function loadValidationRuns() {
-  try {
-      const response = await fetch(`/api/validation-runs?ts=${Date.now()}`, {
-        credentials: "same-origin",
-        cache: "no-store"
-      });
+    const response = await fetch(`/api/validation-runs?ts=${Date.now()}`, {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
 
     if (!response.ok) {
       throw new Error("Failed to load validation runs");
