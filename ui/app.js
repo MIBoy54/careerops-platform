@@ -577,6 +577,24 @@ function sortSavedContacts(contacts, field, direction) {
   });
 }
 
+function renderSelectedContacts(selected) {
+  if (!weeklyReportDetailEl) return;
+
+  weeklyReportDetailEl.innerHTML = `
+    <h3>Selected Employer Details</h3>
+    ${selected.map((contact) => `
+      <div class="contact-card">
+        <p><strong>ID:</strong> ${contact.id ?? ""}</p>
+        <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
+        <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
+        <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
+        <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
+        <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
+      </div>
+    `).join("")}
+  `;
+}
+
 function handleViewSelectedClick() {
   const selected = getSelectedContacts();
   const weeklyReportDetailHeader = document.getElementById("weekly-report-detail-header");
