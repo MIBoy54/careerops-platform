@@ -39,11 +39,10 @@ function applyRoleBasedAccess() {
   });
 
   if (generateReportBtn) {
-    generateReportBtn.disabled = !canWriteDatabase() || selectedIds.size !== 4;
-  }
+    generateReportBtn.disabled =
+      isDemoEnvironment() || !canWriteDatabase() || selectedIds.size !== 4;
 
-  if (viewButton) {
-    viewButton.disabled = selectedIds.size === 0;
+    generateReportBtn.classList.toggle("disabled-btn", generateReportBtn.disabled);
   }
 
 console.log("IS DEMO:", isDemo, "HOST:", window.location.hostname);
@@ -667,8 +666,16 @@ function updateSelectionCount() {
     selectionCountEl.textContent = `Selected for Weekly Report: ${count} of 4`;
   }
 
+  if (viewButton) {
+    viewButton.disabled = count === 0;
+    viewButton.classList.toggle("disabled-btn", count === 0);
+  }
+
   if (generateReportBtn) {
-    const shouldEnable = isAdminUser() && count === 4;
+    const shouldEnable =
+      isAdminUser() &&
+      count === 4 &&
+      !isDemoEnvironment();
 
     generateReportBtn.disabled = !shouldEnable;
     generateReportBtn.classList.toggle("disabled-btn", !shouldEnable);
@@ -678,38 +685,6 @@ function updateSelectionCount() {
   function getSelectedContacts() {
     return contacts.filter((c) => selectedIds.has(c.id));
   }
-
-function renderSelectedContacts(selected) {
-  if (!weeklyReportDetailEl) return;
-
-  weeklyReportDetailEl.innerHTML = `
-    <h3>Selected Employer Details</h3>
-    ${selected
-      .map(
-        (contact) => `
-          <div class="contact-card">
-            <p><strong>ID:</strong> ${contact.id ?? ""}</p>
-            <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
-            <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
-            <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
-            <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
-            <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
-            <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
-            <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
-            <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
-            <p><strong>Role Type:</strong> ${escapeHtml(contact.role_type || "")}</p>
-            <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
-            <p><strong>Comp Range:</strong> ${escapeHtml(contact.comp_range || "")}</p>
-            <p><strong>Address:</strong> ${escapeHtml(contact.address || "")}</p>
-            <p><strong>Website:</strong> ${escapeHtml(contact.website || "")}</p>
-            <p><strong>Notes:</strong> ${escapeHtml(contact.notes || "")}</p>
-            <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
-          </div>
-        `
-      )
-      .join("")}
-  `;
-}
 
   function clearWeeklyReportDetail() {
     const header = document.getElementById("weekly-report-detail-header");
