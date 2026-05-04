@@ -918,13 +918,28 @@ function wireEditButtons() {
   });
 }
 
+function isDemoEnvironment() {
+  return (
+    APP_ENV === "demo" ||
+    window.location.hostname.includes("demo") ||
+    window.location.hostname.includes("sandbox")
+  );
+}
+
 function wireDeleteButtons() {
   const deleteButtons = document.querySelectorAll(".delete-btn");
 
   deleteButtons.forEach((button) => {
+    if (isDemoEnvironment()) {
+      button.disabled = true;
+      button.title = "Delete is disabled in DEMO/Sandbox.";
+      button.classList.add("disabled-btn");
+      return;
+    }
+
     button.addEventListener("click", async () => {
       if (!canHardDelete()) {
-        renderMessage(messageDiv, "Delete is disabled for guest demo users.", "error");
+        renderMessage(messageDiv, "Delete is disabled for this user.", "error");
         return;
       }
 
@@ -932,7 +947,8 @@ function wireDeleteButtons() {
 
       try {
         const response = await fetch(`/api/contacts/${id}`, {
-          method: "DELETE"
+          method: "DELETE",
+          credentials: "same-origin"
         });
 
         const result = await response.json();

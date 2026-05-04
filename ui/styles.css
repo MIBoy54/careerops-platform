@@ -394,3 +394,10 @@ button.delete-btn:hover {
 .careerops-section.active-section {
   display: block;
 }
+
+.disabled-btn {
+  background: #d1d5db !important;
+  color: #6b7280 !important;
+  cursor: not-allowed !important;
+  opacity: 0.75;
+}
