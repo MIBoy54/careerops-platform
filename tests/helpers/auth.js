@@ -15,8 +15,8 @@ export async function login(page) {
   await expect(page.locator('#email')).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#password')).toBeVisible({ timeout: 10000 });
 
-  await page.fill('#email', 'b.r.lewis@outlook.com');
-  await page.fill('#password', '27@67Hampden');
+ await page.fill('#email', process.env.TEST_EMAIL || 'test@careerops.local');
+ await page.fill('#password', process.env.TEST_PASSWORD || 'test-password');
 
   const [response] = await Promise.all([
     page.waitForResponse(resp => resp.url().includes('/api/auth/login')),
@@ -24,6 +24,11 @@ export async function login(page) {
   ]);
 
   console.log('LOGIN STATUS:', response.status());
+
+  const body = await response.text().catch(() => "");
+  if (response.status() !== 200 && response.status() !== 302) {
+    console.log("LOGIN BODY:", body);
+  }
 
   if (![200, 302].includes(response.status())) {
     throw new Error(`Login failed: ${response.status()}`);
