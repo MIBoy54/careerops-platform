@@ -661,7 +661,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         rt.reported_to_unemployment
         FROM report_job_contacts rjc
         JOIN recruiter_tracker rt
-          ON rt.id = rjc.contact_id
+          ON rt.id = rjc.recruiter_tracker_id
         WHERE rjc.report_id = ?
       ORDER BY rt.date_contacted DESC, rt.id DESC
       `,

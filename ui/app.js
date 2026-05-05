@@ -106,6 +106,7 @@ let currentSectionIndex = 0;
 let savedContacts = [];
 let currentSortField = "date_contacted";
 let currentSortDirection = "desc";
+let selectedReportRange = null;
 
 const sectionOrder = [
   "landingPage",
@@ -800,6 +801,16 @@ function updateSelectionCount() {
     viewButtons.forEach((button) => {
       button.addEventListener("click", async () => {
         const id = Number(button.dataset.id);
+
+        // 🔥 NEW: capture dates from row
+        const row = button.closest("tr");
+        const cells = row.querySelectorAll("td");
+
+        selectedReportRange = {
+          start: cells[0]?.textContent.trim(),
+          end: cells[1]?.textContent.trim()
+        };
+
         setActiveViewReportButton(button);
         await loadWeeklyReportDetail(id);
         showSection("detailViewerSection");
@@ -1361,28 +1372,18 @@ applyRoleBasedAccess();
   }
 
   document.getElementById("unemploymentExportBtn")?.addEventListener("click", () => {
-    if (!weeklyHistoryTableBody || !weeklyHistoryTableBody.children.length) {
+    if (!selectedReportRange) {
       if (weeklyHistoryMessageEl) {
-        weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+        weeklyHistoryMessageEl.textContent = "Please select a report first.";
         weeklyHistoryMessageEl.className = "message error";
       }
       return;
     }
 
-    const firstRow = weeklyHistoryTableBody.children[0];
-    const cells = firstRow.querySelectorAll("td");
-    const start = cells[0]?.textContent.trim();
-    const end = cells[1]?.textContent.trim();
+    const { start, end } = selectedReportRange;
 
-    if (!start || !end) {
-      if (weeklyHistoryMessageEl) {
-        weeklyHistoryMessageEl.textContent = "Unable to determine report date range.";
-        weeklyHistoryMessageEl.className = "message error";
-      }
-      return;
-    }
-
-    window.location.href = `/api/reports/unemployment/export?start=${start}&end=${end}`;
+    window.location.href =
+      `/api/reports/unemployment/export?start=${start}&end=${end}`;
   });
 
   closeWeeklyReportDetailBtn?.addEventListener("click", () => {
