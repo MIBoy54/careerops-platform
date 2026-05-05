@@ -737,7 +737,10 @@ function updateSelectionCount() {
     weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
 
     try {
-      const response = await fetch(`/api/reports/${reportId}`);
+      const response = await fetch(`/api/reports/${reportId}?ts=${Date.now()}`, {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
       const report = await response.json();
 
       if (!response.ok) {
@@ -799,6 +802,7 @@ function updateSelectionCount() {
         const id = Number(button.dataset.id);
         setActiveViewReportButton(button);
         await loadWeeklyReportDetail(id);
+        showSection("detailViewerSection");
       });
     });
   }

@@ -1490,6 +1490,22 @@ app.get("/env-check", (req, res) => {
   });
 });
 
+app.get("/api/reports/recent", requireAuth, async (req, res) => {
+  try {
+    const [reports] = await pool.query(`
+      SELECT *
+      FROM weekly_reports
+      ORDER BY submitted_at DESC
+      LIMIT 5
+    `);
+
+    res.json(reports);
+  } catch (err) {
+    console.error("Failed to fetch recent reports:", err);
+    res.status(500).json({ error: "Failed to fetch reports" });
+  }
+});
+
 process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
