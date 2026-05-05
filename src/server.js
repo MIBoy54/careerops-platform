@@ -683,10 +683,10 @@ try {
         rt.website,
         rt.notes,
         rt.reported_to_unemployment
-      FROM report_job_contacts rjc
-      JOIN recruiter_tracker rt
-        ON rt.id = rjc.recruiter_tracker_id
-      WHERE rjc.report_id = ?
+        FROM report_job_contacts rjc
+        JOIN recruiter_tracker rt
+          ON rt.id = rjc.contact_id
+        WHERE rjc.report_id = ?
       ORDER BY rt.date_contacted DESC, rt.id DESC
       `,
           [reportId]
@@ -1488,22 +1488,6 @@ app.get("/env-check", (req, res) => {
     DB_PORT: process.env.DB_PORT,
     DB_PASSWORD_SET: !!process.env.DB_PASSWORD
   });
-});
-
-app.get("/api/reports/recent", requireAuth, async (req, res) => {
-  try {
-    const [reports] = await pool.query(`
-      SELECT *
-      FROM weekly_reports
-      ORDER BY submitted_at DESC
-      LIMIT 5
-    `);
-
-    res.json(reports);
-  } catch (err) {
-    console.error("Failed to fetch recent reports:", err);
-    res.status(500).json({ error: "Failed to fetch reports" });
-  }
 });
 
 process.on("uncaughtException", (err) => {
