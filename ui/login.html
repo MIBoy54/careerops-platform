@@ -12,20 +12,58 @@
       <h1>CareerOps Platform</h1>
       <p class="login-subtitle">Sign in to continue</p>
 
-      <form action="/api/auth/login" method="POST">
-        <div class="input-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required>
-        </div>
-
-        <div class="input-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required>
-        </div>
-
-        <button type="submit">Login</button>
-      </form>
-    </div>
+<form action="/api/auth/login" method="POST">
+  <div class="input-group">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required>
   </div>
-</body>
-</html>
+
+  <div class="input-group">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required>
+  </div>
+
+<button id="loginBtn" type="submit">Login</button>
+
+<button id="guestLogin" type="button" style="display:none; margin-top:10px; width:100%;">
+  Continue as Guest
+</button>
+</form>
+
+<script>
+const isDemo = window.location.hostname === 'democareerops-platform.com';
+
+const loginBtn = document.getElementById('loginBtn');
+const guestBtn = document.getElementById('guestLogin');
+
+if (isDemo) {
+  loginBtn.style.display = 'none';
+  guestBtn.style.display = 'block';
+}
+
+guestBtn.addEventListener('click', async () => {
+  guestBtn.disabled = true;
+  guestBtn.textContent = 'Logging in...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'guest@careerops.com',
+        password: 'GuestCPSS2@26'
+      })
+    });
+
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      throw new Error('Login failed');
+    }
+  } catch {
+    guestBtn.disabled = false;
+    guestBtn.textContent = 'Continue as Guest';
+    alert('Guest login failed');
+  }
+});
+</script>
