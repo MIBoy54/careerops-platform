@@ -33,12 +33,14 @@
 <script>
 const isDemo = window.location.hostname === 'democareerops-platform.com';
 
-const loginBtn = document.getElementById('loginBtn');
-const guestBtn = document.getElementById('guestLogin');
-
 if (isDemo) {
-  loginBtn.style.display = 'none';
-  guestBtn.style.display = 'block';
+  document.getElementById('loginBtn').style.display = 'none';
+
+  // Hide inputs for clean demo UX
+  document.getElementById('email').parentElement.style.display = 'none';
+  document.getElementById('password').parentElement.style.display = 'none';
+
+  document.getElementById('guestLogin').style.display = 'block';
 }
 
 guestBtn.addEventListener('click', async () => {
