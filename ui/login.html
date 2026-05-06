@@ -31,41 +31,59 @@
 </form>
 
 <script>
-const isDemo = window.location.hostname === 'democareerops-platform.com';
+document.addEventListener('DOMContentLoaded', () => {
+  const isDemo = window.location.hostname === 'democareerops-platform.com';
 
-if (isDemo) {
-  document.getElementById('loginBtn').style.display = 'none';
+  const loginBtn = document.getElementById('loginBtn');
+  const guestBtn = document.getElementById('guestLogin');
+  const emailGroup = document.getElementById('email')?.closest('.input-group');
+  const passwordGroup = document.getElementById('password')?.closest('.input-group');
 
-  // Hide inputs for clean demo UX
-  document.getElementById('email').parentElement.style.display = 'none';
-  document.getElementById('password').parentElement.style.display = 'none';
-
-  document.getElementById('guestLogin').style.display = 'block';
-}
-
-guestBtn.addEventListener('click', async () => {
-  guestBtn.disabled = true;
-  guestBtn.textContent = 'Logging in...';
-
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'guest@careerops.com',
-        password: 'GuestCPSS2@26'
-      })
-    });
-
-    if (res.ok) {
-      window.location.href = '/';
-    } else {
-      throw new Error('Login failed');
-    }
-  } catch {
-    guestBtn.disabled = false;
-    guestBtn.textContent = 'Continue as Guest';
-    alert('Guest login failed');
+  if (isDemo) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (emailGroup) emailGroup.style.display = 'none';
+    if (passwordGroup) passwordGroup.style.display = 'none';
+    if (guestBtn) guestBtn.style.display = 'block';
   }
+
+  if (!guestBtn) {
+    console.error('guestLogin button not found');
+    return;
+  }
+
+  guestBtn.addEventListener('click', async () => {
+    console.log('Guest login clicked');
+
+    guestBtn.disabled = true;
+    guestBtn.textContent = 'Logging in...';
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append('email', 'guest@careerops.com');
+      formData.append('password', 'GuestCPSS2@26');
+
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData
+      });
+
+      console.log('Guest login status:', res.status);
+
+      if (res.ok || res.redirected) {
+        window.location.href = '/';
+        return;
+      }
+
+      throw new Error('Guest login failed');
+    } catch (err) {
+      console.error(err);
+      guestBtn.disabled = false;
+      guestBtn.textContent = 'Continue as Guest';
+      alert('Guest login failed');
+    }
+  });
 });
 </script>
