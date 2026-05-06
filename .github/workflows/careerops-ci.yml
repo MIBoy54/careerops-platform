@@ -45,7 +45,7 @@ jobs:
           npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run Smoke Tests (QA Gate)
-        if: github.event_name == 'pull_request' || github.ref_name == 'qa'
+        if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         env:
           TEST_EMAIL: test@careerops.local
           TEST_PASSWORD: test-password
