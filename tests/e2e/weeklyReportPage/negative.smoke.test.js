@@ -6,7 +6,14 @@ test("export remains disabled until a report is selected", async ({ page }) => {
 
   await page.getByRole("button", { name: "Weekly Report History" }).click();
 
-  await expect(
-    page.getByRole("button", { name: "Export Selected Report" })
-  ).toBeDisabled();
+  const section = page.locator("#weeklyReportHistorySection");
+
+  await expect(section).toHaveClass(/active-section/);
+
+  const exportButton = section.getByRole("button", {
+    name: "Export Selected Report"
+  });
+
+  await expect(exportButton).toBeVisible();
+  await expect(exportButton).toBeDisabled();
 });
