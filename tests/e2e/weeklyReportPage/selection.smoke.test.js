@@ -1,25 +1,24 @@
 import { expect, test } from "@playwright/test";
 import { login } from "../helpers/auth";
 
-test("exports selected weekly report as CSV", async ({ page }) => {
+test("selecting a report highlights the row and enables export", async ({ page }) => {
   await login(page);
 
-  await page.getByRole("button", { name: "Weekly Report History" }).click();
+  await page.locator('[data-target="weeklyReportHistorySection"]').click();
 
-const firstRadio = page.getByRole("radio").first();
-await firstRadio.click();
+  const section = page.locator("#weeklyReportHistorySection");
+  await expect(section).toHaveClass(/active-section/);
 
-await expect(firstRadio).toBeChecked();
+  const rows = section.locator("#weekly-report-history-table tbody tr");
+  await expect(rows.first()).toBeVisible();
 
-const selectedRow = page
-  .locator("#weekly-report-history-table tbody tr")
-  .first();
+  const firstRadio = rows.first().locator('input[type="radio"]');
+  await firstRadio.click();
 
-await expect(selectedRow).toHaveClass(/selected-row/);
+  await expect(firstRadio).toBeChecked();
+  await expect(rows.first()).toHaveClass(/selected-row/);
 
-  const exportButton = page.getByRole("button", {
-    name: "Export Selected Report"
-  });
-
-  await expect(exportButton).toBeEnabled();
+  await expect(
+    section.getByRole("button", { name: "Export Selected Report" })
+  ).toBeEnabled();
 });

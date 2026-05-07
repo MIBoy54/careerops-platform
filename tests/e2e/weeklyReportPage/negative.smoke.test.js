@@ -4,7 +4,7 @@ import { login } from "../helpers/auth";
 test("export remains disabled until a report is selected", async ({ page }) => {
   await login(page);
 
-  await page.getByRole("button", { name: "Weekly Report History" }).click();
+  await page.locator('[data-target="weeklyReportHistorySection"]').click();
 
   const section = page.locator("#weeklyReportHistorySection");
 
