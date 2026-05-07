@@ -291,6 +291,7 @@
       <table id="weekly-report-history-table" class="data-table">
         <thead>
           <tr>
+            <th>Select</th>
             <th>Week Start</th>
             <th>Week End</th>
             <th>Reported</th>
@@ -298,10 +299,30 @@
             <th>Action</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+            <tr>
+                <td>
+                  <input
+                    type="radio"
+                    name="selectedReport"
+                    value="2026-05-03_2026-05-10"
+                    aria-label="Select weekly report 2026-05-03 to 2026-05-10"
+                  >
+                </td>
+              <td>2026-05-03</td>
+              <td>2026-05-10</td>
+              <td><span class="status-badge success">Reported</span></td>
+              <td>2026-05-03</td>
+              <td><button>View</button></td>
+            </tr>
+        </tbody>
       </table>
 
-      <button id="unemploymentExportBtn" type="button">Export Unemployment Report</button>
+      <div class="table-actions">
+  <button id="unemploymentExportBtn" type="button" disabled>
+  Export Selected Report
+  </button>
+</div>
     </div>
   </div>
 </section>

@@ -842,18 +842,66 @@ function updateSelectionCount() {
       reports.forEach((report) => {
         const row = document.createElement("tr");
 
-        row.innerHTML = `
+      row.innerHTML = `
+        <td>
+          <input
+            type="radio"
+            name="selectedReport"
+            value="${formatDate(report.week_start)}_${formatDate(report.week_end)}"
+            aria-label="Select weekly report ${formatDate(report.week_start)} to ${formatDate(report.week_end)}"
+            class="report-radio"
+          />
+        </td>
+
         <td>${formatDate(report.week_start)}</td>
         <td>${formatDate(report.week_end)}</td>
-        <td>${Number(report.submitted) > 0 ? "Yes" : "No"}</td>
-        <td>${formatDate(report.submitted_at)}</td>
         <td>
-          <button type="button" class="view-report-btn" data-id="${report.id}">View</button>
+          ${
+            Number(report.submitted) > 0
+              ? `<span class="status-badge success">Reported</span>`
+              : `<span class="status-badge">Not Reported</span>`
+          }
+        </td>
+        <td>${formatDate(report.submitted_at)}</td>
+
+        <td>
+          <button
+            type="button"
+            class="view-report-btn"
+            data-id="${report.id}">
+            View
+          </button>
         </td>
       `;
 
         weeklyHistoryTableBody.appendChild(row);
-      });
+
+          const radio = row.querySelector(".report-radio");
+
+  radio?.addEventListener("change", () => {
+    selectedReportRange = {
+      start: formatDate(report.week_start),
+      end: formatDate(report.week_end)
+    };
+
+    document.querySelectorAll("#weekly-report-history-table tbody tr")
+      .forEach((tr) => tr.classList.remove("selected-row"));
+
+    row.classList.add("selected-row");
+
+    const exportBtn = document.getElementById("unemploymentExportBtn");
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.classList.remove("disabled-btn");
+    }
+
+    if (weeklyHistoryMessageEl) {
+      weeklyHistoryMessageEl.textContent =
+        `Selected report: ${selectedReportRange.start} to ${selectedReportRange.end}`;
+      weeklyHistoryMessageEl.className = "message success";
+    }
+  });
+});
 
       wireViewReportButtons();
     } catch (error) {
