@@ -457,6 +457,57 @@ try {
       }
     });
 
+    app.get("/api/github/actions-summary", async (req, res) => {
+      try {
+        res.json([
+          {
+            environment: "PROD",
+            status: "success",
+            workflow: "Updated smoke tests",
+            runNumber: 263,
+            branch: "main",
+            commit: "3dad4ad",
+            completedAt: "2026-05-07T20:59:00Z",
+            duration: "1m 25s"
+          },
+          {
+            environment: "DEMO",
+            status: "success",
+            workflow: "Updated smoke tests",
+            runNumber: 262,
+            branch: "demo",
+            commit: "3dad4ad",
+            completedAt: "2026-05-07T20:55:00Z",
+            duration: "1m 25s"
+          },
+          {
+            environment: "QA",
+            status: "success",
+            workflow: "Updated history tests",
+            runNumber: 259,
+            branch: "qa",
+            commit: "fb9c389",
+            completedAt: "2026-05-07T20:47:00Z",
+            duration: "1m 31s"
+          },
+          {
+            environment: "DEV",
+            status: "failed",
+            workflow: "Updated history tests",
+            runNumber: 258,
+            branch: "develop",
+            commit: "fb9c389",
+            completedAt: "2026-05-07T19:17:00Z",
+            duration: "2m 12s"
+          }
+        ]);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({
+          error: "Failed to load GitHub Actions summary"
+        });
+      }
+    });
     app.get("/api/companies/search", requireAuth, async (req, res) => {
       try {
         const { q } = req.query;
