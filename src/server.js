@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/rest";
 import bcrypt from "bcrypt";
 import session from "express-session";
 
@@ -22,6 +23,11 @@ const envFile =
     : "../.env";
 
 dotenv.config({ path: path.resolve(__dirname, envFile) });
+console.log("GITHUB TOKEN EXISTS:", !!process.env.GITHUB_TOKEN);
+
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN
+});
 
 const APP_ENV = (process.env.APP_ENV || 'production').trim()
 
@@ -457,84 +463,58 @@ try {
       }
     });
 
-    app.get("/api/github/actions-summary", async (req, res) => {
-      try {
-        res.json([
-          {
-            environment: "PROD",
-            status: "success",
-            workflow: "Updated smoke tests",
-            runNumber: 263,
-            branch: "main",
-            commit: "3dad4ad",
-            completedAt: "2026-05-07T20:59:00Z",
-            duration: "1m 25s"
-          },
-          {
-            environment: "DEMO",
-            status: "success",
-            workflow: "Updated smoke tests",
-            runNumber: 262,
-            branch: "demo",
-            commit: "3dad4ad",
-            completedAt: "2026-05-07T20:55:00Z",
-            duration: "1m 25s"
-          },
-          {
-            environment: "QA",
-            status: "success",
-            workflow: "Updated history tests",
-            runNumber: 259,
-            branch: "qa",
-            commit: "fb9c389",
-            completedAt: "2026-05-07T20:47:00Z",
-            duration: "1m 31s"
-          },
-          {
-            environment: "DEV",
-            status: "failed",
-            workflow: "Updated history tests",
-            runNumber: 258,
-            branch: "develop",
-            commit: "fb9c389",
-            completedAt: "2026-05-07T19:17:00Z",
-            duration: "2m 12s"
-          }
-        ]);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({
-          error: "Failed to load GitHub Actions summary"
-        });
+app.get("/api/github/actions-summary", async (req, res) => {
+  try {
+    const response =
+      await octokit.actions.listWorkflowRunsForRepo({
+        owner: "MIBoy54",
+        repo: "careerops-platform"
+      });
+
+    const latestByEnvironment = {};
+
+    for (const run of response.data.workflow_runs) {
+      const environment = mapBranchToEnvironment(run.head_branch);
+
+      if (!latestByEnvironment[environment]) {
+        latestByEnvironment[environment] = run;
       }
+    }
+
+    const workflowRuns = Object.values(latestByEnvironment);
+
+    const formattedRuns = workflowRuns.map((run) => {
+      const started = new Date(run.run_started_at);
+      const completed = new Date(run.updated_at);
+
+      const durationMs = completed.getTime() - started.getTime();
+      const seconds = Math.floor(durationMs / 1000);
+
+      return {
+        environment: mapBranchToEnvironment(run.head_branch),
+        status: run.conclusion || "running",
+        workflow: run.name,
+        runNumber: run.run_number,
+        branch: run.head_branch,
+        commit: run.head_sha.substring(0, 7),
+        completedAt: run.updated_at,
+        duration: `${seconds}s`
+      };
     });
-    app.get("/api/companies/search", requireAuth, async (req, res) => {
-      try {
-        const { q } = req.query;
 
-        if (!q || q.trim().length < 2) {
-          return res.json([]);
-        }
-
-        const [rows] = await pool.query(
-          `
-      SELECT DISTINCT company
-      FROM recruiter_tracker
-      WHERE company IS NOT NULL
-        AND company <> ''
-        AND company LIKE ?
-      ORDER BY company ASC
-      LIMIT 10
-      `,
-          [`%${q}%`]
-        );
-
-        res.json(rows.map((row) => row.company));
-      } catch (error) {
-        console.error("GET /api/companies/search failed:", error);
-        res.status(500).json({ error: "Failed to search companies" });
-      }
+    res.json(formattedRuns);
+  } catch (error) {
+    console.error("GitHub Actions Summary Failed:", {
+      message: error.message,
+      status: error.status,
+      response: error.response?.data
     });
+
+    res.status(500).json({
+      error: "Failed to load GitHub Actions summary"
+    });
+  }
+});
 
     app.get("/api/reports", requireAuth, async (req, res) => {
       try {
@@ -1368,6 +1348,21 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         res.status(500).json({ error: "Failed to start analytics session." });
       }
     });
+
+    function mapBranchToEnvironment(branch = "") {
+  switch (branch) {
+    case "main":
+      return "PROD";
+    case "demo":
+      return "DEMO";
+    case "qa":
+      return "QA";
+    case "develop":
+      return "DEV";
+    default:
+      return branch.toUpperCase() || "UNKNOWN";
+  }
+}
 
     app.get("/api/analytics/trend", requireAuth, async (req, res) => {
       try {
