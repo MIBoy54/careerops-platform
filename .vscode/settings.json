@@ -1,5 +1,6 @@
 {
   "files.associations": {
     ".env.*": "dotenv"
-  }
+  },
+  "compile-hero.disable-compile-files-on-did-save-code": false
 }

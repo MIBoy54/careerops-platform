@@ -657,6 +657,16 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/src/App.js", (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "App.js"));
+});
+
+app.get("/src/validateContact.js", (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "validateContact.js"));
+});
+
     app.get("/api/reports/:id", requireAuth, async (req, res) => {
       try {
         const reportId = req.params.id;
