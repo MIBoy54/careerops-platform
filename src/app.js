@@ -419,7 +419,12 @@ async function loadQualityGateSummary() {
 
   try {
     const response = await fetch("/api/github/actions-summary");
-    const gates = await response.json();
+
+    if (!response.ok) {
+      throw new Error("Failed API response");
+    }
+
+const gates = await response.json();
 
     container.innerHTML = gates
       .map((gate) => {
