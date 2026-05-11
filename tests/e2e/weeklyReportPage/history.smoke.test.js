@@ -6,13 +6,21 @@ test("Generated weekly report appears in Weekly Report History", async ({ page }
 
   await page.getByRole("button", { name: "Weekly Report History" }).click();
 
-  const section = page.locator("#weeklyReportHistorySection");
+await page
+  .getByRole("button", {
+    name: "Weekly Report History"
+  })
+  .click();
 
-  await expect(section).toHaveClass(/active-section/);
+const section = page.locator("#weeklyReportHistorySection");
+
+await expect(section).toHaveClass(/active-section/);
 
   await expect(
     section.locator("h2")
   ).toContainText("Weekly Report History");
+
+  await expect(section).toHaveClass(/active-section/);
 
   await expect(
     section.locator("#weekly-report-history-table")
