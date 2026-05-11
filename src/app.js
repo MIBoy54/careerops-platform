@@ -1,7 +1,7 @@
 console.log("app.js loaded");
 let APP_ENV = "production";
 
-import { validateContact } from "../src/validateContact.js";
+import { validateContact } from "./validateContact.js";
 
 function isAdminUser() {
   return ["admin", "guest"].includes(globalThis.currentUser?.role);
