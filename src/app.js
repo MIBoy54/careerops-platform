@@ -424,7 +424,9 @@ async function loadQualityGateSummary() {
       throw new Error("Failed API response");
     }
 
-const gates = await response.json();
+    const gates = await response.json();
+
+    console.log("QUALITY GATES:", gates);
 
     container.innerHTML = gates
       .map((gate) => {
@@ -946,29 +948,29 @@ function updateSelectionCount() {
     });
   }
 
-  async function loadWeeklyReportHistory() {
-    if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) return;
+async function loadWeeklyReportHistory() {
+  if (!weeklyHistoryMessageEl || !weeklyHistoryTableBody) return;
 
-    weeklyHistoryMessageEl.textContent = "";
-    weeklyHistoryMessageEl.className = "message";
-    weeklyHistoryTableBody.innerHTML = "";
+  weeklyHistoryMessageEl.textContent = "";
+  weeklyHistoryMessageEl.className = "message";
+  weeklyHistoryTableBody.innerHTML = "";
 
-    try {
-      const response = await fetch("/api/reports");
-      const reports = await response.json();
+  try {
+    const response = await fetch("/api/reports");
+    const reports = await response.json();
 
-      if (!response.ok) {
-        throw new Error(reports.error || "Failed to load weekly reports.");
-      }
+    if (!response.ok) {
+      throw new Error(reports.error || "Failed to load weekly reports.");
+    }
 
-      if (!Array.isArray(reports) || reports.length === 0) {
-        weeklyHistoryMessageEl.textContent = "No weekly report history found.";
-        weeklyHistoryMessageEl.className = "message error";
-        return;
-      }
+    if (!Array.isArray(reports) || reports.length === 0) {
+      weeklyHistoryMessageEl.textContent = "No weekly report history found.";
+      weeklyHistoryMessageEl.className = "message error";
+      return;
+    }
 
-      reports.forEach((report) => {
-        const row = document.createElement("tr");
+    reports.forEach((report) => {
+      const row = document.createElement("tr");
 
       row.innerHTML = `
         <td>
@@ -1002,42 +1004,47 @@ function updateSelectionCount() {
         </td>
       `;
 
-        weeklyHistoryTableBody.appendChild(row);
+      weeklyHistoryTableBody.appendChild(row);
 
-          const radio = row.querySelector(".report-radio");
+      const radio = row.querySelector(".report-radio");
 
-  radio?.addEventListener("change", () => {
-    selectedReportRange = {
-      start: formatDate(report.week_start),
-      end: formatDate(report.week_end)
-    };
+      const handleWeeklyReportSelect = () => {
+        selectedReportRange = {
+          start: formatDate(report.week_start),
+          end: formatDate(report.week_end)
+        };
 
-    document.querySelectorAll("#weekly-report-history-table tbody tr")
-      .forEach((tr) => tr.classList.remove("selected-row"));
+        document
+          .querySelectorAll("#weekly-report-history-table tbody tr")
+          .forEach((tr) => tr.classList.remove("selected-row"));
 
-    row.classList.add("selected-row");
+        row.classList.add("selected-row");
 
-    const exportBtn = document.getElementById("unemploymentExportBtn");
-    if (exportBtn) {
-      exportBtn.disabled = false;
-      exportBtn.classList.remove("disabled-btn");
-    }
+        const exportBtn = document.getElementById("unemploymentExportBtn");
 
-    if (weeklyHistoryMessageEl) {
-      weeklyHistoryMessageEl.textContent =
-        `Selected report: ${selectedReportRange.start} to ${selectedReportRange.end}`;
-      weeklyHistoryMessageEl.className = "message success";
-    }
-  });
-});
+        if (exportBtn) {
+          exportBtn.disabled = false;
+          exportBtn.classList.remove("disabled-btn");
+        }
 
-      wireViewReportButtons();
-    } catch (error) {
-      console.error("Failed to load weekly report history:", error);
-      weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
-      weeklyHistoryMessageEl.className = "message error";
-    }
+        if (weeklyHistoryMessageEl) {
+          weeklyHistoryMessageEl.textContent =
+            `Selected report: ${selectedReportRange.start} to ${selectedReportRange.end}`;
+          weeklyHistoryMessageEl.className = "message success";
+        }
+      };
+
+      radio?.addEventListener("change", handleWeeklyReportSelect);
+      radio?.addEventListener("click", handleWeeklyReportSelect);
+    });
+
+    wireViewReportButtons();
+  } catch (error) {
+    console.error("Failed to load weekly report history:", error);
+    weeklyHistoryMessageEl.textContent = "Failed to load weekly report history.";
+    weeklyHistoryMessageEl.className = "message error";
   }
+}
 
 async function checkAuth() {
   const response = await fetch("/api/auth/me");
@@ -1335,6 +1342,28 @@ applyRoleBasedAccess();
 
   document.getElementById("nextBtn")?.addEventListener("click", () => {
     goNextSection();
+  });
+
+  document.getElementById("weekly-report-history-table")
+  ?.addEventListener("change", (event) => {
+    if (!event.target.classList.contains("report-radio")) return;
+
+    const row = event.target.closest("tr");
+
+    document
+      .querySelectorAll("#weekly-report-history-table tbody tr")
+      .forEach((tr) => tr.classList.remove("selected-row"));
+
+    row?.classList.add("selected-row");
+
+    const [start, end] = event.target.value.split("_");
+    selectedReportRange = { start, end };
+
+    const exportBtn = document.getElementById("unemploymentExportBtn");
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.classList.remove("disabled-btn");
+    }
   });
 
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {

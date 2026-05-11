@@ -493,7 +493,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
       return {
         environment: mapBranchToEnvironment(run.head_branch),
         status: run.conclusion || "running",
-        workflow: run.name,
+        workflow: run.display_title || run.name,
         runNumber: run.run_number,
         branch: run.head_branch,
         commit: run.head_sha.substring(0, 7),

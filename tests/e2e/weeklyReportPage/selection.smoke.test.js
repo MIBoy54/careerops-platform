@@ -1,25 +1,26 @@
 import { expect, test } from "@playwright/test";
 import { login } from "../helpers/auth";
 
-test("exports selected weekly report as CSV", async ({ page }) => {
+test("views selected contacts in detail viewer", async ({ page }) => {
   await login(page);
 
-  await page.getByRole("button", { name: "Weekly Report History" }).click();
+  await page.getByRole("button", { name: "Saved Contacts" }).click();
 
-const firstRadio = page.getByRole("radio").first();
-await firstRadio.click();
+  const checkboxes = page.locator(".select-checkbox");
 
-await expect(firstRadio).toBeChecked();
+  await expect(checkboxes.first()).toBeVisible();
 
-const selectedRow = page
-  .locator("#weekly-report-history-table tbody tr")
-  .first();
+  for (let i = 0; i < 4; i++) {
+    await checkboxes.nth(i).check();
+  }
 
-await expect(selectedRow).toHaveClass(/selected-row/);
+  await page.getByRole("button", { name: "View Selected" }).click();
 
-  const exportButton = page.getByRole("button", {
-    name: "Export Selected Report"
-  });
+  await expect(page.locator("#detailViewerSection")).toHaveClass(/active-section/);
 
-  await expect(exportButton).toBeEnabled();
+  await expect(
+    page.getByRole("heading", { name: "Selected Employer Details" })
+  ).toBeVisible();
+
+  await expect(page.locator(".contact-card")).toHaveCount(4);
 });
