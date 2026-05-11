@@ -93,13 +93,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/src", express.static(path.join(__dirname), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".js")) {
-      res.setHeader("Content-Type", "application/javascript");
+app.use(
+  "/src",
+  express.static(path.join(__dirname), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
     }
-  }
-}));
+  })
+);;
 
 app.use(express.static(path.join(__dirname, "../ui")));
 app.use((req, res, next) => {
