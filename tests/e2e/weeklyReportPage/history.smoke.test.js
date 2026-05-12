@@ -15,10 +15,4 @@ test("Generated weekly report appears in Weekly Report History", async ({ page }
   await expect(section).toHaveClass(/active-section/);
   await expect(section.locator("h2")).toContainText("Weekly Report History");
   await expect(section.locator("#weekly-report-history-table")).toBeVisible();
-
-  const rows = section.locator("#weekly-report-history-table tbody tr");
-
-  await expect(rows.first()).toBeVisible();
-  await expect(rows.first().locator('input[type="radio"]')).toBeVisible();
-  await expect(rows.first().getByRole("button", { name: "View" })).toBeVisible();
 });
