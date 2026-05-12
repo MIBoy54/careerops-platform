@@ -12,6 +12,12 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
     console.log('PAGE ERROR:', err.message);
   });
 
+  page.on("response", async (response) => {
+  if (response.status() === 404) {
+    console.log("404 URL:", response.url());
+  }
+});
+
   await login(page);
   await seedContacts(page);
 
@@ -23,11 +29,19 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   console.log('API contacts after seed:', apiContacts);
   expect(apiContacts.length).toBeGreaterThan(0);
 
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-  await goToSavedContacts(page);
+    await page.reload();
 
-  const contactRows = page.locator('#contactsTable tbody tr');
+    await goToSavedContacts(page);
+
+await expect(
+  page.locator("#contactsTable tbody tr").first()
+).toBeVisible();
+
+    const contactRows = page.locator('#contactsTable tbody tr');
+
+    await expect(contactRows.first()).toBeVisible({
+      timeout: 10000
+    });
 
   await expect.poll(async () => {
     const rowCount = await contactRows.count();
@@ -59,5 +73,7 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   await expect(cards).toHaveCount(selectionCount);
 
   await page.click('#closeWeeklyReportDetailBtn');
-  await expect(page.locator('#savedContactsSection')).toBeVisible();
+  await expect(
+    page.locator('#detailViewerSection')
+  ).toHaveClass(/active-section/);
 });

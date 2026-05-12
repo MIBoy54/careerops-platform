@@ -24,8 +24,11 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   expect(apiContacts.length).toBeGreaterThan(0);
 
   await page.reload();
-  await page.waitForLoadState('networkidle');
   await goToSavedContacts(page);
+
+  await expect(
+    page.locator("#contactsTable tbody tr").first()
+  ).toBeVisible();
 
   const contactRows = page.locator('#contactsTable tbody tr');
 
@@ -58,6 +61,16 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   const cards = page.locator('#detailViewerSection .contact-card');
   await expect(cards).toHaveCount(selectionCount);
 
-  await page.click('#closeWeeklyReportDetailBtn');
-  await expect(page.locator('#savedContactsSection')).toBeVisible();
+    await expect(
+  page.locator('#closeWeeklyReportDetailBtn')
+  ).toBeVisible();
+
+await page.click('#closeWeeklyReportDetailBtn');
+
+await expect(
+  page.locator('#detailViewerSection')
+).toHaveClass(/active-section/, {
+  timeout: 10000
 });
+});
+

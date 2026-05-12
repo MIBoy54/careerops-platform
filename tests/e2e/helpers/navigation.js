@@ -19,9 +19,7 @@ export async function goToSavedContacts(page) {
     });
 
     const target = document.getElementById('savedContactsSection');
-    if (!target) {
-      throw new Error('savedContactsSection not found');
-    }
+    if (!target) throw new Error('savedContactsSection not found');
 
     target.classList.add('active-section');
   });
@@ -50,9 +48,7 @@ export async function goToDetailViewer(page) {
     });
 
     const target = document.getElementById('detailViewerSection');
-    if (!target) {
-      throw new Error('detailViewerSection not found');
-    }
+    if (!target) throw new Error('detailViewerSection not found');
 
     target.classList.add('active-section');
   });
@@ -66,7 +62,9 @@ export async function goToWeeklyReportHistory(page) {
   await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
   const mainMenuBtn = page.locator('#mainMenuBtn');
-  const weeklyReportHistoryTab = page.locator('[data-target="weeklyReportHistorySection"]').first();
+  const weeklyReportHistoryTab = page
+    .locator('[data-target="weeklyReportHistorySection"]')
+    .first();
 
   if (await mainMenuBtn.isVisible()) {
     await mainMenuBtn.click();
@@ -81,9 +79,7 @@ export async function goToWeeklyReportHistory(page) {
     });
 
     const target = document.getElementById('weeklyReportHistorySection');
-    if (!target) {
-      throw new Error('weeklyReportHistorySection not found');
-    }
+    if (!target) throw new Error('weeklyReportHistorySection not found');
 
     target.classList.add('active-section');
   });

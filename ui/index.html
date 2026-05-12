@@ -1,56 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CareerOps Platform</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="/src/App.css" />
 </head>
 
 <body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="CareerOps Sidebar Navigation">
+      <div class="brand">CareerOps</div>
+
+      <nav class="nav-list" aria-label="Primary Navigation">
+        <button type="button" data-target="telemetrySection">System Telemetry</button>
+        <button type="button" data-target="contactFormSection">Employer Contact Form</button>
+        <button type="button" data-target="savedContactsSection">Saved Contacts</button>
+        <button type="button" data-target="detailViewerSection">Detail Viewer</button>
+        <button type="button" data-target="weeklyReportHistorySection">Weekly Report History</button>
+        <button type="button" id="documentationBtn">Documentation</button>
+      </nav>
+
+      <button id="logoutBtn" type="button" class="logout-button">Logout</button>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <div class="page-context">CareerOps Platform</div>
+          <h1 id="pageTitle">Dashboard</h1>
+        </div>
+
+        <div class="environment-selector">
+          <button type="button" class="selected">DEV</button>
+          <button type="button">QA</button>
+          <button type="button">STAGE</button>
+          <button type="button">PROD</button>
+        </div>
+      </header>
+
 <script>console.log("MAIN HTML SCRIPT LOADED");</script>
-<script type="module" src="./app.js?v=6"></script>
-  <div class="careerops-nav">
-    <button id="mainMenuBtn" type="button">Main Menu</button>
-    <button id="backBtn" type="button">Back</button>
-    <button id="nextBtn" type="button">Next</button>
-    <button id="logoutBtn" type="button">Logout</button>
-      </div>
-  
-<section id="landingPage" class="careerops-section active-section">
-  <h1>CareerOps Landing Page</h1>
-  <div class="landing-actions">
-    <button type="button" data-target="telemetrySection">System Telemetry</button>
-    <button type="button" data-target="contactFormSection">Employer Contact Form</button>
-    <button type="button" id="savedContactsTab" data-target="savedContactsSection">Saved Contacts</button>
-    <button type="button" data-target="detailViewerSection">Detail Viewer</button>
-    <button type="button" data-target="weeklyReportHistorySection">Weekly Report History</button>
-    <button id="documentationBtn" type="button">Documentation</button>
-  </div>
-</section>
+<script type="module" src="/src/app.js?v=8"></script>
 
 <section id="telemetrySection" class="careerops-section">
   <div class="page">
     <div class="card">
       <h1>System Telemetry</h1>
+
       <div id="message"></div>
       <div id="errors"></div>
 
       <div id="analyticsPanel" class="analytics-panel">
         <h3>System Analytics</h3>
-        <div class="analytics-grid">
-          <div>Total Visits: <span id="totalVisits">0</span></div>
-          <div>Unique Visitors: <span id="uniqueVisitors">0</span></div>
-          <div>Total Time: <span id="totalTime">0</span></div>
-          <div>Avg Time: <span id="avgTime">0</span></div>
-          <div>Active Users: <span id="activeUsers">0</span></div>
-          <div>Stale Sessions: <span id="staleSessions">0</span></div>
-          <div>Sessions Today: <span id="sessionsToday">0</span></div>
-          <div>Last Updated: <span id="lastUpdated"></span></div>
-        </div>
-      </div>
+<div class="analytics-grid">
+  <div>
+    <div class="metric-label">Total Visits</div>
+    <span class="metric-value" id="totalVisits">0</span>
+  </div>
 
-      <div id="topPagesPanel" class="analytics-panel">
+  <div>
+    <div class="metric-label">Unique Visitors</div>
+    <span class="metric-value" id="uniqueVisitors">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Total Time</div>
+    <span class="metric-value" id="totalTime">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Avg Time</div>
+    <span class="metric-value" id="avgTime">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Active Users</div>
+    <span class="metric-value" id="activeUsers">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Inactive Sessions</div>
+    <span class="metric-value" id="staleSessions">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Sessions Today</div>
+    <span class="metric-value" id="sessionsToday">0</span>
+  </div>
+
+  <div>
+    <div class="metric-label">Last Updated</div>
+    <span class="metric-value" id="lastUpdated">—</span>
+  </div>
+</div>
+
+<div class="validation-summary">
+  <h3>Quality Gate History</h3>
+
+  <div class="validation-actions" style="display:none;">
+    <button id="startValidationRunBtn" type="button">Start Validation Run</button>
+    <button id="completeValidationRunBtn" type="button">Complete Latest Run</button>
+  </div>
+
+  <div id="validationRunMessage"></div>
+
+  <div id="validationRunsTable" class="quality-gate-history"></div>
+</div>
+
+      <div id="topPagesPanel" class="analytics-panel" style="display:none;">
         <h3>Top Pages</h3>
         <table id="topPagesTable">
           <thead>
@@ -65,39 +123,10 @@
         </table>
       </div>
 
-      <div id="trendPanel" class="analytics-panel">
-        <h3>Session Activity Trend (Last 8 Hours)</h3>
-        <div id="trendChart" class="trend-chart"></div>
+      <div class="analytics-panel">
+        <h3>Session Activity Trend (Last 24 Hours)</h3>
+        <div id="sessionTrendChart" class="trend-chart"></div>
       </div>
-
-      <div class="card">
-        <h2>Validation Runs</h2>
-
-        <div class="actions-row">
-          <button id="startValidationRunBtn" type="button">Start Validation Run</button>
-          <button id="completeValidationRunBtn" type="button">Complete Latest Run</button>
-        </div>
-
-        <div id="validationRunMessage" class="message"></div>
-
-        <table id="validationRunsTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Run Type</th>
-              <th>Status</th>
-              <th>Started</th>
-              <th>Completed</th>
-              <th>Duration</th>
-              <th>Trigger Source</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 </section>
 
 <section id="contactFormSection" class="careerops-section">
@@ -326,5 +355,7 @@
     </div>
   </div>
 </section>
+  </main>
+</div>
 </body>
 </html>

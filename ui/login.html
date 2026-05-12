@@ -1,89 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CareerOps Login</title>
-  <link rel="stylesheet" href="/login.css">
+  <link rel="stylesheet" href="/src/login.css" />
 </head>
-<body>
-  <div class="login-page">
-    <div class="login-card">
-      <h1>CareerOps Platform</h1>
-      <p class="login-subtitle">Sign in to continue</p>
 
-<form action="/api/auth/login" method="POST">
-  <div class="input-group">
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required>
-  </div>
+<body class="login-page">
+  <main class="login-shell">
+    <section class="login-card">
+      <div class="login-brand">CareerOps</div>
+      <p class="login-context">CareerOps Platform</p>
+      <h1>Sign in to continue</h1>
 
-  <div class="input-group">
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" required>
-  </div>
+      <form method="POST" action="/api/auth/login" class="login-form">
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required />
+        </div>
 
-<button id="loginBtn" type="submit">Login</button>
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
 
-<button id="guestLogin" type="button" style="display:none; margin-top:10px; width:100%;">
-  Continue as Guest
-</button>
-</form>
+        <button id="loginBtn" type="submit">Login</button>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const isDemo = window.location.hostname === 'democareerops-platform.com';
+        <button id="guestLogin" type="button" style="display:none;">
+          Continue as Guest
+        </button>
+      </form>
+    </section>
+  </main>
 
-  const loginBtn = document.getElementById('loginBtn');
-  const guestBtn = document.getElementById('guestLogin');
-  const emailGroup = document.getElementById('email')?.closest('.input-group');
-  const passwordGroup = document.getElementById('password')?.closest('.input-group');
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const isDemo = window.location.hostname === "democareerops-platform.com";
 
-  if (isDemo) {
-    if (loginBtn) loginBtn.style.display = 'none';
-    if (emailGroup) emailGroup.style.display = 'none';
-    if (passwordGroup) passwordGroup.style.display = 'none';
-    if (guestBtn) guestBtn.style.display = 'block';
-  }
+      const loginBtn = document.getElementById("loginBtn");
+      const guestBtn = document.getElementById("guestLogin");
+      const emailGroup = document.getElementById("email")?.closest(".input-group");
+      const passwordGroup = document.getElementById("password")?.closest(".input-group");
 
-  if (!guestBtn) {
-    console.error('guestLogin button not found');
-    return;
-  }
-
-  guestBtn.addEventListener('click', async () => {
-    console.log('Guest login clicked');
-
-    guestBtn.disabled = true;
-    guestBtn.textContent = 'Logging in...';
-
-    try {
-      const formData = new URLSearchParams();
-      formData.append('email', 'guest@careerops.com');
-      formData.append('password', 'GuestCPSS2@26');
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: formData
-      });
-
-      console.log('Guest login status:', res.status);
-
-      if (res.ok || res.redirected) {
-        window.location.href = '/';
-        return;
+      if (isDemo) {
+        if (loginBtn) loginBtn.style.display = "none";
+        if (emailGroup) emailGroup.style.display = "none";
+        if (passwordGroup) passwordGroup.style.display = "none";
+        if (guestBtn) guestBtn.style.display = "block";
       }
 
-      throw new Error('Guest login failed');
-    } catch (err) {
-      console.error(err);
-      guestBtn.disabled = false;
-      guestBtn.textContent = 'Continue as Guest';
-      alert('Guest login failed');
-    }
-  });
-});
-</script>
+      guestBtn?.addEventListener("click", async () => {
+        guestBtn.disabled = true;
+        guestBtn.textContent = "Logging in...";
+
+        try {
+          const formData = new URLSearchParams();
+          formData.append("email", "guest@careerops.com");
+          formData.append("password", "GuestCPSS2@26");
+
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: formData
+          });
+
+          if (res.ok || res.redirected) {
+            window.location.href = "/";
+            return;
+          }
+
+          throw new Error("Guest login failed");
+        } catch (err) {
+          console.error(err);
+          guestBtn.disabled = false;
+          guestBtn.textContent = "Continue as Guest";
+          alert("Guest login failed");
+        }
+      });
+    });
+  </script>
+</body>
+</html>

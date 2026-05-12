@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/rest";
 import bcrypt from "bcrypt";
 import session from "express-session";
 
@@ -22,6 +23,11 @@ const envFile =
     : "../.env";
 
 dotenv.config({ path: path.resolve(__dirname, envFile) });
+console.log("GITHUB TOKEN EXISTS:", !!process.env.GITHUB_TOKEN);
+
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN
+});
 
 const APP_ENV = (process.env.APP_ENV || 'production').trim()
 
@@ -87,8 +93,28 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get(/^\/src\/App\.js/, (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "App.js"));
+});
+
+app.get(/^\/src\/validateContact\.js/, (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "validateContact.js"));
+});
+
+app.use(
+  "/src",
+  express.static(path.join(__dirname), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+    }
+  })
+);;
+
 app.use(express.static(path.join(__dirname, "../ui")));
-app.use("/src", express.static(path.join(__dirname)));
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
   next();
@@ -457,33 +483,58 @@ try {
       }
     });
 
-    app.get("/api/companies/search", requireAuth, async (req, res) => {
-      try {
-        const { q } = req.query;
+app.get("/api/github/actions-summary", async (req, res) => {
+  try {
+    const response =
+      await octokit.actions.listWorkflowRunsForRepo({
+        owner: "MIBoy54",
+        repo: "careerops-platform"
+      });
 
-        if (!q || q.trim().length < 2) {
-          return res.json([]);
-        }
+    const latestByEnvironment = {};
 
-        const [rows] = await pool.query(
-          `
-      SELECT DISTINCT company
-      FROM recruiter_tracker
-      WHERE company IS NOT NULL
-        AND company <> ''
-        AND company LIKE ?
-      ORDER BY company ASC
-      LIMIT 10
-      `,
-          [`%${q}%`]
-        );
+    for (const run of response.data.workflow_runs) {
+      const environment = mapBranchToEnvironment(run.head_branch);
 
-        res.json(rows.map((row) => row.company));
-      } catch (error) {
-        console.error("GET /api/companies/search failed:", error);
-        res.status(500).json({ error: "Failed to search companies" });
+      if (!latestByEnvironment[environment]) {
+        latestByEnvironment[environment] = run;
       }
+    }
+
+    const workflowRuns = Object.values(latestByEnvironment);
+
+    const formattedRuns = workflowRuns.map((run) => {
+      const started = new Date(run.run_started_at);
+      const completed = new Date(run.updated_at);
+
+      const durationMs = completed.getTime() - started.getTime();
+      const seconds = Math.floor(durationMs / 1000);
+
+      return {
+        environment: mapBranchToEnvironment(run.head_branch),
+        status: run.conclusion || "running",
+        workflow: run.display_title || run.name,
+        runNumber: run.run_number,
+        branch: run.head_branch,
+        commit: run.head_sha.substring(0, 7),
+        completedAt: run.updated_at,
+        duration: `${seconds}s`
+      };
     });
+
+    res.json(formattedRuns);
+  } catch (error) {
+    console.error("GitHub Actions Summary Failed:", {
+      message: error.message,
+      status: error.status,
+      response: error.response?.data
+    });
+
+    res.status(500).json({
+      error: "Failed to load GitHub Actions summary"
+    });
+  }
+});
 
     app.get("/api/reports", requireAuth, async (req, res) => {
       try {
@@ -1318,6 +1369,21 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       }
     });
 
+    function mapBranchToEnvironment(branch = "") {
+  switch (branch) {
+    case "main":
+      return "PROD";
+    case "demo":
+      return "DEMO";
+    case "qa":
+      return "QA";
+    case "develop":
+      return "DEV";
+    default:
+      return branch.toUpperCase() || "UNKNOWN";
+  }
+}
+
     app.get("/api/analytics/trend", requireAuth, async (req, res) => {
       try {
         const [rows] = await pool.query(`
@@ -1456,6 +1522,16 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       }
     });
 
+
+app.get("/debug-src", async (req, res) => {
+  try {
+    const files = await fs.readdir(__dirname);
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/env-check", (req, res) => {
   res.json({
     DB_HOST: process.env.DB_HOST,
@@ -1474,9 +1550,10 @@ process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION:", err);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
