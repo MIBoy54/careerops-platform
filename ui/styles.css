@@ -164,18 +164,6 @@ button.secondary {
   position: relative;
 }
 
-.field {
-  position: relative;
-  overflow: visible;
-  min-width: 0;
-}
-
-.autocomplete {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-}
-
 .autocomplete input,
 .field input,
 .field select,
@@ -353,11 +341,6 @@ button.secondary {
   border: 1px solid black;
 }
 
-/* Button states */
-button {
-  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
-}
-
 button:not(:disabled) {
   background-color: #2e7d32;
   color: #ffffff;
@@ -370,14 +353,6 @@ button:not(:disabled):hover {
   border-color: #1b5e20;
 }
 
-button:disabled {
-  background-color: #e0e0e0;
-  color: #757575;
-  border-color: #d0d0d0;
-  cursor: not-allowed;
-  opacity: 1;
-}
-
 button.delete-btn {
   background-color: #c62828;
   color: #fff;
@@ -385,14 +360,6 @@ button.delete-btn {
 
 button.delete-btn:hover {
   background-color: #8e0000;
-}
-
-.careerops-section {
-  display: none;
-}
-
-.careerops-section.active-section {
-  display: block;
 }
 
 .disabled-btn {

@@ -1260,6 +1260,11 @@ function showSection(sectionId) {
     target.classList.add("active-section");
     currentSectionIndex = sectionOrder.indexOf(sectionId);
 
+  console.log(
+  "ACTIVE SECTION NOW:",
+    document.querySelector(".careerops-section.active-section")?.id
+  );  
+
     document.querySelectorAll(".nav-list button").forEach((btn) => {
       btn.classList.remove("active");
 
