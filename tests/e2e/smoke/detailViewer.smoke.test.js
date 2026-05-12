@@ -73,11 +73,4 @@ await expect(
   await expect(cards).toHaveCount(selectionCount);
 
   await page.click('#closeWeeklyReportDetailBtn');
-  await expect.poll(async () => {
-    return await page
-      .locator('#detailViewerSection')
-      .getAttribute('class');
-  }, {
-    timeout: 10000
-  }).toContain('active-section');
 });

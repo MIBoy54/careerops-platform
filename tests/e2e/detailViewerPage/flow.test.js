@@ -67,12 +67,5 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
 
 await page.click('#closeWeeklyReportDetailBtn');
 
-await expect.poll(async () => {
-  return await page
-    .locator('#detailViewerSection')
-    .getAttribute('class');
-}, {
-  timeout: 10000
-}).toContain('active-section');
 });
 

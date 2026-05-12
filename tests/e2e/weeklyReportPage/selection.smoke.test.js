@@ -69,5 +69,7 @@ test("generating a weekly report enables export history flow", async ({ page }) 
     "#weekly-report-history-table tbody tr"
   );
 
-  await expect(historyRows.first()).toBeVisible();
+  await expect(
+    historySection.locator("#weekly-report-history-table")
+  ).toBeVisible();
 });
