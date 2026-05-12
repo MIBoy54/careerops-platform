@@ -24,7 +24,9 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   expect(apiContacts.length).toBeGreaterThan(0);
 
   await page.reload();
-  await page.waitForLoadState('networkidle');
+await expect(
+  page.locator("#contactsTable tbody tr").first()
+).toBeVisible();
   await goToSavedContacts(page);
 
   const contactRows = page.locator('#contactsTable tbody tr');
