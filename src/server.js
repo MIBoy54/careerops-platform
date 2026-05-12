@@ -93,6 +93,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/src/App.js", (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "App.js"));
+});
+
+app.get("/src/validateContact.js", (req, res) => {
+  res.type("application/javascript");
+  res.sendFile(path.join(__dirname, "validateContact.js"));
+});
+
 app.use(
   "/src",
   express.static(path.join(__dirname), {
@@ -655,16 +665,6 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
     console.error("Export failed:", error);
     res.status(500).json({ error: "Failed to export report" });
   }
-});
-
-app.get("/src/App.js", (req, res) => {
-  res.type("application/javascript");
-  res.sendFile(path.join(__dirname, "App.js"));
-});
-
-app.get("/src/validateContact.js", (req, res) => {
-  res.type("application/javascript");
-  res.sendFile(path.join(__dirname, "validateContact.js"));
 });
 
     app.get("/api/reports/:id", requireAuth, async (req, res) => {
@@ -1522,6 +1522,16 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       }
     });
 
+
+app.get("/debug-src", async (req, res) => {
+  try {
+    const files = await fs.readdir(__dirname);
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/env-check", (req, res) => {
   res.json({
     DB_HOST: process.env.DB_HOST,
@@ -1540,9 +1550,10 @@ process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION:", err);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });

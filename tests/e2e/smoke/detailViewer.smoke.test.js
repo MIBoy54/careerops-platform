@@ -12,6 +12,12 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
     console.log('PAGE ERROR:', err.message);
   });
 
+  page.on("response", async (response) => {
+  if (response.status() === 404) {
+    console.log("404 URL:", response.url());
+  }
+});
+
   await login(page);
   await seedContacts(page);
 
