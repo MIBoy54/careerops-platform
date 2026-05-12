@@ -1364,22 +1364,22 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 }
 
-    app.get("/api/analytics/trend", requireAuth, async (req, res) => {
+    app.get("/api/analytics/session-trend", requireAuth, async (req, res) => {
       try {
         const [rows] = await pool.query(`
           SELECT
-            DATE_FORMAT(last_seen, '%Y-%m-%d %H:%i:00') AS minute_bucket,
-            SUM(time_spent_seconds) AS total_seconds
+            HOUR(first_seen) AS hour,
+            COUNT(DISTINCT session_id) AS sessions
           FROM visitor_analytics
-          WHERE last_seen >= DATE_SUB(NOW(), INTERVAL 8 HOUR)
-          GROUP BY minute_bucket
-          ORDER BY minute_bucket ASC
+          WHERE first_seen >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          GROUP BY HOUR(first_seen)
+          ORDER BY hour ASC
         `);
 
         res.json(rows);
       } catch (error) {
-        console.error("Analytics trend failed:", error);
-        res.status(500).json({ error: "Failed to load analytics trend" });
+        console.error("Session trend failed:", error);
+        res.status(500).json({ error: "Failed to load session trend" });
       }
     });
 
