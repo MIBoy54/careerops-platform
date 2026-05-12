@@ -262,7 +262,7 @@ function formatDateTime(dateString) {
 
 async function loadAnalyticsTrend() {
   try {
-    const response = await fetch("/api/analytics/trend");
+    const response = await fetch("/api/analytics/session-trend");
 
     if (!response.ok) {
       throw new Error("Failed to load analytics trend");
@@ -275,109 +275,61 @@ async function loadAnalyticsTrend() {
 
     chart.innerHTML = "";
 
-        const trendRows = [
-        { label: "12A", total_seconds: 18 },
-        { label: "2A", total_seconds: 12 },
-        { label: "4A", total_seconds: 10 },
-        { label: "6A", total_seconds: 24 },
-        { label: "8A", total_seconds: 38 },
-        { label: "10A", total_seconds: 52 },
-        { label: "12P", total_seconds: 74 },
-        { label: "2P", total_seconds: 91 },
-        { label: "4P", total_seconds: 68 },
-        { label: "6P", total_seconds: 49 },
-        { label: "8P", total_seconds: 34 },
-        { label: "Now", total_seconds: 42 }
-        ];
+const nowHour = new Date().getHours();
 
-    const maxSeconds = Math.max(
-      ...trendRows.map((row) => Number(row.total_seconds) || 0),
+const bucketLabels = [
+  { hour: 0, label: "12A" },
+  { hour: 2, label: "2A" },
+  { hour: 4, label: "4A" },
+  { hour: 6, label: "6A" },
+  { hour: 8, label: "8A" },
+  { hour: 10, label: "10A" },
+  { hour: 12, label: "12P" },
+  { hour: 14, label: "2P" },
+  { hour: 16, label: "4P" },
+  { hour: 18, label: "6P" },
+  { hour: 20, label: "8P" }
+];
+
+const sessionByHour = new Map(
+  rows.map((row) => [
+    Number(row.hour),
+    Number(row.sessions) || 0
+  ])
+);
+
+const trendRows = bucketLabels.map((bucket) => ({
+  label: bucket.hour === nowHour ? "Now" : bucket.label,
+  sessions: sessionByHour.get(bucket.hour) || 0
+}));
+
+    const maxSessions = Math.max(
+      ...trendRows.map((row) => row.sessions),
       1
     );
 
     trendRows.forEach((row) => {
-      const totalSeconds = Number(row.total_seconds) || 0;
-      const heightPercent = Math.max((totalSeconds / maxSeconds) * 100, 8);
+      const heightPercent = Math.max(
+        (row.sessions / maxSessions) * 100,
+        8
+      );
 
       const wrap = document.createElement("div");
       wrap.className = "trend-bar-wrap";
-
-      const label =
-        row.label ||
-        row.minute_bucket?.slice(11, 16) ||
-        "";
 
       wrap.innerHTML = `
         <div
           class="trend-bar"
           style="height:${heightPercent}%;"
-          title="${label} · ${totalSeconds}s"
+          title="${row.label} · ${row.sessions} sessions"
         ></div>
-        <div class="trend-label">${label}</div>
+        <div class="trend-label">${row.label}</div>
       `;
 
       chart.appendChild(wrap);
     });
   } catch (error) {
     console.error("Analytics trend load failed:", error);
-  }
-}
-
-async function loadActiveUsers() {
-  try {
-    const response = await fetch("/api/analytics/active-users");
-
-    if (!response.ok) {
-      throw new Error("Failed to load active users");
-    }
-
-    const data = await response.json();
-    const activeUsersEl = document.getElementById("activeUsers");
-
-    if (activeUsersEl) {
-      activeUsersEl.textContent = data.active_users ?? 0;
-    }
-
-  } catch (error) {
-    console.error("Active users load failed:", error);
-  }
-}
-
-async function loadStaleSessions() {
-  try {
-    const response = await fetch("/api/analytics/stale-sessions");
-
-    if (!response.ok) {
-      throw new Error("Failed to load stale sessions");
-    }
-
-    const data = await response.json();
-    const staleSessionsEl = document.getElementById("staleSessions");
-
-    if (staleSessionsEl) {
-      staleSessionsEl.textContent = data.stale_sessions ?? 0;
-    }
-  } catch (error) {
-    console.error("Stale sessions load failed:", error);
-  }
-}
-
-async function loadSessionsToday() {
-  try {
-    const response = await fetch("/api/analytics/sessions-today");
-
-    if (!response.ok) {
-      throw new Error("Failed to load sessions today");
-    }
-
-    const data = await response.json();
-    const sessionsTodayEl = document.getElementById("sessionsToday");
-
-    if (sessionsTodayEl) {
-      sessionsTodayEl.textContent = data.sessions_today ?? 0;
-    }
-  } catch (error) {
-    console.error("Sessions today load failed:", error);
   }
 }
 
@@ -1322,6 +1274,78 @@ async function logout() {
   await fetch("/api/auth/logout", { method: "POST" });
   window.location.href = "/login.html";
 }  
+
+async function loadActiveUsers() {
+  try {
+    const response = await fetch("/api/analytics/active-users");
+
+    if (!response.ok) {
+      throw new Error("Failed to load active users");
+    }
+
+    const data = await response.json();
+
+    const activeUsersEl =
+      document.getElementById("activeUsers");
+
+    if (activeUsersEl) {
+      activeUsersEl.textContent =
+        data.active_users ?? 0;
+    }
+  } catch (error) {
+    console.error(
+      "Active users load failed:",
+      error
+    );
+  }
+}
+
+async function loadStaleSessions() {
+  try {
+    const response = await fetch("/api/analytics/stale-sessions");
+
+    if (!response.ok) {
+      throw new Error("Failed to load stale sessions");
+    }
+
+    const data = await response.json();
+
+    const staleSessionsEl =
+      document.getElementById("staleSessions");
+
+    if (staleSessionsEl) {
+      staleSessionsEl.textContent =
+        data.stale_sessions ?? 0;
+    }
+  } catch (error) {
+    console.error(
+      "Stale sessions load failed:",
+      error
+    );
+  }
+}
+
+async function loadSessionsToday() {
+  try {
+    const response = await fetch("/api/analytics/sessions-today");
+
+    if (!response.ok) {
+      throw new Error("Failed to load sessions today");
+    }
+
+    const data = await response.json();
+
+    const sessionsTodayEl =
+      document.getElementById("sessionsToday");
+
+    if (sessionsTodayEl) {
+      sessionsTodayEl.textContent =
+        data.sessions_today ?? 0;
+    }
+  } catch (error) {
+    console.error("Sessions today load failed:", error);
+  }
+}
 
 console.log("🚀 DOMContentLoaded fired");
 
