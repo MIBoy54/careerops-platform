@@ -4,8 +4,13 @@ import { login } from "../helpers/auth";
 test("export selected report control is available", async ({ page }) => {
   await login(page);
 
-<<<<<<< HEAD
-  await page.locator('[data-target="weeklyReportHistorySection"]').click();
+  await page
+  .getByRole("button", {
+    name: /weekly report history/i
+  })
+  .click();
+
+  await page.waitForTimeout(500)
 
   const section = page.locator("#weeklyReportHistorySection");
 
@@ -14,18 +19,7 @@ test("export selected report control is available", async ({ page }) => {
   const exportButton = section.getByRole("button", {
     name: "Export Selected Report"
   });
-=======
-  await page
-    .getByRole("button", {
-      name: "Weekly Report History"
-    })
-    .click();
-
-  const exportButton =
-    page.locator("#unemploymentExportBtn");
->>>>>>> qa
 
   await expect(exportButton).toBeVisible();
-
   await expect(exportButton).toBeDisabled();
 });

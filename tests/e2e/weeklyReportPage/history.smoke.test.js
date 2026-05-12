@@ -4,29 +4,17 @@ import { login } from "../helpers/auth";
 test("Generated weekly report appears in Weekly Report History", async ({ page }) => {
   await login(page);
 
-  await page.locator('[data-target="weeklyReportHistorySection"]').click();
-
-await page
+  await page
   .getByRole("button", {
-    name: "Weekly Report History"
+    name: /weekly report history/i
   })
   .click();
 
-const section = page.locator("#weeklyReportHistorySection");
+  const section = page.locator("#weeklyReportHistorySection");
 
-await expect(section).toHaveClass(/active-section/);
-
-  await expect(section.locator("h2")).toContainText("Weekly Report History");
-
-<<<<<<< HEAD
-  await expect(section.locator("#weekly-report-history-table")).toBeVisible();
-=======
   await expect(section).toHaveClass(/active-section/);
-
-  await expect(
-    section.locator("#weekly-report-history-table")
-  ).toBeVisible();
->>>>>>> qa
+  await expect(section.locator("h2")).toContainText("Weekly Report History");
+  await expect(section.locator("#weekly-report-history-table")).toBeVisible();
 
   const rows = section.locator("#weekly-report-history-table tbody tr");
 

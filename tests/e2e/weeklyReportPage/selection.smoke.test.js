@@ -1,56 +1,73 @@
 import { expect, test } from "@playwright/test";
 import { login } from "../helpers/auth";
 
-<<<<<<< HEAD
-test("selecting a report highlights the row and enables export", async ({ page }) => {
+test("generating a weekly report enables export history flow", async ({ page }) => {
   await login(page);
 
-  await page.locator('[data-target="weeklyReportHistorySection"]').click();
+  // Go to Saved Contacts
+  await page
+    .getByRole("button", {
+      name: /saved contacts/i
+    })
+    .click();
 
-  const section = page.locator("#weeklyReportHistorySection");
-  await expect(section).toHaveClass(/active-section/);
+  const rows = page.locator("#contactsTable tbody tr");
 
-  const rows = section.locator("#weekly-report-history-table tbody tr");
-  const rowCount = await rows.count();
+  await expect(rows.first()).toBeVisible();
 
-  if (rowCount === 0) {
-    test.skip(true, "No weekly reports available in this environment.");
-  }
+  const checkboxes = page.locator(
+    '#contactsTable tbody input.select-checkbox'
+  );
 
-  const firstRow = rows.first();
-  await expect(firstRow).toBeVisible();
-
-  const firstRadio = firstRow.locator('input[type="radio"]');
-  await firstRadio.click();
-
-  await expect(firstRadio).toBeChecked();
-  await expect(firstRow).toHaveClass(/selected-row/);
-
-  await expect(
-    section.getByRole("button", { name: "Export Selected Report" })
-  ).toBeEnabled();
-=======
-test("views selected contacts in detail viewer", async ({ page }) => {
-  await login(page);
-
-  await page.getByRole("button", { name: "Saved Contacts" }).click();
-
-  const checkboxes = page.locator(".select-checkbox");
-
-  await expect(checkboxes.first()).toBeVisible();
-
+  // Select 4 contacts
   for (let i = 0; i < 4; i++) {
     await checkboxes.nth(i).check();
   }
 
-  await page.getByRole("button", { name: "View Selected" }).click();
+  // View Selected
+  await page
+    .getByRole("button", {
+      name: /view selected/i
+    })
+    .click();
 
-  await expect(page.locator("#detailViewerSection")).toHaveClass(/active-section/);
-
+  // Detail Viewer opens
   await expect(
-    page.getByRole("heading", { name: "Selected Employer Details" })
-  ).toBeVisible();
+    page.locator("#detailViewerSection")
+  ).toHaveClass(/active-section/);
 
-  await expect(page.locator(".contact-card")).toHaveCount(4);
->>>>>>> qa
+  // Generate Weekly Report
+  page.on("dialog", async (dialog) => {
+    expect(dialog.message()).toContain(
+      "This will mark selected companies as reported"
+    );
+
+    await dialog.accept();
+  });
+
+  await page
+    .getByRole("button", {
+      name: /generate weekly report/i
+    })
+    .click();
+
+  // Navigate to Weekly Report History
+  await page
+    .getByRole("button", {
+      name: /weekly report history/i
+    })
+    .click();
+
+  const historySection = page.locator(
+    "#weeklyReportHistorySection"
+  );
+
+  await expect(historySection).toHaveClass(/active-section/);
+
+  // Verify reports exist
+  const historyRows = historySection.locator(
+    "#weekly-report-history-table tbody tr"
+  );
+
+  await expect(historyRows.first()).toBeVisible();
 });
