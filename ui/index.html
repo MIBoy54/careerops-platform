@@ -35,7 +35,7 @@
       </header>
 
 <script>console.log("MAIN HTML SCRIPT LOADED");</script>
-<script type="module" src="/src/app.js?v=8"></script>
+<script type="module" src="/src/app.js?v=9"></script>
 
 <section id="telemetrySection" class="careerops-section">
   <div class="page">
@@ -46,7 +46,9 @@
       <div id="errors"></div>
 
       <div id="analyticsPanel" class="analytics-panel">
-        <h3>System Analytics</h3>
+        <h3 id="analyticsHeading">
+          System Analytics
+        </h3>
 <div class="analytics-grid">
   <div>
     <div class="metric-label">Total Visits</div>
@@ -64,7 +66,7 @@
   </div>
 
   <div>
-    <div class="metric-label">Avg Time</div>
+    <div class="metric-label">Avg Visit Time</div>
     <span class="metric-value" id="avgTime">0</span>
   </div>
 
@@ -79,12 +81,12 @@
   </div>
 
   <div>
-    <div class="metric-label">Sessions Today</div>
+    <div class="metric-label">Logins Today</div>
     <span class="metric-value" id="sessionsToday">0</span>
   </div>
 
   <div>
-    <div class="metric-label">Last Updated</div>
+    <div class="metric-label">Last Visitor</div>
     <span class="metric-value" id="lastUpdated">—</span>
   </div>
 </div>

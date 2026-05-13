@@ -246,8 +246,17 @@ app.post("/api/auth/login", async (req, res) => {
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatches) {
-      return res.status(401).json({ error: "Invalid email or password." });
+  return res.status(401).json({ error: "Invalid email or password." });
     }
+
+    await pool.query(
+      `
+      UPDATE users
+      SET last_login_at = NOW()
+      WHERE id = ?
+      `,
+      [user.id]
+    );
 
     req.session.user = {
       id: user.id,
@@ -915,22 +924,11 @@ if (isCIMode()) {
 
     app.get("/api/analytics/sessions-today", requireAuth, async (req, res) => {
       try {
-        const [tableCheck] = await pool.query(`
-      SELECT COUNT(*) AS count
-      FROM information_schema.tables
-      WHERE table_schema = DATABASE()
-        AND table_name = 'analytics_sessions'
-    `);
-
-        if (!tableCheck[0]?.count) {
-          return res.json({ sessions_today: 0 });
-        }
-
         const [rows] = await pool.query(`
-      SELECT COUNT(*) AS sessions_today
-      FROM analytics_sessions
-      WHERE DATE(created_at) = CURDATE()
-    `);
+          SELECT COUNT(*) AS sessions_today
+          FROM users
+          WHERE DATE(last_login_at) = CURDATE()
+        `);
 
         res.json({
           sessions_today: rows[0]?.sessions_today ?? 0
@@ -1301,10 +1299,12 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         COUNT(*) AS total_visits,
         COUNT(DISTINCT session_id) AS unique_visitors,
         COALESCE(SUM(time_spent_seconds), 0) AS total_time_spent_seconds,
-        COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds
+        COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds,
+        MAX(last_seen) AS last_visitor
       FROM visitor_analytics
-      `
-        );
+      WHERE last_seen >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        AND last_seen < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)
+      ` );
 
         const [pages] = await pool.query(
           `
@@ -1315,6 +1315,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
         COALESCE(SUM(time_spent_seconds), 0) AS total_time_spent_seconds,
         COALESCE(ROUND(AVG(time_spent_seconds), 2), 0) AS avg_time_spent_seconds
       FROM visitor_analytics
+      WHERE first_seen >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        AND first_seen < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)
       GROUP BY page_path
       ORDER BY visits DESC
       `

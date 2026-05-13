@@ -108,6 +108,9 @@ let currentSortField = "date_contacted";
 let currentSortDirection = "desc";
 let selectedReportRange = null;
 
+let activeUsersRefreshMs = 348000; // default 5m 48s
+let activeUsersInterval = null;
+
 const sectionOrder = [
   "telemetrySection",
   "contactFormSection",
@@ -191,8 +194,17 @@ async function loadAnalyticsSummary() {
   document.getElementById("avgTime").textContent =
     formatSeconds(data.totals.avg_time_spent_seconds ?? 0);
 
+  const lastVisitor = data.totals.last_visitor;
+
   document.getElementById("lastUpdated").textContent =
-  new Date().toLocaleTimeString();
+    lastVisitor
+      ? new Date(lastVisitor).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true
+        })
+      : "No visits this month";
 
     // NEW: Top Pages
     const tbody = document.querySelector("#topPagesTable tbody");
@@ -231,6 +243,19 @@ async function sendAnalyticsHeartbeat(seconds = 15) {
   if (!response.ok) {
     throw new Error("Failed to send analytics heartbeat");
   }
+}
+
+function renderAnalyticsMonth() {
+  const heading =
+    document.getElementById("analyticsHeading");
+
+  if (!heading) return;
+
+  heading.textContent =
+    `System Analytics (for ${new Date().toLocaleString("en-US", {
+      month: "long",
+      year: "numeric"
+    })})`;
 }
 
 function formatDuration(ms) {
@@ -580,7 +605,7 @@ function renderValidationRunsTable() {
       } catch (error) {
         console.error("Analytics heartbeat failed:", error);
       }
-    }, 600000);
+    }, 15000);
   }
 
   function renderErrors(target, errors) {
@@ -800,7 +825,14 @@ function updateSelectionCount() {
     document.querySelectorAll(".view-report-btn").forEach((btn) => {
       btn.classList.remove("active");
     });
-  }
+}
+
+function getCurrentAnalyticsMonthLabel() {
+  return new Date().toLocaleString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+}
 
   function setActiveViewReportButton(activeButton) {
     document.querySelectorAll(".view-report-btn").forEach((btn) => {
@@ -1467,31 +1499,45 @@ applyRoleBasedAccess();
     console.error("Analytics startup failed:", error);
   }
 
-  showSection("telemetrySection");
+showSection("telemetrySection");
 
-  messageDiv = document.getElementById("formMessage");
+messageDiv = document.getElementById("formMessage");
 
-  try {
-    if (dateInput) {
-      dateInput.value = today;
-    }
-
-    await loadContacts();
-      renderTable();
-    await loadQualityGateSummary();
-    //await loadValidationRuns();
-    await loadWeeklyReportHistory();
-    updateSelectionCount();
-    clearWeeklyReportDetail();
-
-    await loadAnalyticsSummary();
-    await loadAnalyticsTrend();
-  } catch (error) {
-    console.error("Initial page load failed:", error);
+try {
+  if (dateInput) {
+    dateInput.value = today;
   }
 
-  setTimeout(loadActiveUsers, 2000);
-  setInterval(loadActiveUsers, 15000);
+  await loadContacts();
+  renderTable();
+
+  await loadQualityGateSummary();
+  //await loadValidationRuns();
+
+  await loadWeeklyReportHistory();
+
+  updateSelectionCount();
+  clearWeeklyReportDetail();
+
+  await loadAnalyticsSummary();
+  await loadAnalyticsTrend();
+
+  renderAnalyticsMonth();
+
+} catch (error) {
+  console.error("Initial page load failed:", error);
+}
+
+setTimeout(loadActiveUsers, 2000);
+
+if (activeUsersInterval) {
+  clearInterval(activeUsersInterval);
+  }
+
+activeUsersInterval = setInterval(
+  loadActiveUsers,
+  activeUsersRefreshMs
+);
 
   setTimeout(loadStaleSessions, 2000);
   setInterval(loadStaleSessions, 15000);
