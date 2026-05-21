@@ -81,7 +81,7 @@ This platform demonstrates a shift from <b>test execution</b> to <b>quality syst
 <li><b>Validation Layer</b> → Structured validation execution with run history tracking and audit capability (#14)</li>
 <li><b>Observability Layer</b> → Metrics and dashboarding providing CI/CD pipeline visibility, execution trends, and system stability insights (#7)</li>
 <li><b>Enforcement Layer</b> → CI/CD-aligned quality gates ensuring validation standards are met before deployment (#26)</li>
-<li><b>UI Layer</b> →Operational interface supporting recruiter workflows, data interaction, and validation visibility</li>
+<li><b>UI Layer</b> → Operational interface supporting recruiter workflows, data interaction, and validation visibility</li>
 <li><b>Compliance Layer</b> → Weekly unemployment reporting with audit and traceability support</li>
 </ul>
 <hr>
