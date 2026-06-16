@@ -5,11 +5,7 @@ test("generating a weekly report enables export history flow", async ({ page }) 
   await login(page);
 
   // Go to Saved Contacts
-  await page
-    .getByRole("button", {
-      name: /saved contacts/i
-    })
-    .click();
+  await page.getByTestId("saved-contacts-nav").click();
 
   const rows = page.locator("#contactsTable tbody tr");
 

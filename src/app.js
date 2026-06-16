@@ -111,6 +111,8 @@ let selectedReportRange = null;
 let activeUsersRefreshMs = 348000; // default 5m 48s
 let activeUsersInterval = null;
 
+let currentStatusFilter = "all";
+
 const sectionOrder = [
   "telemetrySection",
   "contactFormSection",
@@ -729,6 +731,35 @@ function handleViewSelectedClick() {
   showSection("detailViewerSection");
 }
 
+  function normalizeKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+  function getContactUniqueKey(contact) {
+    return [
+      normalizeKey(contact.company),
+      normalizeKey(contact.role_title)
+    ].join("|");
+  }
+
+function suppressDuplicateContacts(contactList) {
+  const seen = new Set();
+
+  return contactList.filter((contact) => {
+    const key = getContactUniqueKey(contact);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
   function getStatusClass(status) {
     switch (status) {
       case "Applied":
@@ -742,7 +773,58 @@ function handleViewSelectedClick() {
       default:
         return "";
     }
+}
+
+function normalizeStatus(status) {
+  return String(status || "").trim().toLowerCase();
+}
+
+function getContactStatusBucket(contact) {
+  const status = normalizeStatus(contact.status);
+
+  if (status === "interviewing") return "interviewing";
+
+  if (
+    status === "rejected" ||
+    status === "closed"
+  ) {
+    return "rejectedClosed";
   }
+
+  if (
+    status === "applied" ||
+    status === "submitted"
+  ) {
+    return "appliedSubmitted";
+  }
+
+  return "appliedSubmitted";
+}
+
+function updateContactStatusTotals() {
+  const appliedSubmitted = contacts.filter(
+    c => getContactStatusBucket(c) === "appliedSubmitted"
+  ).length;
+
+  const interviewing = contacts.filter(
+    c => getContactStatusBucket(c) === "interviewing"
+  ).length;
+
+  const rejectedClosed = contacts.filter(
+    c => getContactStatusBucket(c) === "rejectedClosed"
+  ).length;
+
+  const reported = contacts.filter(c =>
+    String(c.reported_unemployment || "")
+      .trim()
+      .toLowerCase() === "yes"
+  ).length;
+
+  document.getElementById("appliedSubmittedTotal").textContent = appliedSubmitted;
+  document.getElementById("interviewingTotal").textContent = interviewing;
+  document.getElementById("rejectedClosedTotal").textContent = rejectedClosed;
+  document.getElementById("reportedTotal").textContent = reported;
+}
 
 async function loadContacts() {
   console.log("LOAD CONTACTS CALLED");
@@ -761,16 +843,7 @@ async function loadContacts() {
 
   contacts = await response.json();
 
-  document.getElementById("totalSaved").textContent = contacts.length;
-
-  document.getElementById("totalSaved").textContent = contacts.length;
-
-document.getElementById("totalReported").textContent =
-  contacts.filter(c =>
-    String(c.reported_unemployment || "")
-      .trim()
-      .toLowerCase() === "yes"
-  ).length;
+  updateContactStatusTotals();
 
   console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
   console.log("LOAD CONTACTS RESULT:", contacts);
@@ -1159,18 +1232,21 @@ function renderTable() {
 
   tableBody.innerHTML = "";
 
-  const activeContacts = contacts.filter((c) => {
-    const status = String(c.status || "").trim().toLowerCase();
-    return status !== "rejected" && status !== "closed" && status !== "submitted";
+  let filteredContacts = contacts.filter((c) => {
+    const statusBucket = getContactStatusBucket(c);
+
+    if (currentStatusFilter === "all") return true;
+
+    return statusBucket === currentStatusFilter;
   });
 
-  console.log("ACTIVE CONTACTS COUNT:", activeContacts.length);
+  filteredContacts = suppressDuplicateContacts(filteredContacts);
 
-  const filteredContacts = activeContacts.filter((c) => {
+  filteredContacts = filteredContacts.filter((c) => {
     return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
   });
 
-  console.log("FILTERED CONTACTS COUNT:", filteredContacts.length);
+  filteredContacts = suppressDuplicateContacts(filteredContacts);
 
   const sortedContacts = sortSavedContacts(
     filteredContacts,
@@ -1178,7 +1254,7 @@ function renderTable() {
     currentSortDirection
   );
 
-  sortedContacts.forEach((c) => {
+    sortedContacts.forEach((c) => {
     const row = document.createElement("tr");
 
     row.innerHTML = `
@@ -1464,6 +1540,12 @@ applyRoleBasedAccess();
           "_blank"
         );
       });
+
+      document.getElementById("statusFilter")?.addEventListener("change", (event) => {
+        currentStatusFilter = event.target.value;
+        renderTable();
+      });
+
       wireSavedContactsSorting();
 
       applyRoleBasedAccess();

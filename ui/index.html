@@ -16,7 +16,13 @@
       <nav class="nav-list" aria-label="Primary Navigation">
         <button type="button" data-target="telemetrySection">System Telemetry</button>
         <button type="button" data-target="contactFormSection">Employer Contact Form</button>
-        <button type="button" data-target="savedContactsSection">Saved Contacts</button>
+<button
+  type="button"
+  id="savedContactsNav"
+  data-testid="saved-contacts-nav"
+  data-target="savedContactsSection">
+  Contact Status
+</button>
         <button type="button" data-target="detailViewerSection">Detail Viewer</button>
         <button type="button" data-target="weeklyReportHistorySection">Weekly Report History</button>
         <button type="button" id="documentationBtn">Documentation</button>
@@ -251,13 +257,25 @@
 <section id="savedContactsSection" class="careerops-section">
   <div class="page">
     <div class="card">
-      <h2>Saved Contacts</h2>
+      <h2>Contact Status</h2>
 
       <p>
-        Total Saved: <span id="totalSaved">0</span> |
-        Total Reported: <span id="totalReported">0</span>
+        Totals |
+        Applied/Submitted - <span id="appliedSubmittedTotal">0</span> |
+        Interviewing - <span id="interviewingTotal">0</span> |
+        Rejected/Closed - <span id="rejectedClosedTotal">0</span> |
+        Reported - <span id="reportedTotal">0</span>
       </p>
+
       <p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
+
+      <label for="statusFilter"><strong>Search by Status:</strong></label>
+      <select id="statusFilter">
+          <option value="all">All</option>
+          <option value="appliedSubmitted">Applied/Submitted</option>
+          <option value="interviewing">Interviewing</option>
+          <option value="rejectedClosed">Rejected/Closed</option>
+      </select>
 
       <table id="contactsTable">
         <thead>
