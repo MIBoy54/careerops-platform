@@ -721,6 +721,67 @@ function updateDashboard() {
   document.getElementById("dashboardReported").textContent = reported;
   document.getElementById("dashboardNotReported").textContent = notReported;
   document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
+
+  const warm = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "warm"
+).length;
+
+const active = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "active"
+).length;
+
+const cold = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "cold"
+).length;
+
+const inactive = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "inactive"
+).length;
+
+document.getElementById("dashboardWarm").textContent = warm;
+document.getElementById("dashboardActive").textContent = active;
+document.getElementById("dashboardCold").textContent = cold;
+document.getElementById("dashboardInactive").textContent = inactive;
+
+const qaEngineer = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "qa engineer"
+).length;
+
+const lead = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "lead"
+).length;
+
+const manager = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "manager"
+).length;
+
+const seniorManager = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "senior manager"
+).length;
+
+const executive = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "executive"
+).length;
+
+document.getElementById("dashboardQaEngineer").textContent = qaEngineer;
+document.getElementById("dashboardLead").textContent = lead;
+document.getElementById("dashboardManager").textContent = manager;
+document.getElementById("dashboardSeniorManager").textContent = seniorManager;
+document.getElementById("dashboardExecutive").textContent = executive;
+
+const remote = contacts.filter(c =>
+    String(c.location || "").toLowerCase().includes("remote")
+).length;
+
+const hybrid = contacts.filter(c =>
+    String(c.location || "").toLowerCase().includes("hybrid")
+).length;
+
+const onsite = contacts.length - remote - hybrid;
+
+document.getElementById("dashboardRemote").textContent = remote;
+document.getElementById("dashboardHybrid").textContent = hybrid;
+document.getElementById("dashboardOnsite").textContent = onsite;
 }
 
 function renderSelectedContacts(selected) {
