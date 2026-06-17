@@ -5,24 +5,17 @@ test("export selected report control is available", async ({ page }) => {
   await login(page);
 
   await page
-  .getByRole("button", {
-    name: /weekly report history/i
-  })
-  .click();
-
-  await page.waitForTimeout(500)
+    .getByRole("button", { name: /weekly report history/i })
+    .click();
 
   const section = page.locator("#weeklyReportHistorySection");
 
-  await expect.poll(async () => {
-  return await section.getAttribute("class");
-  }, {
-    timeout: 10000
-  }).toContain("active-section");
+  await expect(section).toHaveClass(/active-section/);
+  await expect(section).toBeVisible();
 
-    const exportButton = section.getByRole("button", {
-      name: "Export Selected Report"
-    });
+  const exportButton = section.getByRole("button", {
+    name: /export selected report/i
+  });
 
   await expect(exportButton).toBeVisible();
   await expect(exportButton).toBeDisabled();

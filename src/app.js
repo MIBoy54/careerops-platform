@@ -687,6 +687,42 @@ function sortSavedContacts(contacts, field, direction) {
   });
 }
 
+function updateDashboard() {
+  const total = contacts.length;
+
+  const appliedSubmitted = contacts.filter(
+    c => getContactStatusBucket(c) === "appliedSubmitted"
+  ).length;
+
+  const interviewing = contacts.filter(
+    c => getContactStatusBucket(c) === "interviewing"
+  ).length;
+
+  const rejectedClosed = contacts.filter(
+    c => getContactStatusBucket(c) === "rejectedClosed"
+  ).length;
+
+  const reported = contacts.filter(c =>
+    String(c.reported_to_unemployment || c.reported_unemployment || "")
+      .trim()
+      .toLowerCase() === "yes"
+  ).length;
+
+  const notReported = total - reported;
+
+  const interviewRate = total > 0
+    ? ((interviewing / total) * 100).toFixed(1)
+    : "0.0";
+
+  document.getElementById("dashboardAppliedSubmitted").textContent = appliedSubmitted;
+  document.getElementById("dashboardInterviewing").textContent = interviewing;
+  document.getElementById("dashboardRejectedClosed").textContent = rejectedClosed;
+  document.getElementById("dashboardTotal").textContent = total;
+  document.getElementById("dashboardReported").textContent = reported;
+  document.getElementById("dashboardNotReported").textContent = notReported;
+  document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
+}
+
 function renderSelectedContacts(selected) {
   if (!weeklyReportDetailEl) return;
 
@@ -802,19 +838,21 @@ function getContactStatusBucket(contact) {
 }
 
 function updateContactStatusTotals() {
-  const appliedSubmitted = contacts.filter(
+  const uniqueContacts = contacts;
+
+  const appliedSubmitted = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "appliedSubmitted"
   ).length;
 
-  const interviewing = contacts.filter(
+  const interviewing = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "interviewing"
   ).length;
 
-  const rejectedClosed = contacts.filter(
+  const rejectedClosed = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
   ).length;
 
-  const reported = contacts.filter(c =>
+  const reported = uniqueContacts.filter(c =>
     String(c.reported_unemployment || "")
       .trim()
       .toLowerCase() === "yes"
@@ -841,9 +879,14 @@ async function loadContacts() {
     throw new Error(`Failed to load contacts (${response.status})`);
   }
 
-  contacts = await response.json();
+contacts = await response.json();
 
-  updateContactStatusTotals();
+updateContactStatusTotals();
+updateDashboard();
+
+console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
+
+  
 
   console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
   console.log("LOAD CONTACTS RESULT:", contacts);
@@ -1240,14 +1283,13 @@ function renderTable() {
     return statusBucket === currentStatusFilter;
   });
 
-  filteredContacts = suppressDuplicateContacts(filteredContacts);
-
   filteredContacts = filteredContacts.filter((c) => {
     return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
   });
 
-  filteredContacts = suppressDuplicateContacts(filteredContacts);
-
+  if (currentStatusFilter !== "interviewing") {
+    filteredContacts = suppressDuplicateContacts(filteredContacts);
+  }
   const sortedContacts = sortSavedContacts(
     filteredContacts,
     currentSortField,

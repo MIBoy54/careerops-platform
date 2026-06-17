@@ -14,6 +14,7 @@
       <div class="brand">CareerOps</div>
 
       <nav class="nav-list" aria-label="Primary Navigation">
+        <button type="button" data-target="dashboardSection">Dashboard</button>
         <button type="button" data-target="telemetrySection">System Telemetry</button>
         <button type="button" data-target="contactFormSection">Employer Contact Form</button>
 <button
@@ -33,10 +34,7 @@
 
     <main class="main-content">
       <header class="topbar">
-        <div>
-          <div class="page-context">CareerOps Platform</div>
-          <h1 id="pageTitle">Dashboard</h1>
-        </div>
+
 
       </header>
 
@@ -129,6 +127,31 @@
         <h3>Session Activity Trend (Last 24 Hours)</h3>
         <div id="sessionTrendChart" class="trend-chart"></div>
       </div>
+</section>
+
+<section id="dashboardSection" class="careerops-section">
+  <p class="page-kicker">CareerOps Platform</p>
+  <h1>Dashboard</h1>
+
+  <div class="card">
+    <h2>Pipeline</h2>
+    <p>Applied / Submitted: <span id="dashboardAppliedSubmitted">0</span></p>
+    <p>Interviewing: <span id="dashboardInterviewing">0</span></p>
+    <p>Rejected / Closed: <span id="dashboardRejectedClosed">0</span></p>
+    <hr />
+    <p><strong>Total Opportunities: <span id="dashboardTotal">0</span></strong></p>
+  </div>
+
+  <div class="card">
+    <h2>Reporting</h2>
+    <p>Reported to Unemployment: <span id="dashboardReported">0</span></p>
+    <p>Not Reported: <span id="dashboardNotReported">0</span></p>
+  </div>
+
+  <div class="card">
+    <h2>Career Health</h2>
+    <p>Interview Rate: <span id="dashboardInterviewRate">0%</span></p>
+  </div>
 </section>
 
 <section id="contactFormSection" class="careerops-section">
