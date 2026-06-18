@@ -14,8 +14,8 @@
       <div class="brand">CareerOps</div>
 
       <nav class="nav-list" aria-label="Primary Navigation">
-        <button type="button" data-target="dashboardSection">Dashboard</button>
         <button type="button" data-target="telemetrySection">System Telemetry</button>
+        <button type="button" data-target="dashboardSection">Dashboard</button>
         <button type="button" data-target="contactFormSection">Employer Contact Form</button>
 <button
   type="button"
@@ -133,6 +133,28 @@
   <p class="page-kicker">CareerOps Platform</p>
   <h1>Dashboard</h1>
 
+  <div class="dashboard-kpi-row">
+  <div class="dashboard-kpi">
+    <span id="dashboardKpiTotal">0</span>
+    <label>Total</label>
+  </div>
+
+  <div class="dashboard-kpi">
+    <span id="dashboardKpiActive">0</span>
+    <label>Active</label>
+  </div>
+
+  <div class="dashboard-kpi">
+    <span id="dashboardKpiInterviews">0</span>
+    <label>Interviews</label>
+  </div>
+
+  <div class="dashboard-kpi">
+    <span id="dashboardKpiInterviewRate">0%</span>
+    <label>Interview Rate</label>
+  </div>
+</div>
+<hr>
   <div class="dashboard-grid">
     <div class="dashboard-card">
       <h2>Pipeline</h2>
@@ -177,6 +199,69 @@
       <p>Hybrid: <span id="dashboardHybrid">0</span></p>
       <p>Onsite: <span id="dashboardOnsite">0</span></p>
     </div>
+
+    <div class="dashboard-card">
+    <h2>Target Compensation</h2>
+
+    <p>&lt;$100K: <span id="dashboardSalary100">0</span></p>
+    <p>$100K-$125K: <span id="dashboardSalary125">0</span></p>
+    <p>$125K-$150K: <span id="dashboardSalary150">0</span></p>
+    <p>$150K-$175K: <span id="dashboardSalary175">0</span></p>
+    <p>$175K+: <span id="dashboardSalary175plus">0</span></p>
+    </div>
+
+    <div class="dashboard-card">
+      <h2>Industry Mix</h2>
+
+      <p>Healthcare: <span id="dashboardHealthcare">0</span></p>
+      <p>Financial: <span id="dashboardFinancial">0</span></p>
+      <p>SaaS: <span id="dashboardSaas">0</span></p>
+      <p>Government: <span id="dashboardGovernment">0</span></p>
+      <p>Other: <span id="dashboardOther">0</span></p>
+    </div>
+
+    <div class="dashboard-card">
+      <h2>Lead Source</h2>
+
+      <p>LinkedIn: <span id="dashboardLinkedIn">0</span></p>
+      <p>Indeed: <span id="dashboardIndeed">0</span></p>
+      <p>Jobright: <span id="dashboardJobright">0</span></p>
+      <p>Dice: <span id="dashboardDice">0</span></p>
+      <p>Referrals: <span id="dashboardReferral">0</span></p>
+    </div>
+      
+    <div class="dashboard-card">
+        <h2>Quality Gates</h2>
+
+        <p>Resume Version: Executive ✓</p>
+        <p>LinkedIn Status: Active ✓</p>
+        <p>Weekly Report: Current ✓</p>
+        <p>Applications Reported: ✓</p>
+        <p>Open Interviews: 9</p>
+    </div>
+
+    <div class="dashboard-card">
+  <h2>Funnel</h2>
+  <p>Total Opportunities: <span id="dashboardFunnelTotal">0</span></p>
+  <p>Applied / Submitted: <span id="dashboardFunnelApplied">0</span></p>
+  <p>Interviewing: <span id="dashboardFunnelInterviewing">0</span></p>
+  <p>Offers: <span id="dashboardFunnelOffers">0</span></p>
+  <p>Accepted: <span id="dashboardFunnelAccepted">0</span></p>
+</div>
+
+<div class="dashboard-card">
+  <h2>Activity</h2>
+  <p>Last 7 Days: <span id="dashboardLast7Days">0</span></p>
+  <p>Last 30 Days: <span id="dashboardLast30Days">0</span></p>
+  <p>Follow-Ups Due: <span id="dashboardFollowUpsDue">0</span></p>
+</div>
+
+<div class="dashboard-card">
+  <h2>Pipeline Aging</h2>
+  <p>Fresh (&lt;7 days): <span id="dashboardFresh">0</span></p>
+  <p>Aging (7-14 days): <span id="dashboardAging">0</span></p>
+  <p>Stale (&gt;14 days): <span id="dashboardStale">0</span></p>
+</div>
   </div>
 </section>
 
