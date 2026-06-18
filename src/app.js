@@ -3,16 +3,23 @@ let APP_ENV = "production";
 
 import { validateContact } from "./validateContact.js";
 
-function isAdminUser() {
-  return ["admin", "guest"].includes(globalThis.currentUser?.role);
+function isCurrentUserAdmin() {
+    return (
+        globalThis.currentUser &&
+        globalThis.currentUser.role === "admin"
+    );
 }
 
 function canHardDelete() {
-  return globalThis.currentUser?.role === "admin";
+    return isCurrentUserAdmin();
 }
 
 function canWriteDatabase() {
-  return globalThis.currentUser?.role === "admin";
+    return isCurrentUserAdmin();
+}
+
+function isAdminUser() {
+    return isCurrentUserAdmin();
 }
 console.log("FRONTEND APP_ENV:", globalThis.APP_ENV || "not set");
 
@@ -115,6 +122,7 @@ let currentStatusFilter = "all";
 
 const sectionOrder = [
   "telemetrySection",
+  "dashboardSection",
   "contactFormSection",
   "savedContactsSection",
   "detailViewerSection",
@@ -122,11 +130,15 @@ const sectionOrder = [
 ];
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value !== null && value !== undefined ? value : "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function valueOrDefault(value, fallback) {
+  return value !== null && value !== undefined ? value : fallback;
 }
 
 function getAnalyticsSessionId() {
@@ -185,16 +197,16 @@ async function loadAnalyticsSummary() {
 
     // Existing totals
   document.getElementById("totalVisits").textContent =
-    Number(data.totals.total_visits ?? 0).toLocaleString();
+    Number(valueOrDefault(data.totals.total_visits, 0)).toLocaleString();
 
   document.getElementById("uniqueVisitors").textContent =
-    Number(data.totals.unique_visitors ?? 0).toLocaleString();
+    Number(valueOrDefault(data.totals.unique_visitors, 0)).toLocaleString();
 
   document.getElementById("totalTime").textContent =
-    formatSeconds(data.totals.total_time_spent_seconds ?? 0);
+    formatSeconds(valueOrDefault(data.totals.total_time_spent_seconds, 0));
 
   document.getElementById("avgTime").textContent =
-    formatSeconds(data.totals.avg_time_spent_seconds ?? 0);
+    formatSeconds(valueOrDefault(data.totals.avg_time_spent_seconds, 0));
 
   const lastVisitor = data.totals.last_visitor;
 
@@ -687,6 +699,267 @@ function sortSavedContacts(contacts, field, direction) {
   });
 }
 
+function updateDashboard() {
+  const salaryUnknown = contacts.filter(
+    c => getCompMin(c.comp_range) === null
+  ).length;
+
+  const total = contacts.length;
+
+  const appliedSubmitted = contacts.filter(
+    c => getContactStatusBucket(c) === "appliedSubmitted"
+  ).length;
+
+  const interviewing = contacts.filter(
+    c => getContactStatusBucket(c) === "interviewing"
+  ).length;
+
+  const rejectedClosed = contacts.filter(
+    c => getContactStatusBucket(c) === "rejectedClosed"
+  ).length;
+
+  const reported = contacts.filter(c =>
+    String(c.reported_to_unemployment || c.reported_unemployment || "")
+      .trim()
+      .toLowerCase() === "yes"
+  ).length;
+
+  const notReported = total - reported;
+
+  const interviewRate = total > 0
+    ? ((interviewing / total) * 100).toFixed(1)
+    : "0.0";
+
+  document.getElementById("dashboardAppliedSubmitted").textContent = appliedSubmitted;
+  document.getElementById("dashboardInterviewing").textContent = interviewing;
+  document.getElementById("dashboardRejectedClosed").textContent = rejectedClosed;
+  document.getElementById("dashboardTotal").textContent = total;
+  document.getElementById("dashboardReported").textContent = reported;
+  document.getElementById("dashboardNotReported").textContent = notReported;
+  document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
+  const dashboardSalaryUnknownEl =
+  document.getElementById("dashboardSalaryUnknown");
+
+if (dashboardSalaryUnknownEl) {
+  dashboardSalaryUnknownEl.textContent = salaryUnknown;
+  }
+
+  const salary100 = contacts.filter(c => {
+  const min = getCompMin(c.comp_range);
+  return min !== null && min < 100000;
+}).length;
+
+const salary125 = contacts.filter(c => {
+  const min = getCompMin(c.comp_range);
+  return min !== null && min >= 100000 && min < 125000;
+}).length;
+
+const salary150 = contacts.filter(c => {
+  const min = getCompMin(c.comp_range);
+  return min !== null && min >= 125000 && min < 150000;
+}).length;
+
+const salary175 = contacts.filter(c => {
+  const min = getCompMin(c.comp_range);
+  return min !== null && min >= 150000 && min < 175000;
+}).length;
+
+const salary175plus = contacts.filter(c => {
+  const min = getCompMin(c.comp_range);
+  return min !== null && min >= 175000;
+}).length;
+
+setText("dashboardSalary100", salary100);
+setText("dashboardSalary125", salary125);
+setText("dashboardSalary150", salary150);
+setText("dashboardSalary175", salary175);
+setText("dashboardSalary175plus", salary175plus);
+setText("dashboardSalaryUnknown", salaryUnknown);
+
+ const linkedIn = contacts.filter(c =>
+  String(c.recruiter_name || "").toLowerCase() === "linkedin"
+).length;
+
+const indeed = contacts.filter(c =>
+  String(c.recruiter_name || "").toLowerCase() === "indeed"
+).length;
+
+const jobright = contacts.filter(c =>
+  String(c.recruiter_name || "").toLowerCase() === "jobright"
+).length;
+
+const dice = contacts.filter(c =>
+  String(c.recruiter_name || "").toLowerCase().includes("dice")
+).length;
+
+const referrals = contacts.filter(c =>
+  !["linkedin","indeed","jobright","dice"].includes(
+    String(c.recruiter_name || "").toLowerCase()
+  )
+).length;
+
+document.getElementById("dashboardLinkedIn").textContent = linkedIn;
+document.getElementById("dashboardIndeed").textContent = indeed;
+document.getElementById("dashboardJobright").textContent = jobright;
+document.getElementById("dashboardDice").textContent = dice;
+//document.getElementById("dashboardReferrals").textContent = referrals;  
+
+  const warm = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "warm"
+).length;
+
+const activeRelationship = contacts.filter(
+  c => String(c.relationship_status).toLowerCase() === "active"
+).length;
+
+const cold = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "cold"
+).length;
+
+const inactive = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "inactive"
+).length;
+
+document.getElementById("dashboardWarm").textContent = warm;
+document.getElementById("dashboardActive").textContent = activeRelationship;
+document.getElementById("dashboardCold").textContent = cold;
+document.getElementById("dashboardInactive").textContent = inactive;
+
+const qaEngineer = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "qa engineer"
+).length;
+
+const lead = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "lead"
+).length;
+
+const manager = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "manager"
+).length;
+
+const seniorManager = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "senior manager"
+).length;
+
+const executive = contacts.filter(c =>
+  String(c.role_level || "").trim().toLowerCase() === "executive"
+).length;
+
+document.getElementById("dashboardQaEngineer").textContent = qaEngineer;
+document.getElementById("dashboardLead").textContent = lead;
+document.getElementById("dashboardManager").textContent = manager;
+document.getElementById("dashboardSeniorManager").textContent = seniorManager;
+document.getElementById("dashboardExecutive").textContent = executive;
+
+const remote = contacts.filter(c =>
+    String(c.location || "").toLowerCase().includes("remote")
+).length;
+
+const hybrid = contacts.filter(c =>
+    String(c.location || "").toLowerCase().includes("hybrid")
+).length;
+
+const onsite = contacts.length - remote - hybrid;
+
+document.getElementById("dashboardRemote").textContent = remote;
+document.getElementById("dashboardHybrid").textContent = hybrid;
+document.getElementById("dashboardOnsite").textContent = onsite;
+
+const active = appliedSubmitted + interviewing;
+
+const offers = contacts.filter(c =>
+  String(c.status || "").trim().toLowerCase() === "offer"
+).length;
+
+const accepted = contacts.filter(c =>
+  String(c.status || "").trim().toLowerCase() === "accepted"
+).length;
+
+document.getElementById("dashboardKpiTotal").textContent = total;
+document.getElementById("dashboardKpiActive").textContent = active;
+document.getElementById("dashboardKpiInterviews").textContent = interviewing;
+document.getElementById("dashboardKpiInterviewRate").textContent = `${interviewRate}%`;
+
+document.getElementById("dashboardFunnelTotal").textContent = total;
+document.getElementById("dashboardFunnelApplied").textContent = appliedSubmitted;
+document.getElementById("dashboardFunnelInterviewing").textContent = interviewing;
+document.getElementById("dashboardFunnelOffers").textContent = offers;
+document.getElementById("dashboardFunnelAccepted").textContent = accepted;
+
+const now = new Date();
+
+function daysSince(dateValue) {
+  if (!dateValue) return null;
+
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return Math.floor((now - date) / (1000 * 60 * 60 * 24));
+}
+
+const last7Days = contacts.filter(c => {
+  const days = daysSince(c.date_contacted);
+  return days !== null && days <= 7;
+}).length;
+
+const last30Days = contacts.filter(c => {
+  const days = daysSince(c.date_contacted);
+  return days !== null && days <= 30;
+}).length;
+
+const followUpsDue = contacts.filter(c => {
+  if (!c.next_follow_up_date) return false;
+
+  const dueDate = new Date(c.next_follow_up_date);
+  if (Number.isNaN(dueDate.getTime())) return false;
+
+  return dueDate <= now;
+}).length;
+
+const fresh = contacts.filter(c => {
+  const days = daysSince(c.date_contacted);
+  return days !== null && days < 7;
+}).length;
+
+const aging = contacts.filter(c => {
+  const days = daysSince(c.date_contacted);
+  return days !== null && days >= 7 && days <= 14;
+}).length;
+
+const stale = contacts.filter(c => {
+  const days = daysSince(c.date_contacted);
+  return days !== null && days > 14;
+}).length;
+
+document.getElementById("dashboardLast7Days").textContent = last7Days;
+document.getElementById("dashboardLast30Days").textContent = last30Days;
+document.getElementById("dashboardFollowUpsDue").textContent = followUpsDue;
+
+document.getElementById("dashboardFresh").textContent = fresh;
+document.getElementById("dashboardAging").textContent = aging;
+document.getElementById("dashboardStale").textContent = stale;
+}
+
+function getCompMin(compRange) {
+    if (!compRange || String(compRange).trim() === "") {
+        return null;
+    }
+
+    const matches = String(compRange).toUpperCase().match(/\d+/g);
+
+    if (!matches || matches.length === 0) {
+        return null;
+    }
+
+    let first = Number(matches[0]);
+
+    if (first < 1000) {
+        first *= 1000;
+    }
+
+    return first;
+}
+
 function renderSelectedContacts(selected) {
   if (!weeklyReportDetailEl) return;
 
@@ -694,7 +967,11 @@ function renderSelectedContacts(selected) {
     <h3>Selected Employer Details</h3>
     ${selected.map((contact) => `
       <div class="contact-card">
-        <p><strong>ID:</strong> ${contact.id ?? ""}</p>
+        <p><strong>ID:</strong> ${
+          contact.id !== null && contact.id !== undefined
+            ? contact.id
+            : ""
+        }</p>
         <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
         <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
         <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
@@ -802,19 +1079,21 @@ function getContactStatusBucket(contact) {
 }
 
 function updateContactStatusTotals() {
-  const appliedSubmitted = contacts.filter(
+  const uniqueContacts = contacts;
+
+  const appliedSubmitted = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "appliedSubmitted"
   ).length;
 
-  const interviewing = contacts.filter(
+  const interviewing = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "interviewing"
   ).length;
 
-  const rejectedClosed = contacts.filter(
+  const rejectedClosed = uniqueContacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
   ).length;
 
-  const reported = contacts.filter(c =>
+  const reported = uniqueContacts.filter(c =>
     String(c.reported_unemployment || "")
       .trim()
       .toLowerCase() === "yes"
@@ -841,13 +1120,16 @@ async function loadContacts() {
     throw new Error(`Failed to load contacts (${response.status})`);
   }
 
-  contacts = await response.json();
+contacts = await response.json();
 
-  updateContactStatusTotals();
+updateContactStatusTotals();
+updateDashboard();
 
   console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
+  console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
   console.log("LOAD CONTACTS RESULT:", contacts);
-
+  console.log("DASHBOARD UPDATE COMPLETE");
+  console.log("DASHBOARD CONTACTS:", contacts.length);
   savedContacts = [...contacts];
   renderTable();
 }
@@ -917,70 +1199,92 @@ function getCurrentAnalyticsMonthLabel() {
     }
   }
 
-  async function loadWeeklyReportDetail(reportId) {
-    const header = document.getElementById("weekly-report-detail-header");
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
 
-    if (!weeklyReportDetailEl) return;
+async function loadWeeklyReportDetail(reportId) {
+  const header = document.getElementById(
+    "weekly-report-detail-header"
+  );
 
-    weeklyReportDetailEl.innerHTML = "<p>Loading report detail...</p>";
+  if (!weeklyReportDetailEl) {
+    return;
+  }
 
-    try {
-      const response = await fetch(`/api/reports/${reportId}?ts=${Date.now()}`, {
-      credentials: "same-origin",
-      cache: "no-store"
-    });
-      const report = await response.json();
+  weeklyReportDetailEl.innerHTML =
+    "<p>Loading report detail...</p>";
 
-      if (!response.ok) {
-        throw new Error(report.error || "Failed to load weekly report detail.");
+  try {
+    const response = await fetch(
+      `/api/reports/${reportId}?ts=${Date.now()}`,
+      {
+        credentials: "same-origin",
+        cache: "no-store"
       }
+    );
 
-      if (header) {
-        header.style.display = "block";
-      }
+    const report = await response.json();
 
-      weeklyReportDetailEl.innerHTML = `
-      <h3>Weekly Report Summary</h3>
-      <p><strong>ID:</strong> ${report.id}</p>
-      <p><strong>Week Start:</strong> ${formatDate(report.week_start)}</p>
-      <p><strong>Week End:</strong> ${formatDate(report.week_end)}</p>
-      <p><strong>Submitted:</strong> ${report.submitted ?? 0}</p>
-      <p><strong>Submitted At:</strong> ${formatDate(report.submitted_at)}</p>
+    if (!response.ok) {
+      throw new Error(
+        report.error || "Failed to load weekly report detail."
+      );
+    }
 
-      <h3>Selected Employer Details</h3>
-      ${report.employers && report.employers.length
-          ? report.employers
-            .map(
-              (contact) => `
-            <div class="contact-card">
-              <p><strong>ID:</strong> ${contact.id ?? ""}</p>
-              <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
-              <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
-              <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
-              <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
-              <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
-              <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
-              <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
-              <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
-              <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
-            </div>
-          `
-            )
-            .join("")
-          : "<p>No employers found for this report.</p>"
-        }
-    `;
-    } catch (error) {
-      console.error("Failed to load weekly report detail:", error);
+    if (header) {
+      header.style.display = "block";
+    }
 
-      if (header) {
-        header.style.display = "none";
-      }
+    weeklyReportDetailEl.innerHTML = `
+  <h3>Weekly Report Summary</h3>
+  <p><strong>ID:</strong> ${report.id}</p>
+  <p><strong>Week Start:</strong> ${formatDate(report.week_start)}</p>
+  <p><strong>Week End:</strong> ${formatDate(report.week_end)}</p>
+  <p><strong>Submitted:</strong> ${
+    report.submitted !== null && report.submitted !== undefined
+      ? report.submitted
+      : 0
+  }</p>
+  <p><strong>Submitted At:</strong> ${formatDate(report.submitted_at)}</p>
 
-      weeklyReportDetailEl.innerHTML =
-        `<p class="error">Failed to load weekly report detail.</p>`;
+  <h3>Selected Employer Details</h3>
+  ${
+    report.employers && report.employers.length
+      ? report.employers.map((contact) => `
+          <div class="contact-card">
+            <p><strong>ID:</strong> ${
+              contact.id !== null && contact.id !== undefined
+                ? contact.id
+                : ""
+            }</p>
+            <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
+            <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
+            <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
+            <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
+            <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
+            <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
+            <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
+            <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
+          </div>
+        `).join("")
+      : "<p>No employers found for this report.</p>"
+  }
+`;
+
+  } catch (error) {
+    console.error(
+      "Failed to load weekly report detail:",
+      error
+    );
+
+    if (header) {
+      header.style.display = "none";
     }
   }
+}
 
   function wireViewReportButtons() {
     const viewButtons = document.querySelectorAll(".view-report-btn");
@@ -994,8 +1298,12 @@ function getCurrentAnalyticsMonthLabel() {
         const cells = row.querySelectorAll("td");
 
         selectedReportRange = {
-          start: cells[0]?.textContent.trim(),
-          end: cells[1]?.textContent.trim()
+          start: cells[0] && cells[0].textContent
+            ? cells[0].textContent.trim()
+            : "",
+          end: cells[1] && cells[1].textContent
+            ? cells[1].textContent.trim()
+            : ""
         };
 
         setActiveViewReportButton(button);
@@ -1091,8 +1399,8 @@ async function loadWeeklyReportHistory() {
         }
       };
 
-      radio?.addEventListener("change", handleWeeklyReportSelect);
-      radio?.addEventListener("click", handleWeeklyReportSelect);
+      radio.addEventListener("change", handleWeeklyReportSelect);
+      radio.addEventListener("click", handleWeeklyReportSelect);
     });
 
     wireViewReportButtons();
@@ -1148,18 +1456,22 @@ function wireEditButtons() {
       editId = id;
 
     Object.keys(contact).forEach((key) => {
-        const field = form?.elements?.[key];
-        if (field) {
-          field.value =
-            key === "date_contacted" || key === "next_follow_up_date"
-              ? formatDate(contact[key])
-              : (contact[key] || "");
-        }
-      });
+      const field =
+        form && form.elements
+          ? form.elements[key]
+          : null;
 
-      if (form?.elements?.website) {
-        form.elements.website.value = contact.website || "";
+      if (field) {
+        field.value =
+          key === "date_contacted" || key === "next_follow_up_date"
+            ? formatDate(contact[key])
+            : (contact[key] || "");
       }
+    });
+
+    if (form && form.elements && form.elements.website) {
+      form.elements.website.value = contact.website || "";
+    }
 
       showSection("contactFormSection");
       renderErrors(errorsDiv, []);
@@ -1240,14 +1552,13 @@ function renderTable() {
     return statusBucket === currentStatusFilter;
   });
 
-  filteredContacts = suppressDuplicateContacts(filteredContacts);
-
   filteredContacts = filteredContacts.filter((c) => {
     return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
   });
 
-  filteredContacts = suppressDuplicateContacts(filteredContacts);
-
+  if (currentStatusFilter !== "interviewing") {
+    filteredContacts = suppressDuplicateContacts(filteredContacts);
+  }
   const sortedContacts = sortSavedContacts(
     filteredContacts,
     currentSortField,
@@ -1285,27 +1596,33 @@ function wireSavedContactsSorting() {
   const sortDateHeader = document.getElementById("sortDateHeader");
   const sortCompanyHeader = document.getElementById("sortCompanyHeader");
 
-  sortDateHeader?.addEventListener("click", () => {
-    if (currentSortField === "date_contacted") {
-      currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
-    } else {
-      currentSortField = "date_contacted";
-      currentSortDirection = "desc";
-    }
+  if (sortDateHeader) {
+    sortDateHeader.addEventListener("click", () => {
+      if (currentSortField === "date_contacted") {
+        currentSortDirection =
+          currentSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        currentSortField = "date_contacted";
+        currentSortDirection = "desc";
+      }
 
-    renderTable();
-  });
+      renderTable();
+    });
+  }
 
-  sortCompanyHeader?.addEventListener("click", () => {
-    if (currentSortField === "company") {
-      currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
-    } else {
-      currentSortField = "company";
-      currentSortDirection = "asc";
-    }
+  if (sortCompanyHeader) {
+    sortCompanyHeader.addEventListener("click", () => {
+      if (currentSortField === "company") {
+        currentSortDirection =
+          currentSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        currentSortField = "company";
+        currentSortDirection = "asc";
+      }
 
-    renderTable();
-  });
+      renderTable();
+    });
+  }
 }
 
 function showSection(sectionId) {
@@ -1316,14 +1633,19 @@ function showSection(sectionId) {
   });
 
   const target = document.getElementById(sectionId);
+
   if (target) {
     target.classList.add("active-section");
     currentSectionIndex = sectionOrder.indexOf(sectionId);
 
-  console.log(
-  "ACTIVE SECTION NOW:",
-    document.querySelector(".careerops-section.active-section")?.id
-  );  
+    const activeSection = document.querySelector(
+      ".careerops-section.active-section"
+    );
+
+    console.log(
+      "ACTIVE SECTION NOW:",
+      activeSection ? activeSection.id : null
+    );
 
     document.querySelectorAll(".nav-list button").forEach((btn) => {
       btn.classList.remove("active");
@@ -1334,9 +1656,10 @@ function showSection(sectionId) {
     });
 
     const pageTitle = document.getElementById("pageTitle");
+
     if (pageTitle) {
-      pageTitle.textContent =
-        target.querySelector("h1, h2")?.textContent || "Dashboard";
+      const heading = target.querySelector("h1, h2");
+      pageTitle.textContent = heading ? heading.textContent : "Dashboard";
     }
 
     updateNavButtons();
@@ -1397,9 +1720,12 @@ async function loadActiveUsers() {
       document.getElementById("activeUsers");
 
     if (activeUsersEl) {
-      activeUsersEl.textContent =
-        data.active_users ?? 0;
-    }
+  activeUsersEl.textContent =
+    data.active_users !== null &&
+    data.active_users !== undefined
+      ? data.active_users
+      : 0;
+}
   } catch (error) {
     console.error(
       "Active users load failed:",
@@ -1422,9 +1748,12 @@ async function loadStaleSessions() {
       document.getElementById("staleSessions");
 
     if (staleSessionsEl) {
-      staleSessionsEl.textContent =
-        data.stale_sessions ?? 0;
-    }
+  staleSessionsEl.textContent =
+    data.stale_sessions !== null &&
+    data.stale_sessions !== undefined
+      ? data.stale_sessions
+      : 0;
+}
   } catch (error) {
     console.error(
       "Stale sessions load failed:",
@@ -1447,43 +1776,58 @@ async function loadSessionsToday() {
       document.getElementById("sessionsToday");
 
     if (sessionsTodayEl) {
-      sessionsTodayEl.textContent =
-        data.sessions_today ?? 0;
-    }
+  sessionsTodayEl.textContent =
+    data.sessions_today !== null &&
+    data.sessions_today !== undefined
+      ? data.sessions_today
+      : 0;
+}
   } catch (error) {
     console.error("Sessions today load failed:", error);
   }
 }
 
-console.log("🚀 DOMContentLoaded fired");
-
 document.addEventListener("DOMContentLoaded", async () => {
-  const user = await checkAuth();
+    console.log("🚀 DOMContentLoaded fired");
 
-  if (!user) {
-    window.location.href = "/login.html";
-    return;
-  }
+    const user = await checkAuth();
+
+    if (!user) {
+        window.location.href = "/login.html";
+        return;
+    }
 
   window.currentUser = user;
 
-applyRoleBasedAccess();
+  applyRoleBasedAccess();
 
-  document.getElementById("mainMenuBtn")?.addEventListener("click", () => {
-  showSection("contactFormSection");
-});
+      const mainMenuBtn = document.getElementById("mainMenuBtn");
+      if (mainMenuBtn) {
+        mainMenuBtn.addEventListener("click", () => {
+          showSection("contactFormSection");
+        });
+      }
 
-  document.getElementById("backBtn")?.addEventListener("click", () => {
-    goBackSection();
-  });
+      const backBtn = document.getElementById("backBtn");
+      if (backBtn) {
+        backBtn.addEventListener("click", () => {
+          goBackSection();
+        });
+      }
 
-  document.getElementById("nextBtn")?.addEventListener("click", () => {
-    goNextSection();
-  });
+      const nextBtn = document.getElementById("nextBtn");
+      if (nextBtn) {
+        nextBtn.addEventListener("click", () => {
+          goNextSection();
+        });
+      }
 
-  document.getElementById("weekly-report-history-table")
-  ?.addEventListener("change", (event) => {
-    if (!event.target.classList.contains("report-radio")) return;
+      const weeklyReportHistoryTable =
+        document.getElementById("weekly-report-history-table");
+
+    if (weeklyReportHistoryTable) {
+      weeklyReportHistoryTable.addEventListener("change", (event) => {
+        if (!event.target.classList.contains("report-radio")) return;
 
     const row = event.target.closest("tr");
 
@@ -1491,60 +1835,81 @@ applyRoleBasedAccess();
       .querySelectorAll("#weekly-report-history-table tbody tr")
       .forEach((tr) => tr.classList.remove("selected-row"));
 
-    row?.classList.add("selected-row");
+    if (row) {
+      row.classList.add("selected-row");
+    }
 
     const [start, end] = event.target.value.split("_");
     selectedReportRange = { start, end };
 
     const exportBtn = document.getElementById("unemploymentExportBtn");
+
     if (exportBtn) {
       exportBtn.disabled = false;
       exportBtn.classList.remove("disabled-btn");
     }
   });
+}
 
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+const logoutBtn = document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
     await logout();
   });
-  window.currentUser = user;
-  console.log("currentUser:", window.currentUser);
-  form = document.getElementById("contactForm");
-  errorsDiv = document.getElementById("formErrors");
-  messageDiv = document.getElementById("formMessage");
-  resetButton = document.getElementById("resetButton");
-  unemploymentForm = document.getElementById("unemploymentForm");
-  dateInput = document.getElementById("date_contacted");
-  companyInput = document.getElementById("company");
-  companySuggestions = document.getElementById("companySuggestions");
-  selectionCountEl = document.getElementById("selectionCount");
-  generateReportBtn = document.getElementById("generateReportBtn");
+}
 
-    if (isDemoEnvironment() && generateReportBtn) {
-      generateReportBtn.disabled = true;
-      generateReportBtn.classList.add("disabled-btn");
-      generateReportBtn.title = "Disabled in DEMO/Sandbox";
+    window.currentUser = user;
+    console.log("currentUser:", window.currentUser);
+    form = document.getElementById("contactForm");
+    errorsDiv = document.getElementById("formErrors");
+    messageDiv = document.getElementById("formMessage");
+    resetButton = document.getElementById("resetButton");
+    unemploymentForm = document.getElementById("unemploymentForm");
+    dateInput = document.getElementById("date_contacted");
+    companyInput = document.getElementById("company");
+    companySuggestions = document.getElementById("companySuggestions");
+    selectionCountEl = document.getElementById("selectionCount");
+    generateReportBtn = document.getElementById("generateReportBtn");
+
+if (isDemoEnvironment() && generateReportBtn) {
+  generateReportBtn.disabled = true;
+  generateReportBtn.classList.add("disabled-btn");
+  generateReportBtn.title = "Disabled in DEMO/Sandbox";
+}
+
+viewButton = document.getElementById("viewButton");
+
+    if (viewButton) {
+      viewButton.addEventListener("click", handleViewSelectedClick);
     }
-      viewButton = document.getElementById("viewButton");
-      viewButton?.addEventListener("click", handleViewSelectedClick);
-      weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
-      weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
-      weeklyReportDetailEl = document.getElementById("weekly-report-detail");
-      closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
-      const startValidationRunBtn = document.getElementById("startValidationRunBtn");
-      const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
-      const documentationBtn = document.getElementById("documentationBtn");
 
-      documentationBtn?.addEventListener("click", () => {
+    weeklyHistoryMessageEl = document.getElementById("weekly-report-history-message");
+    weeklyHistoryTableBody = document.querySelector("#weekly-report-history-table tbody");
+    weeklyReportDetailEl = document.getElementById("weekly-report-detail");
+    closeWeeklyReportDetailBtn = document.getElementById("closeWeeklyReportDetailBtn");
+
+    const startValidationRunBtn = document.getElementById("startValidationRunBtn");
+    const completeValidationRunBtn = document.getElementById("completeValidationRunBtn");
+    const documentationBtn = document.getElementById("documentationBtn");
+
+    if (documentationBtn) {
+      documentationBtn.addEventListener("click", () => {
         window.open(
           "https://github.com/MIBoy54/careerops-platform/blob/main/README.md",
           "_blank"
         );
       });
+    }
 
-      document.getElementById("statusFilter")?.addEventListener("change", (event) => {
+    const statusFilter = document.getElementById("statusFilter");
+
+    if (statusFilter) {
+      statusFilter.addEventListener("change", (event) => {
         currentStatusFilter = event.target.value;
         renderTable();
       });
+    }
 
       wireSavedContactsSorting();
 
@@ -1556,11 +1921,15 @@ applyRoleBasedAccess();
       selectedIds.clear();
       editId = null;
 
-      document.getElementById("savedContactsTab")?.addEventListener("click", (event) => {
-        event.preventDefault();
-        console.log("NAV CLICK: savedContactsSection");
-        showSection("savedContactsSection");
-      });
+      const savedContactsTab = document.getElementById("savedContactsTab");
+
+      if (savedContactsTab) {
+        savedContactsTab.addEventListener("click", (event) => {
+          event.preventDefault();
+          console.log("NAV CLICK: savedContactsSection");
+          showSection("savedContactsSection");
+        });
+      }
 
   document.querySelectorAll("[data-target]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -1632,289 +2001,279 @@ activeUsersInterval = setInterval(
 
   setInterval(loadAnalyticsTrend, 60000);
 
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const formData = new FormData(form);
-    const contact = Object.fromEntries(formData.entries());
-    const validation = validateContact(contact);
-
-    if (!validation.valid) {
-      renderErrors(errorsDiv, validation.errors);
-      return;
-    }
-
-    renderErrors(errorsDiv, []);
-
-    try {
-      let response;
-      let result;
-
-      console.log("SAVE editId:", editId);
-      console.log("SAVE URL:", editId !== null ? `/api/contacts/${editId}` : "/api/contacts");
-
-      if (editId !== null) {
-        response = await fetch(`/api/contacts/${editId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(contact)
-        });
-
-        result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to update contact");
-        }
-
-        renderMessage(messageDiv, "Contact updated successfully.");
-        editId = null;
-      } else {
-        response = await fetch("/api/contacts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(contact)
-        });
-
-        result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to create contact");
-        }
-
-        renderMessage(messageDiv, "Contact saved successfully.");
-      }
-
-      await loadContacts();
-      selectedIds.clear();
-      renderTable();
-
-      form.reset();
-      if (dateInput) {
-        dateInput.value = today;
-      }
-    } catch (error) {
-      console.error("Save failed:", error);
-      renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
-    }
-  });
-
-  resetButton?.addEventListener("click", () => {
-    form?.reset();
-    if (dateInput) {
-      dateInput.value = today;
-    }
-    editId = null;
-    renderErrors(errorsDiv, []);
-    renderMessage(messageDiv, "");
-  });
-
-  async function loadCompanyDetails(companyName) {
-    console.log("loadCompanyDetails called with:", companyName);
-    try {
-      const response = await fetch(
-        `/api/companies/details?company=${encodeURIComponent(companyName)}`
-      );
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return;
-        }
-        throw new Error("Failed to fetch company details");
-      }
-
-      const companyDetails = await response.json();
-
-      document.getElementById("company").value = companyDetails.company || "";
-      document.getElementById("recruiter_name").value = companyDetails.recruiter_name || "";
-      document.getElementById("location").value = companyDetails.location || "";
-      document.getElementById("comp_range").value = companyDetails.comp_range || "";
-      document.getElementById("role_level").value = companyDetails.role_level || "";
-      document.getElementById("role_type").value = companyDetails.role_type || "";
-      document.getElementById("status").value = companyDetails.status || "";
-      document.getElementById("relationship_status").value = companyDetails.relationship_status || "";
-      document.getElementById("phone").value = companyDetails.phone || "";
-      document.getElementById("email").value = companyDetails.email || "";
-      document.getElementById("address").value = companyDetails.address || "";
-      document.getElementById("website").value = companyDetails.website || "";
-      document.getElementById("notes").value = companyDetails.notes || "";
-
-      if (companyDetails.date_contacted) {
-        document.getElementById("date_contacted").value =
-          String(companyDetails.date_contacted).split("T")[0];
-      }
-    } catch (error) {
-      console.error("loadCompanyDetails failed:", error);
-      renderMessage(messageDiv, "Failed to load company details.", "error");
-    }
-  }
-
-  document.getElementById("unemploymentExportBtn")?.addEventListener("click", () => {
-    if (!selectedReportRange) {
-      if (weeklyHistoryMessageEl) {
-        weeklyHistoryMessageEl.textContent = "Please select a report first.";
-        weeklyHistoryMessageEl.className = "message error";
-      }
-      return;
-    }
-
-    const { start, end } = selectedReportRange;
-
-    window.location.href =
-      `/api/reports/unemployment/export?start=${start}&end=${end}`;
-  });
-
-  closeWeeklyReportDetailBtn?.addEventListener("click", () => {
-    clearWeeklyReportDetail();
-    showSection("savedContactsSection");
-  });
-
-  generateReportBtn?.addEventListener("click", async () => {
-    if (selectedIds.size !== 4) {
-      renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
-      return;
-    }
-    if (!confirm('This will mark selected companies as reported and remove them from the active list. Continue?')) {
-      return;
-    }
-
-    try {
-      const payload = {
-        selectedIds: Array.from(selectedIds)
-      };
-
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to generate report");
-      }
-
-      renderMessage(messageDiv, "Weekly report generated successfully.");
-      selectedIds.clear();
-
-      await loadContacts();
-      renderTable();
-      await loadWeeklyReportHistory();
-      updateSelectionCount();
-      clearWeeklyReportDetail();
-    } catch (error) {
-      console.error("Generate report failed:", error);
-      renderMessage(messageDiv, "Failed to generate weekly report.", "error");
-    }
-  });
-
-  if (unemploymentForm) {
-    unemploymentForm.addEventListener("submit", async (event) => {
+  if (form) {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const payload = {
-        company: document.getElementById("unemployment_company")?.value.trim(),
-        date_reported: document.getElementById("date_reported")?.value,
-        notes: document.getElementById("unemployment_notes")?.value.trim()
-      };
-      try {
-        const response = await fetch("/api/unemployment-report", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+      const formData = new FormData(form);
+      const contact = Object.fromEntries(formData.entries());
+      const validation = validateContact(contact);
 
-        if (!response.ok) {
-          throw new Error("Failed to save unemployment report");
+      if (!validation.valid) {
+        renderErrors(errorsDiv, validation.errors);
+        return;
+      }
+
+      renderErrors(errorsDiv, []);
+
+      try {
+        let response;
+        let result;
+
+        console.log("SAVE editId:", editId);
+        console.log("SAVE URL:", editId !== null ? `/api/contacts/${editId}` : "/api/contacts");
+
+        if (editId !== null) {
+          response = await fetch(`/api/contacts/${editId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(contact)
+          });
+
+          result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to update contact");
+          }
+
+          renderMessage(messageDiv, "Contact updated successfully.");
+          editId = null;
+        } else {
+          response = await fetch("/api/contacts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(contact)
+          });
+
+          result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to create contact");
+          }
+
+          renderMessage(messageDiv, "Contact saved successfully.");
         }
 
-        unemploymentForm.reset();
-        renderMessage(messageDiv, "Unemployment report saved successfully.");
-
         await loadContacts();
+        selectedIds.clear();
         renderTable();
+
+        form.reset();
+        if (dateInput) {
+          dateInput.value = today;
+        }
       } catch (error) {
-        console.error("Unemployment form save failed:", error);
-        renderMessage(messageDiv, "Failed to save unemployment report.", "error");
+        console.error("Save failed:", error);
+        renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
       }
     });
-  }
-  
-  companyInput?.addEventListener("input", async () => {
-    const query = companyInput.value.trim();
 
-    if (query.length < 2) {
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
-      }
-      return;
-    }
+    if (resetButton) {
+      resetButton.addEventListener("click", () => {
 
-    try {
-      const response = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}`);
-      const companies = await response.json();
+        if (form) {
+          form.reset();
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to load company suggestions");
-      }
+        if (dateInput) {
+          dateInput.value = today;
+        }
 
-      if (companySuggestions) {
-        companySuggestions.innerHTML = companies
-          .map(
-            (company) => `
-            <div class="suggestion-item">${escapeHtml(company)}</div>
-          `
-          )
-          .join("");
-      }
-
-      document.querySelectorAll(".suggestion-item").forEach((item) => {
-        item.addEventListener("mousedown", async (event) => {
-          event.preventDefault();
-
-          const selectedCompany = item.textContent.trim();
-          console.log("Selected company:", selectedCompany);
-
-          companyInput.value = selectedCompany;
-          companySuggestions.innerHTML = "";
-
-          await loadCompanyDetails(selectedCompany);
-        });
+        editId = null;
+        renderErrors(errorsDiv, []);
+        renderMessage(messageDiv, "");
       });
-    } catch (error) {
-      console.error("Company search failed:", error);
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
+    }
+
+    async function loadCompanyDetails(companyName) {
+      console.log("loadCompanyDetails called with:", companyName);
+      try {
+        const response = await fetch(
+          `/api/companies/details?company=${encodeURIComponent(companyName)}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            return;
+          }
+          throw new Error("Failed to fetch company details");
+        }
+
+        const companyDetails = await response.json();
+
+        document.getElementById("company").value = companyDetails.company || "";
+        document.getElementById("recruiter_name").value = companyDetails.recruiter_name || "";
+        document.getElementById("location").value = companyDetails.location || "";
+        document.getElementById("comp_range").value = companyDetails.comp_range || "";
+        document.getElementById("role_level").value = companyDetails.role_level || "";
+        document.getElementById("role_type").value = companyDetails.role_type || "";
+        document.getElementById("status").value = companyDetails.status || "";
+        document.getElementById("relationship_status").value = companyDetails.relationship_status || "";
+        document.getElementById("phone").value = companyDetails.phone || "";
+        document.getElementById("email").value = companyDetails.email || "";
+        document.getElementById("address").value = companyDetails.address || "";
+        document.getElementById("website").value = companyDetails.website || "";
+        document.getElementById("notes").value = companyDetails.notes || "";
+
+        if (companyDetails.date_contacted) {
+          document.getElementById("date_contacted").value =
+            String(companyDetails.date_contacted).split("T")[0];
+        }
+      } catch (error) {
+        console.error("loadCompanyDetails failed:", error);
+        renderMessage(messageDiv, "Failed to load company details.", "error");
       }
     }
-  });
 
-  companyInput?.addEventListener("blur", () => {
-    setTimeout(() => {
-      if (companySuggestions) {
-        companySuggestions.innerHTML = "";
-      }
-    }, 150);
-  });
+    const unemploymentExportBtn = document.getElementById("unemploymentExportBtn");
 
-  if (startValidationRunBtn) {
-  startValidationRunBtn.addEventListener("click", async () => {
-    await startValidationRun();
-  });
-}
+    if (unemploymentExportBtn) {
+      unemploymentExportBtn.addEventListener("click", () => {
+        if (!selectedReportRange) {
+          if (weeklyHistoryMessageEl) {
+            weeklyHistoryMessageEl.textContent = "Please select a report first.";
+            weeklyHistoryMessageEl.className = "message error";
+          }
+          return;
+        }
 
-  if (completeValidationRunBtn) {
-    completeValidationRunBtn.addEventListener("click", async () => {
-      await completeValidationRun();
-    });
-  }
-});
+        const { start, end } = selectedReportRange;
+
+        window.location.href =
+          `/api/reports/unemployment/export?start=${start}&end=${end}`;
+      });
+    }
+
+    if (closeWeeklyReportDetailBtn) {
+      closeWeeklyReportDetailBtn.addEventListener("click", () => {
+        clearWeeklyReportDetail();
+        showSection("savedContactsSection");
+      });
+    }
+
+    if (generateReportBtn) {
+      generateReportBtn.addEventListener("click", async () => {
+        if (selectedIds.size !== 4) {
+          renderMessage(messageDiv, "You must select exactly 4 employers.", "error");
+          return;
+        }
+
+        if (!confirm("This will mark selected companies as reported and remove them from the active list. Continue?")) {
+          return;
+        }
+
+        try {
+          const payload = {
+            selectedIds: Array.from(selectedIds)
+          };
+
+          const response = await fetch("/api/reports", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Failed to generate report");
+          }
+
+          renderMessage(messageDiv, "Weekly report generated successfully.");
+          selectedIds.clear();
+
+          await loadContacts();
+          renderTable();
+          await loadWeeklyReportHistory();
+          updateSelectionCount();
+          clearWeeklyReportDetail();
+        } catch (error) {
+          console.error("Generate report failed:", error);
+          renderMessage(messageDiv, "Failed to generate weekly report.", "error");
+        }
+      });
+    }
+
+    if (unemploymentForm) {
+      unemploymentForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const unemploymentCompany =
+          document.getElementById("unemployment_company");
+
+        const dateReported =
+          document.getElementById("date_reported");
+
+        const unemploymentNotes =
+          document.getElementById("unemployment_notes");
+
+        const payload = {
+          company:
+            unemploymentCompany
+              ? unemploymentCompany.value.trim()
+              : "",
+
+          date_reported:
+            dateReported
+              ? dateReported.value
+              : "",
+
+          notes:
+            unemploymentNotes
+              ? unemploymentNotes.value.trim()
+              : ""
+        };
+        try {
+          const response = await fetch("/api/unemployment-report", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to save unemployment report");
+          }
+
+          unemploymentForm.reset();
+          renderMessage(messageDiv, "Unemployment report saved successfully.");
+
+          await loadContacts();
+          renderTable();
+        } catch (error) {
+          console.error("Unemployment form save failed:", error);
+          renderMessage(messageDiv, "Failed to save unemployment report.", "error");
+        }
+      });
+    }
+
+    if (companyInput) {
+      companyInput.addEventListener("input", async () => {
+        // existing logic
+      });
+    }
+
+    if (startValidationRunBtn) {
+      startValidationRunBtn.addEventListener("click", async () => {
+        await startValidationRun();
+      });
+    }
+
+        if (completeValidationRunBtn) {
+      completeValidationRunBtn.addEventListener("click", async () => {
+        await completeValidationRun();
+      });
+    }
+
+  } // closes if (form)
+
+}); // closes DOMContentLoaded
+  
 
 
 
