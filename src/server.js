@@ -452,7 +452,8 @@ try {
         email,
         address,
         website,
-        notes
+        notes,
+        industry
       FROM recruiter_tracker
       ORDER BY id DESC
     `);
