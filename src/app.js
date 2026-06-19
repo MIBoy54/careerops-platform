@@ -699,11 +699,36 @@ function sortSavedContacts(contacts, field, direction) {
   });
 }
 
-function updateDashboard() {
-  const salaryUnknown = contacts.filter(
-    c => getCompMin(c.comp_range) === null
-  ).length;
+function getCompAverage(compRange) {
 
+  if (!compRange ||
+      String(compRange).trim() === "" ||
+      String(compRange).trim().toUpperCase() === "NULL") {
+    return null;
+  }
+
+  const cleaned = String(compRange)
+    .replace(/,/g, "")
+    .replace(/\$/g, "")
+    .replace(/[Kk]/g, "000");
+
+  const numbers = cleaned.match(/\d+/g);
+
+  if (!numbers || numbers.length === 0) {
+    return null;
+  }
+
+  if (numbers.length === 1) {
+    return Number(numbers[0]);
+  }
+
+  const low = Number(numbers[0]);
+  const high = Number(numbers[1]);
+
+  return (low + high) / 2;
+}
+
+function updateDashboard() {
   const total = contacts.length;
 
   const appliedSubmitted = contacts.filter(
@@ -713,6 +738,20 @@ function updateDashboard() {
   const interviewing = contacts.filter(
     c => getContactStatusBucket(c) === "interviewing"
   ).length;
+
+  const offers = contacts.filter(c =>
+  String(c.status || "").trim().toLowerCase() === "offer"
+).length;
+
+  const accepted = contacts.filter(c =>
+    String(c.status || "").trim().toLowerCase() === "accepted"
+    ).length;
+
+  const offerRate = interviewing > 0
+        ? ((offers / interviewing) * 100).toFixed(1)
+      : "0.0";
+
+  setText("dashboardFunnelOfferRate", `${offerRate}%`);
 
   const rejectedClosed = contacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
@@ -737,74 +776,56 @@ function updateDashboard() {
   document.getElementById("dashboardReported").textContent = reported;
   document.getElementById("dashboardNotReported").textContent = notReported;
   document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
-  const dashboardSalaryUnknownEl =
-  document.getElementById("dashboardSalaryUnknown");
 
-if (dashboardSalaryUnknownEl) {
-  dashboardSalaryUnknownEl.textContent = salaryUnknown;
-  }
+  // Funnel card
+  setText("dashboardFunnelTotal", total);
+  setText("dashboardFunnelApplied", appliedSubmitted);
+  setText("dashboardFunnelInterviewing", interviewing);
+  setText("dashboardFunnelInterviewRate", `${interviewRate}%`);
 
-  const salary100 = contacts.filter(c => {
-  const min = getCompMin(c.comp_range);
-  return min !== null && min < 100000;
+const salary100 = contacts.filter(c => {
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg < 100000;
 }).length;
 
 const salary125 = contacts.filter(c => {
-  const min = getCompMin(c.comp_range);
-  return min !== null && min >= 100000 && min < 125000;
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg >= 100000 && avg < 125000;
 }).length;
 
 const salary150 = contacts.filter(c => {
-  const min = getCompMin(c.comp_range);
-  return min !== null && min >= 125000 && min < 150000;
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg >= 125000 && avg < 150000;
 }).length;
 
 const salary175 = contacts.filter(c => {
-  const min = getCompMin(c.comp_range);
-  return min !== null && min >= 150000 && min < 175000;
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg >= 150000 && avg < 175000;
 }).length;
 
-const salary175plus = contacts.filter(c => {
-  const min = getCompMin(c.comp_range);
-  return min !== null && min >= 175000;
+const salary200 = contacts.filter(c => {
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg >= 175000 && avg < 200000;
 }).length;
+
+const salary200plus = contacts.filter(c => {
+  const avg = getCompAverage(c.comp_range);
+  return avg !== null && avg >= 200000;
+}).length;
+
+const salaryUnknown = contacts.filter(c =>
+  getCompAverage(c.comp_range) === null
+).length;
 
 setText("dashboardSalary100", salary100);
 setText("dashboardSalary125", salary125);
 setText("dashboardSalary150", salary150);
 setText("dashboardSalary175", salary175);
-setText("dashboardSalary175plus", salary175plus);
+setText("dashboardSalary200", salary200);
+setText("dashboardSalary200plus", salary200plus);
 setText("dashboardSalaryUnknown", salaryUnknown);
 
- const linkedIn = contacts.filter(c =>
-  String(c.recruiter_name || "").toLowerCase() === "linkedin"
-).length;
-
-const indeed = contacts.filter(c =>
-  String(c.recruiter_name || "").toLowerCase() === "indeed"
-).length;
-
-const jobright = contacts.filter(c =>
-  String(c.recruiter_name || "").toLowerCase() === "jobright"
-).length;
-
-const dice = contacts.filter(c =>
-  String(c.recruiter_name || "").toLowerCase().includes("dice")
-).length;
-
-const referrals = contacts.filter(c =>
-  !["linkedin","indeed","jobright","dice"].includes(
-    String(c.recruiter_name || "").toLowerCase()
-  )
-).length;
-
-document.getElementById("dashboardLinkedIn").textContent = linkedIn;
-document.getElementById("dashboardIndeed").textContent = indeed;
-document.getElementById("dashboardJobright").textContent = jobright;
-document.getElementById("dashboardDice").textContent = dice;
-//document.getElementById("dashboardReferrals").textContent = referrals;  
-
-  const warm = contacts.filter(
+const warm = contacts.filter(
     c => String(c.relationship_status).toLowerCase() === "warm"
 ).length;
 
@@ -867,13 +888,9 @@ document.getElementById("dashboardOnsite").textContent = onsite;
 
 const active = appliedSubmitted + interviewing;
 
-const offers = contacts.filter(c =>
-  String(c.status || "").trim().toLowerCase() === "offer"
-).length;
-
-const accepted = contacts.filter(c =>
-  String(c.status || "").trim().toLowerCase() === "accepted"
-).length;
+setText("dashboardFunnelOffers", offers);
+setText("dashboardFunnelAccepted", accepted);
+setText("dashboardFunnelOfferRate", `${offerRate}%`);;
 
 document.getElementById("dashboardKpiTotal").textContent = total;
 document.getElementById("dashboardKpiActive").textContent = active;
@@ -918,12 +935,12 @@ const followUpsDue = contacts.filter(c => {
 
 const fresh = contacts.filter(c => {
   const days = daysSince(c.date_contacted);
-  return days !== null && days < 7;
+  return days !== null && days <= 7;
 }).length;
 
 const aging = contacts.filter(c => {
   const days = daysSince(c.date_contacted);
-  return days !== null && days >= 7 && days <= 14;
+  return days !== null && days > 7 && days <= 14;
 }).length;
 
 const stale = contacts.filter(c => {
@@ -1093,7 +1110,7 @@ function updateContactStatusTotals() {
     c => getContactStatusBucket(c) === "rejectedClosed"
   ).length;
 
-  const reported = uniqueContacts.filter(c =>
+    const reported = uniqueContacts.filter(c =>
     String(c.reported_unemployment || "")
       .trim()
       .toLowerCase() === "yes"
@@ -1125,13 +1142,90 @@ contacts = await response.json();
 updateContactStatusTotals();
 updateDashboard();
 
-  console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
-  console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
-  console.log("LOAD CONTACTS RESULT:", contacts);
-  console.log("DASHBOARD UPDATE COMPLETE");
-  console.log("DASHBOARD CONTACTS:", contacts.length);
-  savedContacts = [...contacts];
-  renderTable();
+console.log("LOAD CONTACTS RESULT COUNT:", contacts.length);
+console.log("LOAD CONTACTS RESULT:", contacts);
+console.log("DASHBOARD UPDATE COMPLETE");
+console.log("DASHBOARD CONTACTS:", contacts.length);
+
+savedContacts = [...contacts];
+
+renderTable();
+
+console.log("ABOUT TO CALL INDUSTRY MIX");
+updateIndustryMix();
+  console.log("RETURNED FROM INDUSTRY MIX");
+updateLeadSourceMix();
+}
+
+function updateIndustryMix() {
+  console.log("INDUSTRY MIX CALLED");
+
+  const normalizeIndustry = (value) =>
+    String(value || "").trim().toLowerCase();
+
+  const healthcare = contacts.filter(c => normalizeIndustry(c.industry) === "healthcare").length;
+  const financial = contacts.filter(c => normalizeIndustry(c.industry) === "financial").length;
+  const saas = contacts.filter(c => normalizeIndustry(c.industry) === "saas").length;
+  const government = contacts.filter(c => normalizeIndustry(c.industry) === "government").length;
+  const other = contacts.filter(c => normalizeIndustry(c.industry) === "other").length;
+
+  console.log("INDUSTRY MIX COUNTS:", {
+    healthcare,
+    financial,
+    saas,
+    government,
+    other
+  });
+
+  setText("dashboardHealthcare", healthcare);
+  setText("dashboardFinancial", financial);
+  setText("dashboardSaas", saas);
+  setText("dashboardGovernment", government);
+  setText("dashboardOther", other);
+}
+
+function updateLeadSourceMix() {
+  const sourceCounts = {};
+
+  const sourceMap = {
+    linkedin: "LinkedIn",
+    indeed: "Indeed",
+    jobright: "Jobright",
+    glassdoor: "Glassdoor",
+    ziprecruiter: "ZipRecruiter"
+  };
+
+  contacts.forEach(c => {
+    const rawSource = String(c.recruiter_name || "")
+      .trim();
+
+    const source = rawSource.toLowerCase();
+
+    // Skip blanks and test data
+    if (!source || source.includes("test")) {
+      return;
+    }
+
+    const normalizedSource =
+      sourceMap[source] || rawSource;
+
+        sourceCounts[normalizedSource] =
+          (sourceCounts[normalizedSource] || 0) + 1;
+      });
+
+  const html = Object.entries(sourceCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([source, count]) =>
+      `<p>${escapeHtml(source)}: ${count}</p>`
+    )
+    .join("");
+
+  const leadSourceList = document.getElementById("leadSourceList");
+
+  if (leadSourceList) {
+    leadSourceList.innerHTML = html;
+  }
 }
 
 function updateSelectionCount() {
@@ -1158,7 +1252,7 @@ function updateSelectionCount() {
 
     generateReportBtn.disabled = disabled;
     generateReportBtn.classList.toggle("disabled-btn", disabled);
-}
+  }
 }
 
   function getSelectedContacts() {
@@ -1788,7 +1882,7 @@ async function loadSessionsToday() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log("🚀 DOMContentLoaded fired");
+  console.log("🚀 DOMContentLoaded fired");
 
     const user = await checkAuth();
 
@@ -1900,16 +1994,133 @@ viewButton = document.getElementById("viewButton");
           "_blank"
         );
       });
+  }
+
+function wireCompanyAutocomplete() {
+  if (!companyInput || !companySuggestions) return;
+
+  companyInput.addEventListener("input", () => {
+    const searchText = companyInput.value.trim().toLowerCase();
+
+    companySuggestions.innerHTML = "";
+
+    if (searchText.length < 3) {
+      companySuggestions.style.display = "none";
+      return;
     }
+
+    const matches = contacts
+      .filter((c) =>
+        String(c.company || "").toLowerCase().includes(searchText)
+      )
+      .map((c) => c.company)
+      .filter(Boolean);
+
+    const uniqueMatches = [...new Set(matches)].slice(0, 10);
+
+    if (!uniqueMatches.length) {
+      companySuggestions.style.display = "none";
+      return;
+    }
+
+    companySuggestions.innerHTML = uniqueMatches
+      .map((company) => `
+        <div class="suggestion-item" data-company="${escapeHtml(company)}">
+          ${escapeHtml(company)}
+        </div>
+      `)
+      .join("");
+
+    companySuggestions.style.display = "block";
+  });
+
+companySuggestions.addEventListener("click", (e) => {
+  const item = e.target.closest(".suggestion-item");
+  if (!item) return;
+
+  const selectedCompany = item.dataset.company;
+
+  companyInput.value = selectedCompany;
+  companySuggestions.innerHTML = "";
+  companySuggestions.style.display = "none";
+
+  const contact = contacts.find(
+    (c) =>
+      String(c.company || "").trim().toLowerCase() ===
+      String(selectedCompany || "").trim().toLowerCase()
+  );
+
+  if (!contact || !form || !form.elements) return;
+
+  editId = contact.id;
+
+  Object.keys(contact).forEach((key) => {
+    const field = form.elements[key];
+
+    if (field) {
+      field.value =
+        key === "date_contacted" || key === "next_follow_up_date"
+          ? formatDate(contact[key])
+          : contact[key] || "";
+    }
+  });
+
+  renderMessage(
+    messageDiv,
+    "Existing contact loaded. Update fields and click Save Contact."
+  );
+});
+
+  companySuggestions.addEventListener("click", (e) => {
+    const item = e.target.closest(".suggestion-item");
+    if (!item) return;
+
+    const selectedCompany = item.dataset.company;
+
+    companyInput.value = selectedCompany;
+    companySuggestions.innerHTML = "";
+    companySuggestions.style.display = "none";
+
+    const contact = contacts.find(
+      (c) =>
+        String(c.company || "").trim().toLowerCase() ===
+        String(selectedCompany || "").trim().toLowerCase()
+    );
+
+    if (!contact || !form || !form.elements) return;
+
+    editId = contact.id;
+
+    Object.keys(contact).forEach((key) => {
+      const field = form.elements[key];
+
+      if (field) {
+        field.value =
+          key === "date_contacted" || key === "next_follow_up_date"
+            ? formatDate(contact[key])
+            : contact[key] || "";
+      }
+    });
+
+    renderMessage(
+      messageDiv,
+      "Existing contact loaded. Update fields and click Save Contact."
+    );
+  });
+  }
+
+  wireCompanyAutocomplete();
 
     const statusFilter = document.getElementById("statusFilter");
 
     if (statusFilter) {
-      statusFilter.addEventListener("change", (event) => {
-        currentStatusFilter = event.target.value;
-        renderTable();
-      });
-    }
+  statusFilter.value = currentStatusFilter;
+;
+  statusFilter.addEventListener("change", (e) => {
+    currentStatusFilter = e.target.value;
+    renderTable();
+  });
+}
 
       wireSavedContactsSorting();
 
@@ -1963,7 +2174,6 @@ try {
   renderTable();
 
   await loadQualityGateSummary();
-  //await loadValidationRuns();
 
   await loadWeeklyReportHistory();
 
@@ -2073,21 +2283,21 @@ activeUsersInterval = setInterval(
     });
 
     if (resetButton) {
-      resetButton.addEventListener("click", () => {
-
-        if (form) {
-          form.reset();
-        }
-
-        if (dateInput) {
-          dateInput.value = today;
-        }
-
+     resetButton.addEventListener("click", () => {
+        form.reset();
         editId = null;
+
+        if (companySuggestions) {
+          companySuggestions.innerHTML = "";
+          companySuggestions.style.display = "none";
+        }
+
         renderErrors(errorsDiv, []);
         renderMessage(messageDiv, "");
       });
     }
+
+    resetButton = document.getElementById("resetButton");
 
     async function loadCompanyDetails(companyName) {
       console.log("loadCompanyDetails called with:", companyName);
