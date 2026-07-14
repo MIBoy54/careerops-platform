@@ -1,4 +1,4 @@
-<h1 align="center">CareerOps Platform</h1>
+<h1 align="center">CareerOps</h1>
 
 <p align="center">
 <b><i>A CI-driven Quality Engineering system demonstrating how quality is enforced through architecture, not tooling.</i></b>
