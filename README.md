@@ -119,32 +119,27 @@ The CareerOps ecosystem applies Quality Engineering principles across career man
 </table>
 <hr>
 
-<h2>Platform Roadmap</h2>
+<h2>Ecosystem Architecture</h2>
 
 <p>
 CareerOps is evolving into a relationship-driven platform that connects professionals, recruiters, employers, and AI-assisted decision support through a unified operational model.
 </p>
 
 <pre>
-                    CareerOps
-                         │
-                         ▼
-                  Recruiters
-                         │
-                         ▼
-                  Opportunities
-                         │
-                         ▼
-                   Interviews
-                         │
-                         ▼
-                   Candidates
+CareerOps
+     │
+     ▼
+Recruiters ─────────► Employers
+     │                    │
+     ▼                    ▼
+ Opportunities ─────► Interviews
+     │
+     ▼
+ Candidates
 
-              ▲                     │
-              │                     ▼
-         QualityOps ─────────► Athena
-              ▲
-              │
+QualityOps ─────► Athena
+      ▲
+      │
 Automation Architecture Lab
 </pre>
 
@@ -176,17 +171,6 @@ The platform demonstrates a shift from <b>test execution</b> to <b>quality syste
   <li>Execution is observable and measurable</li>
   <li>Risk is surfaced early through structured quality gates</li>
 </ul>
-
-<hr>
-
-<h3>Build Status</h3>
-
-<p align="center">
-  <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg" />
-  <img src="https://img.shields.io/badge/node-20.x-green" />
-  <img src="https://img.shields.io/badge/unit%20tests-vitest%20passing-brightgreen" />
-  <img src="https://img.shields.io/badge/e2e-playwright%20passing-blue" />
-</p>
 
 <hr>
 
@@ -423,3 +407,13 @@ Sustainable Quality Engineering is not a tooling decision — it is a system des
 <p>Because operational excellence is not limited to software—it is a way of thinking.</p>
 <hr>
 
+<h3>Build Status</h3>
+
+<p align="center">
+  <img src="https://github.com/MIBoy54/careerops-platform/actions/workflows/careerops-ci.yml/badge.svg" />
+  <img src="https://img.shields.io/badge/node-20.x-green" />
+  <img src="https://img.shields.io/badge/unit%20tests-vitest%20passing-brightgreen" />
+  <img src="https://img.shields.io/badge/e2e-playwright%20passing-blue" />
+</p>
+
+<hr>
