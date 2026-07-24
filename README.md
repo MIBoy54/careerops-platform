@@ -81,7 +81,83 @@ The CareerOps ecosystem applies Quality Engineering principles across career man
     <td>Evaluates enabling engineering patterns, modernization strategies, and automation architecture decisions.</td>
   </tr>
 </table>
+<hr>
 
+<h2>🗺️ Roadmap</h2>
+<p>CareerOps is being developed incrementally to demonstrate how Quality Engineering principles can be applied beyond software delivery into professional career management.</p>
+<table>
+  <tr>
+    <th><b>Phase</b></th>
+    <th><b>Status</b></th>
+    <th><b>Objective</b></th>
+  </tr>
+  <tr>
+    <td>✅ Phase 1</td>
+    <td>Completed</td>
+    <td>Opportunity management, recruiter workflows, reporting, CI/CD validation</td>
+  </tr>
+  <tr>
+    <td>🚧 Phase 2</td>
+    <td>In Progress</td>
+    <td>Recruiter Relationship Management and Career CRM</td>
+    <tr>
+      <td>📋 Phase 3</td>
+      <td>Planned</td>
+      <td>Candidate Management and referral workflows</td>
+    </tr>
+  <tr>
+    <td>📋 Phase 4</td>
+    <td>Planned</td>
+    <td>Community networking and relationship analytics</td>
+  </tr>
+  <tr>
+    <td>📋 Phase 5</td>
+    <td>Vision</td>
+    <td>AI-assisted career intelligence through Athena integration</td>
+  </tr>
+  </tr>
+</table>
+<hr>
+
+<h2>Platform Roadmap</h2>
+
+<p>
+CareerOps is evolving into a relationship-driven platform that connects professionals, recruiters, employers, and AI-assisted decision support through a unified operational model.
+</p>
+
+<pre>
+                    CareerOps
+                         │
+                         ▼
+                  Recruiters
+                         │
+                         ▼
+                  Opportunities
+                         │
+                         ▼
+                   Interviews
+                         │
+                         ▼
+                   Candidates
+
+              ▲                     │
+              │                     ▼
+         QualityOps ─────────► Athena
+              ▲
+              │
+Automation Architecture Lab
+</pre>
+
+<p>
+Each initiative serves a distinct purpose while contributing to a larger ecosystem:
+</p>
+
+<ul>
+  <li><b>CareerOps</b> – Career Operating System and relationship management platform.</li>
+  <li><b>QualityOps</b> – Operating model for engineering quality across the SDLC.</li>
+  <li><b>Athena</b> – AI-powered Quality Intelligence Advisor providing decision support.</li>
+  <li><b>Automation Architecture Lab</b> – Research platform evaluating automation architectures and modernization strategies.</li>
+</ul>
 <hr>
 
 <h2>Technical Implementation</h2>
@@ -192,6 +268,24 @@ Each stage introduces progressively deeper validation, ensuring quality signals 
   <li>Dashboard Reporting</li>
 </ul>
 
+<h3>Operational Modules</h3>
+<ul>
+  <b><i>Current</i></b> 
+  <li>Employer Opportunity Management</li>
+  <li>Recruiter Contact Management</li>
+  <li>Interview Workflow Management</li>
+  <li>Compliance Reporting</li>
+  <li>Dashboard Analytics</li>
+</ul>
+
+<ul>
+  <b><i>Coming Soon</i></b>
+  <li>Recruiter Relationship Management</li>
+  <li>Candidate Management</li>
+  <li>Referral Tracking</li>
+  <li>Community Opportunity Sharing</li>
+  <li>Relationship Analytics</li>
+</ul>
 <hr>
 
 <h2>Technology Stack Architecture</h2>
@@ -311,5 +405,21 @@ This approach treats automation as an engineering capability rather than a stand
 <p>
 Sustainable Quality Engineering is not a tooling decision — it is a system design decision.
 </p>
-
 <hr>
+
+<h3>Future Vision</h3>
+<p>CareerOps began as a personal Career Operating System.</p>
+<p>Its long-term vision is much broader.</p>
+<p>The platform is evolving into a relationship-driven ecosystem connecting:</p>
+<ul>
+  <li><i>professionals</i></li>
+  <li><i>recruiters</i></li>
+  <li><i>employers</i></li>
+  <li><i>referrals</i></li>
+  <li><i>operational analytics</i></li>
+  <li><i>AI-assisted career intelligence</i></li>
+</ul>
+<p>CareerOps demonstrates that the same engineering disciplines used to build reliable software systems can also be applied to managing professional careers.</p>
+<p>Because operational excellence is not limited to software—it is a way of thinking.</p>
+<hr>
+
