@@ -119,6 +119,63 @@ The CareerOps ecosystem applies Quality Engineering principles across career man
 </table>
 <hr>
 
+<h3>Key Deliverables</h3>
+
+<table>
+  <tr>
+    <th>Release</th>
+    <th>Capabilities</th>
+  </tr>
+
+  <tr>
+    <td>CareerOps 1.0</td>
+    <td>
+      Employer management<br>
+      Opportunity tracking<br>
+      Weekly reporting<br>
+      CI/CD validation
+    </td>
+  </tr>
+
+  <tr>
+    <td>CareerOps 2.0</td>
+    <td>
+      Recruiter CRM<br>
+      Recruiter analytics<br>
+      Relationship scoring
+    </td>
+  </tr>
+
+  <tr>
+    <td>CareerOps 3.0</td>
+    <td>
+      Candidate management<br>
+      Referral workflows<br>
+      Community networking
+    </td>
+  </tr>
+
+  <tr>
+    <td>CareerOps 4.0</td>
+    <td>
+      Relationship analytics<br>
+      Opportunity sharing<br>
+      Executive dashboards
+    </td>
+  </tr>
+
+  <tr>
+    <td>CareerOps 5.0</td>
+    <td>
+      Athena integration<br>
+      AI recommendations<br>
+      Career intelligence
+    </td>
+  </tr>
+</table>
+
+<hr>
+
 <h2>Ecosystem Architecture</h2>
 
 <p>
