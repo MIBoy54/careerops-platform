@@ -424,10 +424,6 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
  console.log("HIT PROTECTED /api/contacts ROUTE");
   console.log("GET /api/contacts MODE:", DEMO_MODE);
 
-function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
-}
-
 try {
   if (isCIMode()) {
     console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
