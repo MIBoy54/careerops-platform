@@ -25,6 +25,260 @@ body {
   background-color: #f9f9f9;
 }
 
+/* ============================
+   Dashboard Media
+   ============================ */
+@media (max-width: 1050px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-kpi-row,
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================
+   Standardize headings
+   ============================ */
+.dashboard-card h2,
+.dashboard-card h3 {
+    margin: 0 0 18px;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #1d3557;
+}
+
+/* ============================
+   Dashboard KPI Card
+   ============================ */
+.dashboard-kpi span:first-child{
+    font-size:3rem;
+    font-weight:700;
+}
+
+.dashboard-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.dashboard-kpi {
+  min-height: 100px;
+  padding: 20px;
+}
+
+.kpi-value {
+    font-size: 2.6rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.kpi-label {
+    margin-top: 10px;
+    font-size: .9rem;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+/* ============================
+   Dashboard Grid
+   ============================ */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 28px;
+  align-items: start;
+  width: 100%;
+}
+
+/* ============================
+   Dashboard Card
+   ============================ */
+.dashboard-card {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 8px 20px rgba(0,0,0,.08),
+        0 16px 40px rgba(0,0,0,.08);
+}
+
+.dashboard-card h2{
+    font-size:1.45rem;
+    margin-bottom:18px;
+    color:#1d3557;
+    font-weight:700;
+}
+
+.dashboard-card p{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:12px 0;
+    font-size:15px;
+}
+
+/* ============================
+   Hiring Funnel Card
+   ============================ */
+
+.hiring-funnel-card{
+    display:flex;
+    flex-direction:column;
+    gap:.45rem;
+}
+
+.hiring-funnel-card h2{
+    margin-bottom:1rem;
+    font-size:1.55rem;
+    font-weight:700;
+    color:#1e3a5f;
+}
+
+/* Stage */
+
+.funnel-stage{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:100%;
+}
+
+.funnel-stage span{
+    color:#444;
+    font-weight:500;
+}
+
+.funnel-stage strong{
+    font-size:1.15rem;
+    font-weight:700;
+    color:#0f4c81;
+}
+
+/* Funnel Arrow */
+
+.funnel-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #b8bcc2;
+    font-size: 14px;
+    line-height: 1;
+    margin: 2px 0;
+}
+
+/* Divider */
+
+.hiring-funnel-card hr{
+    border:none;
+    border-top:1px solid #d8d8d8;
+    margin:.75rem 0;
+}
+
+.funnel-row{
+    display:flex;
+    justify-content:space-between;
+    margin:6px 0;
+}
+
+/* Exit Statistics */
+
+.funnel-exits{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+}
+
+.funnel-exits div{
+    display:flex;
+    justify-content:space-between;
+    font-size:.95rem;
+}
+
+.funnel-exits span{
+    font-weight:700;
+    color:#c0392b;
+}
+
+/* Metrics */
+
+.funnel-metrics{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1rem;
+    margin-top:.35rem;
+}
+
+.funnel-metrics div{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-size:.85rem;
+    color:#666;
+}
+
+.funnel-metrics span{
+    font-size:1.35rem;
+    font-weight:700;
+    color:#2c3e50;
+    margin-top:.25rem;
+}
+
+#dashboardFunnelActive,
+#dashboardFunnelInterviewing,
+#dashboardFunnelAwaiting{
+    color:#2e7d32;
+}
+
+#dashboardFunnelTotal{
+    color:#1565c0;
+}
+
+#dashboardFunnelOffers{
+    color:#7b1fa2;
+}
+
+#dashboardFunnelAccepted{
+    color:#1b5e20;
+}
+
+#dashboardRejected,
+#dashboardClosed,
+#dashboardWithdrawn,
+#dashboardGhosted{
+    color:#c62828;
+}
+
+.funnel-arrow::before{
+    content:"";
+    width:2px;
+    height:10px;
+    background:#d7dce2;
+    display:block;
+}
+
+.funnel-arrow::after{
+    content:"▼";
+    display:block;
+    margin-top:-2px;
+}
+
 h1 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -450,10 +704,6 @@ button.delete-btn.disabled-btn:hover {
   background: transparent;
   padding: 0;
   margin-bottom: 16px;
-}
-
-h2 {
-  letter-spacing: -0.4px;
 }
 
 .table-actions {
