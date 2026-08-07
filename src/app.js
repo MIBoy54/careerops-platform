@@ -781,12 +781,6 @@ function updateDashboard() {
     String(c.status || "").trim().toLowerCase() === "accepted"
     ).length;
 
-  const offerRate = interviewing > 0
-        ? ((offers / interviewing) * 100).toFixed(1)
-      : "0.0";
-
-  setText("dashboardFunnelOfferRate", `${offerRate}%`);
-
   const rejectedClosed = contacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
   ).length;
@@ -803,7 +797,9 @@ function updateDashboard() {
     ? ((interviewing / total) * 100).toFixed(1)
     : "0.0";
 
-  const awaitingDecision = 0;
+  const awaitingDecision = contacts.filter(c =>
+  String(c.status || "").trim().toLowerCase() === "awaiting decision"
+).length;
 
   const rejected = contacts.filter(c =>
     String(c.status || "").trim().toLowerCase() === "rejected"
@@ -841,9 +837,6 @@ setText("dashboardRejected", rejected);
 setText("dashboardClosed", closed);
 setText("dashboardWithdrawn", withdrawn);
 setText("dashboardGhosted", ghosted);
-
-setText("dashboardFunnelInterviewRate", `${interviewRate}%`);
-//setText("dashboardFunnelOfferRate", `${offerRate}%`);
 
 const salary100 = contacts.filter(c => {
   const avg = getCompAverage(c.comp_range);
@@ -1102,25 +1095,27 @@ function normalizeStatus(status) {
 }
 
 function getContactStatusBucket(contact) {
-  const status = normalizeStatus(contact.status);
+const status = normalizeStatus(contact.status);
 
-  if (status === "interviewing") return "interviewing";
+if (status === "interviewing") return "interviewing";
 
-  if (
-    status === "rejected" ||
-    status === "closed"
-  ) {
-    return "rejectedClosed";
-  }
+if (
+  status === "rejected" ||
+  status === "closed"
+) {
+  return "rejectedClosed";
+}
 
-  if (
-    status === "applied" ||
-    status === "submitted"
-  ) {
-    return "appliedSubmitted";
-  }
-
+if (
+  status === "applied" ||
+  status === "submitted" ||
+  status === "on hold" ||
+  status === "awaiting decision"
+) {
   return "appliedSubmitted";
+}
+
+return "unknown";
 }
 
 function updateContactStatusTotals() {
