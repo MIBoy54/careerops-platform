@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CareerOps Platform</title>
-  <link rel="stylesheet" href="/src/App.css" />
+  <link rel="stylesheet" href="/src/styles/app.css" />
 </head>
 
 <body>
@@ -133,56 +133,29 @@
   <p class="page-kicker">CareerOps Platform</p>
   <h1>Dashboard</h1>
 
-  <div class="dashboard-kpi-row">
+<div class="dashboard-kpi-row">
   <div class="dashboard-kpi">
-    <span id="dashboardKpiTotal">0</span>
-    <label>Total</label>
+      <span id="dashboardKpiTotal">0</span>
+      <span class="kpi-label">Total</span>
   </div>
 
   <div class="dashboard-kpi">
-    <span id="dashboardKpiActive">0</span>
-    <label>Active</label>
+      <span id="dashboardKpiActive">0</span>
+      <span class="kpi-label">Active</span>
   </div>
 
   <div class="dashboard-kpi">
-    <span id="dashboardKpiInterviews">0</span>
-    <label>Interviews</label>
+      <span id="dashboardKpiInterviews">0</span>
+      <span class="kpi-label">Interviews</span>
   </div>
 
   <div class="dashboard-kpi">
-    <span id="dashboardKpiInterviewRate">0%</span>
-    <label>Interview Rate</label>
+      <span id="dashboardKpiInterviewRate">0%</span>
+      <span class="kpi-label">Interview Rate</span>
   </div>
 </div>
-<hr>
-  <div class="dashboard-grid">
-    <div class="dashboard-card">
-      <h2>Pipeline</h2>
-      <p>Applied / Submitted: <span id="dashboardAppliedSubmitted">0</span></p>
-      <p>Interviewing: <span id="dashboardInterviewing">0</span></p>
-      <p>Rejected / Closed: <span id="dashboardRejectedClosed">0</span></p>
-      <hr />
-      <p><strong>Total Opportunities: <span id="dashboardTotal">0</span></strong></p>
-    </div>
-
-    <div class="dashboard-card">
-      <h2>Reporting</h2>
-      <p>Reported to Unemployment: <span id="dashboardReported">0</span></p>
-      <p>Not Reported: <span id="dashboardNotReported">0</span></p>
-    </div>
-
-    <div class="dashboard-card">
-      <h2>Career Health</h2>
-      <p>Interview Rate: <span id="dashboardInterviewRate">0%</span></p>
-    </div>
-
-    <div class="dashboard-card">
-      <h2>Relationship Health</h2>
-      <p>Warm: <span id="dashboardWarm">0</span></p>
-      <p>Active: <span id="dashboardActive">0</span></p>
-      <p>Cold: <span id="dashboardCold">0</span></p>
-      <p>Inactive: <span id="dashboardInactive">0</span></p>
-    </div>
+  
+<div class="dashboard-grid">
 
     <div class="dashboard-card">
       <h2>Opportunity Level</h2>
@@ -236,16 +209,73 @@
         <p>Open Interviews: 9</p>
     </div>
 
-    <div class="dashboard-card">
-  <h2>Funnel</h2>
-    <p>Total Opportunities: <span id="dashboardFunnelTotal">0</span></p>
-    <p>Applied / Submitted: <span id="dashboardFunnelApplied">0</span></p>
-    <p>Interviewing: <span id="dashboardFunnelInterviewing">0</span></p>
-    <p>Interview Rate: <span id="dashboardFunnelInterviewRate">0%</span></p>
-    <p>Offers: <span id="dashboardFunnelOffers">0</span></p>
-    <p>Offer Rate: <span id="dashboardFunnelOfferRate">0%</span></p>
-    <p>Accepted: <span id="dashboardFunnelAccepted">0</span></p>
+<div class="dashboard-card hiring-funnel-card">
+
+
+<h2>Hiring Funnel</h2>
+
+<div class="funnel-stage">
+    <span>Total Opportunities</span>
+    <strong id="dashboardFunnelTotal">0</strong>
 </div>
+
+<div class="funnel-arrow"></div>
+
+<div class="funnel-stage">
+    <span>Active Applications</span>
+    <strong id="dashboardFunnelActive">0</strong>
+</div>
+
+<div class="funnel-arrow"></div>
+
+<div class="funnel-stage">
+    <span>Interviewing</span>
+    <strong id="dashboardFunnelInterviewing">0</strong>
+</div>
+
+<div class="funnel-arrow"></div>
+
+<div class="funnel-stage">
+    <span>Awaiting Decision</span>
+    <strong id="dashboardFunnelAwaiting">0</strong>
+</div>
+
+<div class="funnel-arrow"></div>
+
+<div class="funnel-stage">
+    <span>Offers</span>
+    <strong id="dashboardFunnelOffers">0</strong>
+</div>
+
+<div class="funnel-arrow"></div>
+
+<div class="funnel-stage">
+    <span>Accepted</span>
+    <strong id="dashboardFunnelAccepted">0</strong>
+</div>
+
+<div class="funnel-section-title">Outcomes</div>
+
+<div class="funnel-exits">
+    <div>
+        <span>Rejected</span>
+        <strong id="dashboardRejected">0</strong>
+    </div>
+    <div>
+        <span>Closed</span>
+        <strong id="dashboardClosed">0</strong>
+    </div>
+    <div>
+        <span>Withdrawn</span>
+        <strong id="dashboardWithdrawn">0</strong>
+    </div>
+    <div>
+        <span>Ghosted</span>
+        <strong id="dashboardGhosted">0</strong>
+    </div>
+</div>
+
+</div> <!-- End Hiring Funnel Card -->
 
 <div class="dashboard-card">
   <h2>Activity</h2>
@@ -299,6 +329,7 @@
               <option value="Senior Manager">Senior Manager</option>
               <option value="Manager">Manager</option>
               <option value="Lead">Lead</option>
+              <option value="Consultant">Consultant</option>
               <option value="Senior QA Engineer">Senior QA Engineer</option>
               <option value="QA Engineer">QA Engineer</option>
               <option value="Test Engineer">Test Engineer</option>
@@ -335,6 +366,8 @@
               <option value="Applied">Applied</option>
               <option value="Submitted">Submitted</option>
               <option value="Interviewing">Interviewing</option>
+              <option value="Awaiting decision">Awaiting decision</option>
+              <option value="On hold">On hold</option>
               <option value="Offer">Offer</option>
               <option value="Rejected">Rejected</option>
               <option value="Closed">Closed</option>
