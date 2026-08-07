@@ -132,6 +132,19 @@ app.use(
   })
 );
 
+function rejectDemoWrite(res, action = "This action") {
+    if (!IS_SANDBOX && !DEMO_MODE) {
+        return false;
+    }
+
+    res.status(403).json({
+        success: false,
+        error: `${action} is disabled in the CareerOps Demo.`
+    });
+
+    return true;
+}
+
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
 
@@ -809,37 +822,43 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         }
       });
 
-app.post("/api/contacts", requireAuth, async (req, res) => { 
-  console.log("POST /api/contacts BODY:", req.body);
+app.post("/api/contacts", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
+
   try {
-    const isDemoSandbox = IS_SANDBOX;
-    const isAdmin = req.session?.user?.role === "admin";
+
     function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
-}
+      return process.env.CI === "true" &&
+             process.env.APP_ENV === "test";
+    }
 
-  if (DEMO_MODE && !isAdmin) {
-    return res.status(403).json({ error: "Read-only mode." });
-  }
+    // Demo/Sandbox is always read-only
+    if (DEMO_MODE) {
+      return res.status(403).json({
+        error: "Save Contact is disabled in the CareerOps Demo."
+      });
+    }
 
-    // 👉 CI shortcut (no DB)
-if (isCIMode()) {
-  console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
+    // CI shortcut (no database)
+    if (isCIMode()) {
+      console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
 
-  const newContact = {
-    id: inMemoryContactId++,
-    ...req.body
-  };
+      const newContact = {
+        id: inMemoryContactId++,
+        ...req.body
+      };
 
-  inMemoryContacts.push(newContact);
+      inMemoryContacts.push(newContact);
 
-  console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
+      console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
 
-  return res.status(201).json({
-    message: "Contact created successfully",
-    id: newContact.id
-  });
-}
+      return res.status(201).json({
+        message: "Contact created successfully",
+        id: newContact.id
+      });
+    }
+
+    // Existing production database logic continues here...
 
     const {
       date_contacted,
@@ -962,7 +981,8 @@ if (isCIMode()) {
       }
     });
 
-    app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
+app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
       try {
         const { run_type, trigger_source, notes } = req.body;
 
@@ -991,6 +1011,8 @@ if (isCIMode()) {
     });
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
+
   try {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
@@ -1145,6 +1167,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
   try {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
@@ -1180,7 +1203,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-    app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
+app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
       try {
         const { id } = req.params;
         const { status, notes } = req.body;
@@ -1218,7 +1242,8 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       }
     });
 
-    app.post("/api/reports", requireAuth, async (req, res) => {
+app.post("/api/reports", requireAuth, async (req, res) => {
+    if (rejectDemoWrite(res)) return;
       const connection = await pool.getConnection();
 
   try {
