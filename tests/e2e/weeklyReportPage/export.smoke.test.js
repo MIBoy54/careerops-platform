@@ -1,22 +1,49 @@
 import { expect, test } from "@playwright/test";
 import { login } from "../helpers/auth";
 
-test("export selected report control is available", async ({ page }) => {
+test("generate weekly report workflow", async ({ page }) => {
   await login(page);
 
+  // Navigate to Contact Status
   await page
-    .getByRole("button", { name: /weekly report history/i })
+    .getByRole("button", { name: /contact status/i })
     .click();
 
-  const section = page.locator("#weeklyReportHistorySection");
+  // Select four companies
+await expect(
+  page.locator("#contactsTable tbody tr").first()
+).toBeVisible();
 
-  await expect(section).toHaveClass(/active-section/);
-  await expect(section).toBeVisible();
+const checkboxes = page.locator(
+  "#contactsTable tbody input[type='checkbox']"
+);
 
-  const exportButton = section.getByRole("button", {
-    name: /export selected report/i
+  await checkboxes.nth(0).check();
+  await checkboxes.nth(1).check();
+  await checkboxes.nth(2).check();
+  await checkboxes.nth(3).check();
+
+  // Verify four selections
+  await expect(
+    page.getByText(/Selected for Weekly Report:\s*4 of 4/i)
+  ).toBeVisible();
+
+  // View selected companies
+  await page
+    .getByRole("button", { name: /view selected/i })
+    .click();
+
+  // Detail Viewer becomes active
+  const detailViewer = page.locator("#detailViewerSection");
+
+  await expect(detailViewer).toHaveClass(/active-section/);
+  await expect(detailViewer).toBeVisible();
+
+  // Verify Generate Weekly Report button
+  const generateButton = detailViewer.getByRole("button", {
+    name: /generate weekly report/i
   });
 
-  await expect(exportButton).toBeVisible();
-  await expect(exportButton).toBeDisabled();
+  await expect(generateButton).toBeVisible();
+  await expect(generateButton).toBeEnabled();
 });
