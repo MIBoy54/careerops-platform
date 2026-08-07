@@ -15,7 +15,7 @@ await expect(
 ).toBeVisible();
 
 const checkboxes = page.locator(
-  "#contactsTable tbody input[type='checkbox']"
+"#contactsTable tbody input.select-checkbox"
 );
 
   await checkboxes.nth(0).check();
