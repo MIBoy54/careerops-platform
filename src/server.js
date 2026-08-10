@@ -133,16 +133,21 @@ app.use(
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (!IS_SANDBOX && !DEMO_MODE) {
-        return false;
-    }
+  // CI test runs use isolated in-memory data and must be allowed to seed fixtures.
+  if (isCIMode()) {
+    return false;
+  }
 
-    res.status(403).json({
-        success: false,
-        error: `${action} is disabled in the CareerOps Demo.`
-    });
+  if (!IS_SANDBOX && !DEMO_MODE) {
+    return false;
+  }
 
-    return true;
+  res.status(403).json({
+    success: false,
+    error: `${action} is disabled in the CareerOps Demo.`
+  });
+
+  return true;
 }
 
 function requireAuth(req, res, next) {
