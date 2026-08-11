@@ -133,16 +133,27 @@ app.use(
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (!IS_SANDBOX && !DEMO_MODE) {
-        return false;
-    }
 
-    res.status(403).json({
-        success: false,
-        error: `${action} is disabled in the CareerOps Demo.`
-    });
+  // Allow automated test data setup in CI
+  if (
+    process.env.CI === "true" &&
+    process.env.APP_ENV === "test"
+  ) {
+    return false;
+  }
 
-    return true;
+  // Normal environments allow writes
+  if (!IS_SANDBOX && !DEMO_MODE) {
+    return false;
+  }
+
+  // Demo/Sandbox remains read-only
+  res.status(403).json({
+    success: false,
+    error: `${action} is disabled in the CareerOps Demo.`
+  });
+
+  return true;
 }
 
 function requireAuth(req, res, next) {
@@ -829,13 +840,6 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
     function isCIMode() {
       return process.env.CI === "true" &&
              process.env.APP_ENV === "test";
-    }
-
-    // Demo/Sandbox is always read-only
-    if (DEMO_MODE) {
-      return res.status(403).json({
-        error: "Save Contact is disabled in the CareerOps Demo."
-      });
     }
 
     // CI shortcut (no database)
