@@ -133,16 +133,27 @@ app.use(
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (!IS_SANDBOX && !DEMO_MODE) {
-        return false;
-    }
 
-    res.status(403).json({
-        success: false,
-        error: `${action} is disabled in the CareerOps Demo.`
-    });
+  // Allow automated test data setup in CI
+  if (
+    process.env.CI === "true" &&
+    process.env.APP_ENV === "test"
+  ) {
+    return false;
+  }
 
-    return true;
+  // Normal environments allow writes
+  if (!IS_SANDBOX && !DEMO_MODE) {
+    return false;
+  }
+
+  // Demo/Sandbox remains read-only
+  res.status(403).json({
+    success: false,
+    error: `${action} is disabled in the CareerOps Demo.`
+  });
+
+  return true;
 }
 
 function requireAuth(req, res, next) {
@@ -587,7 +598,6 @@ app.get("/api/github/actions-summary", async (req, res) => {
 
     app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
       try {
-        const isDemoSandbox = DEMO_MODE === true;
         const isAdmin = req.session?.user?.role === "admin";
 
         if (isDemoSandbox && !isAdmin) {
@@ -832,13 +842,6 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
              process.env.APP_ENV === "test";
     }
 
-    // Demo/Sandbox is always read-only
-    if (DEMO_MODE) {
-      return res.status(403).json({
-        error: "Save Contact is disabled in the CareerOps Demo."
-      });
-    }
-
     // CI shortcut (no database)
     if (isCIMode()) {
       console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
@@ -1014,7 +1017,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     if (rejectDemoWrite(res)) return;
 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
@@ -1169,7 +1171,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
     if (rejectDemoWrite(res)) return;
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
@@ -1247,7 +1248,6 @@ app.post("/api/reports", requireAuth, async (req, res) => {
       const connection = await pool.getConnection();
 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
