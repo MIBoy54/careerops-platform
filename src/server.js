@@ -574,7 +574,6 @@ app.get("/api/github/actions-summary", async (req, res) => {
 
     app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
       try {
-        const isDemoSandbox = DEMO_MODE === true;
         const isAdmin = req.session?.user?.role === "admin";
 
         if (isDemoSandbox && !isAdmin) {
@@ -992,7 +991,6 @@ if (isCIMode()) {
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
@@ -1146,7 +1144,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
   return process.env.CI === "true" && process.env.APP_ENV === "test";
@@ -1222,7 +1219,6 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
       const connection = await pool.getConnection();
 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
