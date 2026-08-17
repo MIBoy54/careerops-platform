@@ -762,7 +762,42 @@ function getCompAverage(compRange) {
   return (low + high) / 2;
 }
 
+async function loadDemoRefreshStatus() {
+  const timeEl = document.getElementById("dashboardDemoRefreshTime");
+  const detailsEl = document.getElementById("dashboardDemoRefreshDetails");
+
+  if (!timeEl || !detailsEl) return;
+
+  try {
+    const response = await fetch("/api/demo-refresh/latest");
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const refresh = data.refresh;
+
+    if (!refresh || !refresh.completed_at) {
+      timeEl.textContent = "No completed refresh recorded";
+      detailsEl.textContent = "";
+      return;
+    }
+
+    const completedAt = new Date(refresh.completed_at);
+
+    timeEl.textContent = completedAt.toLocaleString();
+    detailsEl.textContent =
+      ` · ${refresh.status} · ${Number(refresh.rows_synced || 0).toLocaleString()} rows synced`;
+  } catch (error) {
+    console.error("Failed to load demo refresh status:", error);
+    timeEl.textContent = "Unavailable";
+    detailsEl.textContent = "";
+  }
+}
+
 function updateDashboard() {
+  loadDemoRefreshStatus();
   const total = contacts.length;
 
   const appliedSubmitted = contacts.filter(
@@ -1021,6 +1056,8 @@ function renderSelectedContacts(selected) {
 }
 
 function handleViewSelectedClick() {
+  updateSelectionCount();
+
   const selected = getSelectedContacts();
   const weeklyReportDetailHeader = document.getElementById("weekly-report-detail-header");
 
