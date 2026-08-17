@@ -23,19 +23,24 @@ test('Detail Viewer end-to-end flow', async ({ page }) => {
   console.log('API contacts after seed:', apiContacts);
   expect(apiContacts.length).toBeGreaterThan(0);
 
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-  await goToSavedContacts(page);
+await page.reload();
+await page.waitForLoadState('networkidle');
 
-  const contactRows = page.locator('#contactsTable tbody tr');
+await goToSavedContacts(page);
 
-  await expect.poll(async () => {
-    const rowCount = await contactRows.count();
-    console.log('Saved Contacts row count:', rowCount);
-    return rowCount;
-  }, {
-    timeout: 10000
-  }).toBeGreaterThan(0);
+await expect(
+  page.locator('#savedContactsSection')
+).toBeVisible({
+  timeout: 10000
+});
+
+const contactRows = page.locator('#contactsTable tbody tr');
+
+await expect(
+  contactRows.first()
+).toBeVisible({
+  timeout: 10000
+});
 
   const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
 

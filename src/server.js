@@ -592,7 +592,6 @@ app.get("/api/github/actions-summary", async (req, res) => {
 
     app.get("/api/reports/unemployment", requireAuth, async (req, res) => {
       try {
-        const isDemoSandbox = DEMO_MODE === true;
         const isAdmin = req.session?.user?.role === "admin";
 
         if (isDemoSandbox && !isAdmin) {
@@ -1018,7 +1017,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     if (rejectDemoWrite(res)) return;
 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
 
     // 👉 CI shortcut (no DB)
@@ -1171,7 +1169,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
     if (rejectDemoWrite(res)) return;
   try {
-    const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
 
     if (DEMO_MODE && !isAdmin) {
@@ -1241,12 +1238,143 @@ app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
       }
     });
 
-app.post("/api/reports", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
-      const connection = await pool.getConnection();
+async function startDemoRefresh(triggerSource = "WEEKLY_REPORT") {
+  const [result] = await pool.query(
+    `
+      INSERT INTO demo_refresh_history
+        (status, trigger_source)
+      VALUES
+        ('STARTED', ?)
+    `,
+    [triggerSource]
+  );
+
+  return result.insertId;
+}
+
+async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
+  await pool.query(
+    `
+      UPDATE demo_refresh_history
+      SET
+        completed_at = NOW(),
+        status = 'COMPLETED',
+        rows_synced = ?,
+        notes = ?
+      WHERE id = ?
+    `,
+    [rowsSynced, notes, refreshId]
+  );
+}
+
+async function failDemoRefresh(refreshId, notes = null) {
+  await pool.query(
+    `
+      UPDATE demo_refresh_history
+      SET
+        completed_at = NOW(),
+        status = 'FAILED',
+        notes = ?
+      WHERE id = ?
+    `,
+    [notes, refreshId]
+  );
+}
+
+async function syncLiveToDemo() {
+  const connection = await pool.getConnection();
 
   try {
-    const isDemoSandbox = DEMO_MODE === true;
+    await connection.beginTransaction();
+
+    // Remove child records first to preserve referential integrity.
+    await connection.query(
+      "DELETE FROM careerops_demo.report_job_contacts"
+    );
+
+    await connection.query(
+      "DELETE FROM careerops_demo.weekly_reports"
+    );
+
+    await connection.query(
+      "DELETE FROM careerops_demo.recruiter_tracker"
+    );
+
+    // Copy parent/business data first.
+    const [contactsResult] = await connection.query(`
+      INSERT INTO careerops_demo.recruiter_tracker
+      SELECT *
+      FROM careerops.recruiter_tracker
+    `);
+
+    const [reportsResult] = await connection.query(`
+      INSERT INTO careerops_demo.weekly_reports
+      SELECT *
+      FROM careerops.weekly_reports
+    `);
+
+    const [reportContactsResult] = await connection.query(`
+      INSERT INTO careerops_demo.report_job_contacts
+      SELECT *
+      FROM careerops.report_job_contacts
+    `);
+
+    await connection.commit();
+
+    return (
+      contactsResult.affectedRows +
+      reportsResult.affectedRows +
+      reportContactsResult.affectedRows
+    );
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+app.get("/api/demo-refresh/latest", requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        id,
+        started_at,
+        completed_at,
+        status,
+        trigger_source,
+        rows_synced,
+        notes
+      FROM careerops.demo_refresh_history
+      WHERE status = 'COMPLETED'
+      ORDER BY completed_at DESC
+      LIMIT 1
+    `);
+
+    if (!rows.length) {
+      return res.json({
+        refresh: null
+      });
+    }
+
+    res.json({
+      refresh: rows[0]
+    });
+  } catch (error) {
+    console.error("Failed to retrieve latest demo refresh:", error);
+
+    res.status(500).json({
+      error: "Failed to retrieve latest demo refresh"
+    });
+  }
+});
+
+app.post("/api/reports", requireAuth, async (req, res) => {
+  if (rejectDemoWrite(res)) return;
+
+  const connection = await pool.getConnection();
+
+  try {
     const isAdmin = req.session?.user?.role === "admin";
     if (DEMO_MODE && !isAdmin) {
       return res.status(403).json({ error: "Read-only mode." });
@@ -1297,7 +1425,41 @@ app.post("/api/reports", requireAuth, async (req, res) => {
           uniqueIds
         );
 
-        await connection.commit();
+    await connection.commit();
+
+    let refreshId = null;
+
+if (!DEMO_MODE) {
+  try {
+    refreshId = await startDemoRefresh("WEEKLY_REPORT");
+
+// Refresh the read-only DEMO business-data snapshot from LIVE.
+    const rowsSynced = await syncLiveToDemo();
+
+    await completeDemoRefresh(
+      refreshId,
+      rowsSynced,
+      `Triggered by weekly report ${reportId}`
+    );
+
+    console.log(
+      `Demo refresh completed: refreshId=${refreshId}, reportId=${reportId}, rowsSynced=${rowsSynced}`
+    );
+  } catch (refreshError) {
+    console.error("Demo refresh trigger failed:", refreshError);
+
+    if (refreshId) {
+      try {
+        await failDemoRefresh(refreshId, refreshError.message);
+      } catch (historyError) {
+        console.error(
+          "Failed to record demo refresh failure:",
+          historyError
+        );
+      }
+    }
+  }
+}
 
         res.status(201).json({
           message: "Weekly report generated successfully",
