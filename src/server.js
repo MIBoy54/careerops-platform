@@ -1350,7 +1350,7 @@ app.get("/api/demo-refresh/latest", requireAuth, async (req, res) => {
         trigger_source,
         rows_synced,
         notes
-      FROM careerops.demo_refresh_history
+      FROM demo_refresh_history
       WHERE status = 'COMPLETED'
       ORDER BY completed_at DESC
       LIMIT 1
