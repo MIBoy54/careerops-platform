@@ -89,6 +89,44 @@ const pool = mysql.createPool({
   connectTimeout: 10000
 });
 
+const demoPool = mysql.createPool({
+  host: process.env.DEMO_DB_HOST,
+  user: process.env.DEMO_DB_USER,
+  password: process.env.DEMO_DB_PASSWORD,
+  database: process.env.DEMO_DB_NAME,
+  port: Number(process.env.DEMO_DB_PORT || 3306),
+  ssl: { rejectUnauthorized: false },
+  connectTimeout: 10000
+});
+
+async function verifyDemoDatabase() {
+  const [rows] = await demoPool.query(
+    "SELECT DATABASE() AS db"
+  );
+
+  const actualDatabase = rows[0]?.db;
+  const expectedDatabase = process.env.DEMO_DB_NAME;
+
+  if (!actualDatabase || actualDatabase !== expectedDatabase) {
+    throw new Error(
+      `DEMO database safety check failed: expected ${expectedDatabase}, connected to ${actualDatabase}`
+    );
+  }
+
+  if (
+    process.env.DEMO_DB_HOST === process.env.DB_HOST &&
+    Number(process.env.DEMO_DB_PORT || 3306) ===
+      Number(process.env.DB_PORT || 3306) &&
+    process.env.DEMO_DB_NAME === DB_NAME
+  ) {
+    throw new Error(
+      "DEMO database safety check failed: LIVE and DEMO resolve to the same database"
+    );
+  }
+
+  console.log("DEMO DB VERIFIED:", actualDatabase);
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -1239,7 +1277,9 @@ app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
     });
 
 async function startDemoRefresh(triggerSource = "WEEKLY_REPORT") {
-  const [result] = await pool.query(
+  await verifyDemoDatabase();
+
+  const [result] = await demoPool.query(
     `
       INSERT INTO demo_refresh_history
         (status, trigger_source)
@@ -1253,7 +1293,7 @@ async function startDemoRefresh(triggerSource = "WEEKLY_REPORT") {
 }
 
 async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
-  await pool.query(
+  await demoPool.query(
     `
       UPDATE demo_refresh_history
       SET
@@ -1268,7 +1308,7 @@ async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
 }
 
 async function failDemoRefresh(refreshId, notes = null) {
-  await pool.query(
+  await demoPool.query(
     `
       UPDATE demo_refresh_history
       SET
@@ -1281,56 +1321,148 @@ async function failDemoRefresh(refreshId, notes = null) {
   );
 }
 
+function buildBulkInsert(tableName, fields, rows) {
+  if (!rows.length) {
+    return null;
+  }
+
+  const columns = fields
+    .map((field) => `\`${field.name}\``)
+    .join(", ");
+
+  const rowPlaceholder =
+    `(${fields.map(() => "?").join(", ")})`;
+
+  const placeholders =
+    rows.map(() => rowPlaceholder).join(", ");
+
+  const values = rows.flatMap((row) =>
+    fields.map((field) => row[field.name])
+  );
+
+  return {
+    sql: `
+      INSERT INTO \`${tableName}\`
+        (${columns})
+      VALUES
+        ${placeholders}
+    `,
+    values
+  };
+}
+
 async function syncLiveToDemo() {
-  const connection = await pool.getConnection();
+  await verifyDemoDatabase();
+
+  // Read the authoritative snapshot from LIVE first.
+  const [contacts, contactFields] =
+    await pool.query("SELECT * FROM recruiter_tracker");
+
+  const [reports, reportFields] =
+    await pool.query("SELECT * FROM weekly_reports");
+
+  const [reportContacts, reportContactFields] =
+    await pool.query("SELECT * FROM report_job_contacts");
+
+  const demoConnection = await demoPool.getConnection();
 
   try {
-    await connection.beginTransaction();
+    await demoConnection.beginTransaction();
 
     // Remove child records first to preserve referential integrity.
-    await connection.query(
-      "DELETE FROM careerops_demo.report_job_contacts"
+    await demoConnection.query(
+      "DELETE FROM report_job_contacts"
     );
 
-    await connection.query(
-      "DELETE FROM careerops_demo.weekly_reports"
+    await demoConnection.query(
+      "DELETE FROM weekly_reports"
     );
 
-    await connection.query(
-      "DELETE FROM careerops_demo.recruiter_tracker"
+    await demoConnection.query(
+      "DELETE FROM recruiter_tracker"
     );
 
     // Copy parent/business data first.
-    const [contactsResult] = await connection.query(`
-      INSERT INTO careerops_demo.recruiter_tracker
-      SELECT *
-      FROM careerops.recruiter_tracker
-    `);
+    const contactsInsert =
+      buildBulkInsert(
+        "recruiter_tracker",
+        contactFields,
+        contacts
+      );
 
-    const [reportsResult] = await connection.query(`
-      INSERT INTO careerops_demo.weekly_reports
-      SELECT *
-      FROM careerops.weekly_reports
-    `);
+    if (contactsInsert) {
+      await demoConnection.query(
+        contactsInsert.sql,
+        contactsInsert.values
+      );
+    }
 
-    const [reportContactsResult] = await connection.query(`
-      INSERT INTO careerops_demo.report_job_contacts
-      SELECT *
-      FROM careerops.report_job_contacts
-    `);
+    const reportsInsert =
+      buildBulkInsert(
+        "weekly_reports",
+        reportFields,
+        reports
+      );
 
-    await connection.commit();
+    if (reportsInsert) {
+      await demoConnection.query(
+        reportsInsert.sql,
+        reportsInsert.values
+      );
+    }
+
+    const reportContactsInsert =
+      buildBulkInsert(
+        "report_job_contacts",
+        reportContactFields,
+        reportContacts
+      );
+
+    if (reportContactsInsert) {
+      await demoConnection.query(
+        reportContactsInsert.sql,
+        reportContactsInsert.values
+      );
+    }
+
+    // Verify destination counts before COMMIT.
+    const [[demoContactCount]] =
+      await demoConnection.query(
+        "SELECT COUNT(*) AS count FROM recruiter_tracker"
+      );
+
+    const [[demoReportCount]] =
+      await demoConnection.query(
+        "SELECT COUNT(*) AS count FROM weekly_reports"
+      );
+
+    const [[demoReportContactCount]] =
+      await demoConnection.query(
+        "SELECT COUNT(*) AS count FROM report_job_contacts"
+      );
+
+    if (
+      demoContactCount.count !== contacts.length ||
+      demoReportCount.count !== reports.length ||
+      demoReportContactCount.count !== reportContacts.length
+    ) {
+      throw new Error(
+        "DEMO synchronization verification failed: destination row counts do not match LIVE."
+      );
+    }
+
+    await demoConnection.commit();
 
     return (
-      contactsResult.affectedRows +
-      reportsResult.affectedRows +
-      reportContactsResult.affectedRows
+      contacts.length +
+      reports.length +
+      reportContacts.length
     );
   } catch (error) {
-    await connection.rollback();
+    await demoConnection.rollback();
     throw error;
   } finally {
-    connection.release();
+    demoConnection.release();
   }
 }
 
