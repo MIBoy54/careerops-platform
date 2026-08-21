@@ -2097,7 +2097,9 @@ function wireCompanyAutocomplete() {
     companySuggestions.style.display = "block";
   });
 
-companySuggestions.addEventListener("click", (e) => {
+companySuggestions.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+
   const item = e.target.closest(".suggestion-item");
   if (!item) return;
 
