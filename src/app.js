@@ -1726,6 +1726,7 @@ function renderTable() {
 function wireSavedContactsSorting() {
   const sortDateHeader = document.getElementById("sortDateHeader");
   const sortCompanyHeader = document.getElementById("sortCompanyHeader");
+  const sortStatusHeader = document.getElementById("sortStatusHeader");
 
   if (sortDateHeader) {
     sortDateHeader.addEventListener("click", () => {
@@ -1748,6 +1749,20 @@ function wireSavedContactsSorting() {
           currentSortDirection === "asc" ? "desc" : "asc";
       } else {
         currentSortField = "company";
+        currentSortDirection = "asc";
+      }
+
+      renderTable();
+    });
+  }
+
+  if (sortStatusHeader) {
+    sortStatusHeader.addEventListener("click", () => {
+      if (currentSortField === "status") {
+        currentSortDirection =
+          currentSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        currentSortField = "status";
         currentSortDirection = "asc";
       }
 
