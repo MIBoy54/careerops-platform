@@ -474,3 +474,5 @@ Sustainable Quality Engineering is not a tooling decision — it is a system des
 </p>
 
 <hr>
+<h3>👉 Try the live demo: https://democareerops-platform.com/login.html</h3>
+<p><b><i>No login required — guest access is built in.</i></b></p>
