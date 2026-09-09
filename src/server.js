@@ -1279,7 +1279,7 @@ app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
 async function startDemoRefresh(triggerSource = "WEEKLY_REPORT") {
   await verifyDemoDatabase();
 
-  const [result] = await demoPool.query(
+  const [result] = await pool.query(
     `
       INSERT INTO demo_refresh_history
         (status, trigger_source)
@@ -1293,7 +1293,7 @@ async function startDemoRefresh(triggerSource = "WEEKLY_REPORT") {
 }
 
 async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
-  await demoPool.query(
+  await pool.query(
     `
       UPDATE demo_refresh_history
       SET
@@ -1308,7 +1308,7 @@ async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
 }
 
 async function failDemoRefresh(refreshId, notes = null) {
-  await demoPool.query(
+  await pool.query(
     `
       UPDATE demo_refresh_history
       SET
