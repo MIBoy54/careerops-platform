@@ -1284,6 +1284,52 @@ async function completeDemoRefresh(refreshId, rowsSynced = 0, notes = null) {
   );
 }
 
+async function syncDemoRefreshHistory() {
+  await verifyDemoDatabase();
+
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM demo_refresh_history
+    ORDER BY id
+  `);
+
+  const [fields] = await pool.query(`
+    SHOW COLUMNS FROM demo_refresh_history
+  `);
+
+  const historyFields = fields.map((field) => ({
+    name: field.Field
+  }));
+
+  const demoConnection = await demoPool.getConnection();
+
+  try {
+    await demoConnection.beginTransaction();
+
+    await demoConnection.query("DELETE FROM demo_refresh_history");
+
+    const historyInsert = buildBulkInsert(
+      "demo_refresh_history",
+      historyFields,
+      rows
+    );
+
+    if (historyInsert) {
+      await demoConnection.query(
+        historyInsert.sql,
+        historyInsert.values
+      );
+    }
+
+    await demoConnection.commit();
+  } catch (error) {
+    await demoConnection.rollback();
+    throw error;
+  } finally {
+    demoConnection.release();
+  }
+}
+
 async function failDemoRefresh(refreshId, notes = null) {
   await pool.query(
     `
@@ -1442,6 +1488,64 @@ async function syncLiveToDemo() {
     demoConnection.release();
   }
 }
+app.post("/api/demo-refresh", requireAuth, async (req, res) => {
+  let refreshId = null;
+
+  try {
+    const isAdmin = req.session?.user?.role === "admin";
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        error: "Admin access required."
+      });
+    }
+
+    if (IS_SANDBOX) {
+      return res.status(403).json({
+        error: "Demo refresh cannot be initiated from DEMO."
+      });
+    }
+
+    refreshId = await startDemoRefresh("MANUAL");
+
+    const rowsSynced = await syncLiveToDemo();
+
+    await completeDemoRefresh(
+      refreshId,
+      rowsSynced,
+      "Triggered manually by administrator"
+    );
+
+    await syncDemoRefreshHistory();
+
+    console.log(
+      `Manual Demo refresh completed: refreshId=${refreshId}, rowsSynced=${rowsSynced}`
+    );
+
+    return res.status(200).json({
+      message: "Demo refresh completed successfully",
+      refreshId,
+      rowsSynced
+    });
+  } catch (error) {
+    console.error("Manual Demo refresh failed:", error);
+
+    if (refreshId) {
+      try {
+        await failDemoRefresh(refreshId, error.message);
+      } catch (historyError) {
+        console.error(
+          "Failed to record Demo refresh failure:",
+          historyError
+        );
+      }
+    }
+
+    return res.status(500).json({
+      error: "Demo refresh failed"
+    });
+  }
+});
 
 app.get("/api/demo-refresh/latest", requireAuth, async (req, res) => {
   try {
@@ -1543,13 +1647,15 @@ if (!DEMO_MODE) {
 // Refresh the read-only DEMO business-data snapshot from LIVE.
     const rowsSynced = await syncLiveToDemo();
 
-    await completeDemoRefresh(
-      refreshId,
-      rowsSynced,
-      `Triggered by weekly report ${reportId}`
-    );
+  await completeDemoRefresh(
+    refreshId,
+    rowsSynced,
+    `Triggered by weekly report ${reportId}`
+  );
 
-    console.log(
+  await syncDemoRefreshHistory();
+
+  console.log(
       `Demo refresh completed: refreshId=${refreshId}, reportId=${reportId}, rowsSynced=${rowsSynced}`
     );
   } catch (refreshError) {
