@@ -6,7 +6,8 @@ CareerOps applies Quality Engineering principles to database management by treat
 
 # Environment Strategy
 
-CareerOps maintains four independent database environments.
+CareerOps's intended database environment separation is shown below. The
+operational QA deployment and database isolation still require verification.
 
 | Environment | Purpose |
 |-------------|---------|
@@ -33,6 +34,27 @@ careerops
 ```
 
 Database changes are promoted sequentially through each environment.
+
+Each promotion requires validation and explicit approval; this diagram does not
+authorize automatic database changes or application deployments.
+
+## QA Database Isolation
+
+The intended branch mapping is `develop -> DEV`, `qa -> QA`, `demo -> DEMO`, and
+`main -> PROD`. See [Deployment Guide](../deployment.md) for runtime bindings,
+deployment evidence, validation, and rollback requirements.
+
+For `APP_ENV=qa`, the effective database must be `careerops_qa`. The application
+defaults to that name, rejects other names, and verifies the connected database
+before accepting traffic. Configure `DB_NAME=careerops_qa` explicitly in the
+intended QA service. These checks do not establish that a QA database or service
+has already been provisioned.
+
+Use QA-specific `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASSWORD` bindings. The QA
+account must have no production database privileges; verify permissions
+independently of the application database-name check. Use synthetic or approved
+sanitized data. Never store secret values in documentation or source control;
+record names and verification status only.
 
 ---
 

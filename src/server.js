@@ -36,6 +36,7 @@ const IS_SANDBOX = APP_ENV === "demo";
 const dbNameMap = {
   production: 'careerops',
   demo: 'careerops_demo',
+  qa: 'careerops_qa',
   dev: 'careerops_dev'
 }
 
@@ -46,6 +47,34 @@ if (!DB_NAME) {
 }
 
 const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
+
+// Railway Git deployments supply RAILWAY_GIT_COMMIT_SHA; other builds must
+// inject BUILD_COMMIT_SHA from the checked-out revision.
+const COMMIT_SHA = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.BUILD_COMMIT_SHA || null;
+
+if (APP_ENV === "qa") {
+  if (DB_NAME !== "careerops_qa") {
+    throw new Error("QA requires DB_NAME=careerops_qa");
+  }
+
+  for (const name of ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "SESSION_SECRET"]) {
+    if (!process.env[name]?.trim()) {
+      throw new Error(`QA requires ${name}`);
+    }
+  }
+
+  if (!/^\d+$/.test(process.env.DB_PORT) || Number(process.env.DB_PORT) < 1 || Number(process.env.DB_PORT) > 65535) {
+    throw new Error("QA requires a valid DB_PORT");
+  }
+
+  if (String(process.env.CI).trim().toLowerCase() === "true" || DEMO_MODE || process.env.NODE_ENV?.trim().toLowerCase() === "test") {
+    throw new Error("QA cannot run with CI, DEMO_MODE, or NODE_ENV=test");
+  }
+
+  if (!/^[0-9a-f]{40}$/i.test(COMMIT_SHA || "")) {
+    throw new Error("QA requires a full Git commit SHA in RAILWAY_GIT_COMMIT_SHA or BUILD_COMMIT_SHA");
+  }
+}
 
 const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
@@ -333,6 +362,10 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
 
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
+});
+
+app.get("/version", (req, res) => {
+  res.json({ app: "careerops-platform", environment: APP_ENV, commit: COMMIT_SHA });
 });
 
 app.get("/api/analytics/ping", (req, res) => {
@@ -1978,6 +2011,20 @@ process.on("unhandledRejection", (err) => {
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
+
+if (APP_ENV === "qa") {
+  try {
+    const [rows] = await pool.query("SELECT DATABASE() AS db");
+    if (rows[0]?.db !== "careerops_qa") {
+      throw new Error("QA connected database must be careerops_qa");
+    }
+  } catch (error) {
+    console.error("QA database verification failed:", error.code || "database identity check failed");
+    await pool.end();
+    await demoPool.end();
+    process.exit(1);
+  }
+}
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
