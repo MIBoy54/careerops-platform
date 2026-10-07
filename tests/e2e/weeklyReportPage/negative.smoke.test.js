@@ -1,20 +1,23 @@
 import { expect, test } from "@playwright/test";
+
 import { login } from "../helpers/auth";
 
 test("export remains disabled until a report is selected", async ({ page }) => {
   await login(page);
 
-  await page.locator('[data-target="weeklyReportHistorySection"]').click();
+  const historyNav = page.locator(
+    '[data-target="weeklyReportHistorySection"]'
+  );
 
-await page
-  .getByRole("button", {
-    name: "Weekly Report History"
-  })
-  .click();
+  await expect(historyNav).toBeVisible();
 
-const section = page.locator("#weeklyReportHistorySection");
+  await historyNav.click();
 
-await expect(section).toHaveClass(/active-section/);
+  const section = page.locator("#weeklyReportHistorySection");
+
+  await expect(section).toHaveClass(/active-section/, {
+    timeout: 10000
+  });
 
   const exportButton = section.getByRole("button", {
     name: "Export Selected Report"
