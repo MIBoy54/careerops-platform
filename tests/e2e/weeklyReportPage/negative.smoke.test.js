@@ -11,9 +11,6 @@ test("export remains disabled until a report is selected", async ({ page }) => {
 
   await expect(historyNav).toBeVisible();
 
-  // Let initial application startup/navigation settle.
-  await page.waitForLoadState("networkidle");
-
   await historyNav.click();
 
   const section = page.locator("#weeklyReportHistorySection");
