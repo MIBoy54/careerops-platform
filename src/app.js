@@ -1947,6 +1947,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyRoleBasedAccess();
 
+showSection("telemetrySection");
+
       const mainMenuBtn = document.getElementById("mainMenuBtn");
       if (mainMenuBtn) {
         mainMenuBtn.addEventListener("click", () => {
@@ -2213,9 +2215,9 @@ companySuggestions.addEventListener("click", (e) => {
     console.error("Analytics startup failed:", error);
   }
 
-showSection("telemetrySection");
-
 messageDiv = document.getElementById("formMessage");
+
+let initialContactsLoaded = false;
 
 try {
   if (dateInput) {
@@ -2224,6 +2226,7 @@ try {
 
   await loadContacts();
   renderTable();
+  initialContactsLoaded = true;
 
   await loadQualityGateSummary();
 
@@ -2533,6 +2536,10 @@ activeUsersInterval = setInterval(
     }
 
   } // closes if (form)
+
+  if (initialContactsLoaded) {
+    document.documentElement.dataset.careeropsReady = "true";
+  }
 
 }); // closes DOMContentLoaded
   
