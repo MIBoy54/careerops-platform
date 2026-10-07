@@ -2215,6 +2215,8 @@ wireCompanyAutocomplete();
 
 messageDiv = document.getElementById("formMessage");
 
+let initialContactsLoaded = false;
+
 try {
   if (dateInput) {
     dateInput.value = today;
@@ -2222,6 +2224,7 @@ try {
 
   await loadContacts();
   renderTable();
+  initialContactsLoaded = true;
 
   await loadQualityGateSummary();
 
@@ -2531,6 +2534,10 @@ activeUsersInterval = setInterval(
     }
 
   } // closes if (form)
+
+  if (initialContactsLoaded) {
+    document.documentElement.dataset.careeropsReady = "true";
+  }
 
 }); // closes DOMContentLoaded
   
