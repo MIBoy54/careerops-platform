@@ -1972,6 +1972,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyRoleBasedAccess();
 
+showSection("telemetrySection");
+
       const mainMenuBtn = document.getElementById("mainMenuBtn");
       if (mainMenuBtn) {
         mainMenuBtn.addEventListener("click", () => {
@@ -2210,8 +2212,6 @@ wireCompanyAutocomplete();
   } catch (error) {
     console.error("Analytics startup failed:", error);
   }
-
-showSection("telemetrySection");
 
 messageDiv = document.getElementById("formMessage");
 
