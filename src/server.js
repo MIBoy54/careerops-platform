@@ -67,8 +67,11 @@ if (APP_ENV === "qa") {
     throw new Error("QA requires a valid DB_PORT");
   }
 
-  if (String(process.env.CI).trim().toLowerCase() === "true" || DEMO_MODE || process.env.NODE_ENV?.trim().toLowerCase() === "test") {
-    throw new Error("QA cannot run with CI, DEMO_MODE, or NODE_ENV=test");
+  if (
+    DEMO_MODE ||
+    process.env.NODE_ENV?.trim().toLowerCase() === "test"
+  ) {
+    throw new Error("QA cannot run with DEMO_MODE or NODE_ENV=test");
   }
 
   if (!/^[0-9a-f]{40}$/i.test(COMMIT_SHA || "")) {
