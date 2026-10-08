@@ -25,59 +25,38 @@ console.log("FRONTEND APP_ENV:", globalThis.APP_ENV || "not set");
 
 function applyRoleBasedAccess() {
   const admin = isAdminUser();
-  const isDemo = isDemoEnvironment();
+
+  const isDemo =
+    APP_ENV === "demo" ||
+    window.location.hostname.includes("demo") ||
+    window.location.hostname.includes("sandbox");
 
   console.log("BANNER CHECK:", {
     APP_ENV,
     host: window.location.hostname,
-    isDemo,
-    admin
+    isDemo
   });
 
-  // Demo users may interact with fields, but may not save.
   const formFields = document.querySelectorAll(
-    "#contactForm input, #contactForm select, #contactForm textarea"
+    "#contactForm input, #contactForm select, #contactForm textarea, #contactForm button"
   );
 
-  formFields.forEach((field) => {
-    field.disabled = !admin && !isDemo;
+  formFields.forEach((el) => {
+    el.disabled = !admin;
   });
-
-  const saveContactBtn = document.querySelector(
-    '#contactForm button[type="submit"]'
-  );
-
-  if (saveContactBtn) {
-    saveContactBtn.disabled = isDemo || !admin;
-    saveContactBtn.classList.toggle(
-      "disabled-btn",
-      saveContactBtn.disabled
-    );
-
-    saveContactBtn.title = isDemo
-      ? "Save Contact is disabled in DEMO/Sandbox."
-      : "";
-  }
 
   if (generateReportBtn) {
     generateReportBtn.disabled =
-      isDemo || !canWriteDatabase() || selectedIds.size !== 4;
+      isDemoEnvironment() || !canWriteDatabase() || selectedIds.size !== 4;
 
-    generateReportBtn.classList.toggle(
-      "disabled-btn",
-      generateReportBtn.disabled
-    );
-
-    generateReportBtn.title = isDemo
-      ? "Generate Weekly Report is disabled in DEMO/Sandbox."
-      : "";
+    generateReportBtn.classList.toggle("disabled-btn", generateReportBtn.disabled);
   }
 
-  console.log("IS DEMO:", isDemo, "HOST:", window.location.hostname);
+console.log("IS DEMO:", isDemo, "HOST:", window.location.hostname);
 
   let banner = document.getElementById("environmentBanner");
 
-  if (!banner) {
+    if (!banner) {
     banner = document.createElement("div");
     banner.id = "environmentBanner";
 
@@ -98,8 +77,7 @@ function applyRoleBasedAccess() {
 
   if (isDemo) {
     banner.style.display = "block";
-    banner.textContent =
-      "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
+    banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
     document.body.style.paddingTop = "40px";
   } else {
     banner.style.display = "none";
@@ -501,18 +479,6 @@ async function loadQualityGateSummary() {
   }
 }
 
-//temp helper
-function setText(id, value) {
-    const el = document.getElementById(id);
-
-    if (!el) {
-        console.error(`❌ Missing dashboard element: ${id}`);
-        return;
-    }
-
-    el.textContent = value;
-}
-
 function renderValidationRunsTable() {
   const container = document.getElementById("validationRunsTable");
 
@@ -816,6 +782,12 @@ function updateDashboard() {
     String(c.status || "").trim().toLowerCase() === "accepted"
     ).length;
 
+  const offerRate = interviewing > 0
+        ? ((offers / interviewing) * 100).toFixed(1)
+      : "0.0";
+
+  setText("dashboardFunnelOfferRate", `${offerRate}%`);
+
   const rejectedClosed = contacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
   ).length;
@@ -832,46 +804,19 @@ function updateDashboard() {
     ? ((interviewing / total) * 100).toFixed(1)
     : "0.0";
 
-  const awaitingDecision = contacts.filter(c =>
-  String(c.status || "").trim().toLowerCase() === "awaiting decision"
-).length;
+  document.getElementById("dashboardAppliedSubmitted").textContent = appliedSubmitted;
+  document.getElementById("dashboardInterviewing").textContent = interviewing;
+  document.getElementById("dashboardRejectedClosed").textContent = rejectedClosed;
+  document.getElementById("dashboardTotal").textContent = total;
+  document.getElementById("dashboardReported").textContent = reported;
+  document.getElementById("dashboardNotReported").textContent = notReported;
+  document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
 
-  const rejected = contacts.filter(c =>
-    String(c.status || "").trim().toLowerCase() === "rejected"
-).length;
-
-const closed = contacts.filter(c =>
-    String(c.status || "").trim().toLowerCase() === "closed"
-).length;
-
-const withdrawn = contacts.filter(c =>
-    String(c.status || "").trim().toLowerCase() === "withdrawn"
-).length;
-
-const ghosted = contacts.filter(c =>
-    String(c.status || "").trim().toLowerCase() === "ghosted"
-).length;
-    
-// Dashboard 2.0
-
-// KPI Row
-setText("dashboardKpiTotal", total);
-setText("dashboardKpiActive", appliedSubmitted);
-setText("dashboardKpiInterviews", interviewing);
-setText("dashboardKpiInterviewRate", `${interviewRate}%`);
-
-// Hiring Funnel
-setText("dashboardFunnelTotal", total);
-setText("dashboardFunnelActive", appliedSubmitted);
-setText("dashboardFunnelInterviewing", interviewing);
-setText("dashboardFunnelAwaiting", awaitingDecision);
-setText("dashboardFunnelOffers", offers);
-setText("dashboardFunnelAccepted", accepted);
-
-setText("dashboardRejected", rejected);
-setText("dashboardClosed", closed);
-setText("dashboardWithdrawn", withdrawn);
-setText("dashboardGhosted", ghosted);
+  // Funnel card
+  setText("dashboardFunnelTotal", total);
+  setText("dashboardFunnelApplied", appliedSubmitted);
+  setText("dashboardFunnelInterviewing", interviewing);
+  setText("dashboardFunnelInterviewRate", `${interviewRate}%`);
 
 const salary100 = contacts.filter(c => {
   const avg = getCompAverage(c.comp_range);
@@ -915,6 +860,27 @@ setText("dashboardSalary200", salary200);
 setText("dashboardSalary200plus", salary200plus);
 setText("dashboardSalaryUnknown", salaryUnknown);
 
+const warm = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "warm"
+).length;
+
+const activeRelationship = contacts.filter(
+  c => String(c.relationship_status).toLowerCase() === "active"
+).length;
+
+const cold = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "cold"
+).length;
+
+const inactive = contacts.filter(
+    c => String(c.relationship_status).toLowerCase() === "inactive"
+).length;
+
+document.getElementById("dashboardWarm").textContent = warm;
+document.getElementById("dashboardActive").textContent = activeRelationship;
+document.getElementById("dashboardCold").textContent = cold;
+document.getElementById("dashboardInactive").textContent = inactive;
+
 const qaEngineer = contacts.filter(c =>
   String(c.role_level || "").trim().toLowerCase() === "qa engineer"
 ).length;
@@ -933,14 +899,13 @@ const seniorManager = contacts.filter(c =>
 
 const executive = contacts.filter(c =>
   String(c.role_level || "").trim().toLowerCase() === "executive"
-  ).length;
+).length;
 
-  // Opportunity Level
-setText("dashboardQaEngineer", qaEngineer);
-setText("dashboardLead", lead);
-setText("dashboardManager", manager);
-setText("dashboardSeniorManager", seniorManager);
-setText("dashboardExecutive", executive);
+document.getElementById("dashboardQaEngineer").textContent = qaEngineer;
+document.getElementById("dashboardLead").textContent = lead;
+document.getElementById("dashboardManager").textContent = manager;
+document.getElementById("dashboardSeniorManager").textContent = seniorManager;
+document.getElementById("dashboardExecutive").textContent = executive;
 
 const remote = contacts.filter(c =>
     String(c.location || "").toLowerCase().includes("remote")
@@ -952,10 +917,26 @@ const hybrid = contacts.filter(c =>
 
 const onsite = contacts.length - remote - hybrid;
 
-// Work Model
-setText("dashboardRemote", remote);
-setText("dashboardHybrid", hybrid);
-setText("dashboardOnsite", onsite);
+document.getElementById("dashboardRemote").textContent = remote;
+document.getElementById("dashboardHybrid").textContent = hybrid;
+document.getElementById("dashboardOnsite").textContent = onsite;
+
+const active = appliedSubmitted + interviewing;
+
+setText("dashboardFunnelOffers", offers);
+setText("dashboardFunnelAccepted", accepted);
+setText("dashboardFunnelOfferRate", `${offerRate}%`);;
+
+document.getElementById("dashboardKpiTotal").textContent = total;
+document.getElementById("dashboardKpiActive").textContent = active;
+document.getElementById("dashboardKpiInterviews").textContent = interviewing;
+document.getElementById("dashboardKpiInterviewRate").textContent = `${interviewRate}%`;
+
+document.getElementById("dashboardFunnelTotal").textContent = total;
+document.getElementById("dashboardFunnelApplied").textContent = appliedSubmitted;
+document.getElementById("dashboardFunnelInterviewing").textContent = interviewing;
+document.getElementById("dashboardFunnelOffers").textContent = offers;
+document.getElementById("dashboardFunnelAccepted").textContent = accepted;
 
 const now = new Date();
 
@@ -1002,15 +983,13 @@ const stale = contacts.filter(c => {
   return days !== null && days > 14;
 }).length;
 
-// Activity
-setText("dashboardLast7Days", last7Days);
-setText("dashboardLast30Days", last30Days);
-setText("dashboardFollowUpsDue", followUpsDue);
+document.getElementById("dashboardLast7Days").textContent = last7Days;
+document.getElementById("dashboardLast30Days").textContent = last30Days;
+document.getElementById("dashboardFollowUpsDue").textContent = followUpsDue;
 
-// Pipeline Aging
-setText("dashboardFresh", fresh);
-setText("dashboardAging", aging);
-setText("dashboardStale", stale);
+document.getElementById("dashboardFresh").textContent = fresh;
+document.getElementById("dashboardAging").textContent = aging;
+document.getElementById("dashboardStale").textContent = stale;
 }
 
 function getCompMin(compRange) {
@@ -1132,27 +1111,25 @@ function normalizeStatus(status) {
 }
 
 function getContactStatusBucket(contact) {
-const status = normalizeStatus(contact.status);
+  const status = normalizeStatus(contact.status);
 
-if (status === "interviewing") return "interviewing";
+  if (status === "interviewing") return "interviewing";
 
-if (
-  status === "rejected" ||
-  status === "closed"
-) {
-  return "rejectedClosed";
-}
+  if (
+    status === "rejected" ||
+    status === "closed"
+  ) {
+    return "rejectedClosed";
+  }
 
-if (
-  status === "applied" ||
-  status === "submitted" ||
-  status === "on hold" ||
-  status === "awaiting decision"
-) {
+  if (
+    status === "applied" ||
+    status === "submitted"
+  ) {
+    return "appliedSubmitted";
+  }
+
   return "appliedSubmitted";
-}
-
-return "unknown";
 }
 
 function updateContactStatusTotals() {
@@ -1352,6 +1329,11 @@ function getCurrentAnalyticsMonthLabel() {
       activeButton.classList.add("active");
     }
   }
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
 
 async function loadWeeklyReportDetail(reportId) {
   const header = document.getElementById(
@@ -1726,16 +1708,9 @@ function renderTable() {
       <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
       <td>${escapeHtml(c.reported_unemployment || "No")}</td>
       <td>
-        ${(isAdminUser() || isDemoEnvironment())
-          ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>`
-          : ""
-        }
-
-        ${(isAdminUser() || isDemoEnvironment())
-          ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>`
-          : ""
-        }
-      </td>
+      ${isAdminUser() ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>` : ""}
+      ${isAdminUser() ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>` : ""}
+            </td>
     `;
 
     tableBody.appendChild(row);
@@ -2048,8 +2023,7 @@ if (logoutBtn) {
 if (isDemoEnvironment() && generateReportBtn) {
   generateReportBtn.disabled = true;
   generateReportBtn.classList.add("disabled-btn");
-  generateReportBtn.title =
-    "Generate Weekly Report is disabled in DEMO/Sandbox.";
+  generateReportBtn.title = "Disabled in DEMO/Sandbox";
 }
 
 viewButton = document.getElementById("viewButton");

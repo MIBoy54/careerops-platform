@@ -67,8 +67,11 @@ if (APP_ENV === "qa") {
     throw new Error("QA requires a valid DB_PORT");
   }
 
-  if (String(process.env.CI).trim().toLowerCase() === "true" || DEMO_MODE || process.env.NODE_ENV?.trim().toLowerCase() === "test") {
-    throw new Error("QA cannot run with CI, DEMO_MODE, or NODE_ENV=test");
+  if (
+    DEMO_MODE ||
+    process.env.NODE_ENV?.trim().toLowerCase() === "test"
+  ) {
+    throw new Error("QA cannot run with DEMO_MODE or NODE_ENV=test");
   }
 
   if (!/^[0-9a-f]{40}$/i.test(COMMIT_SHA || "")) {
@@ -198,30 +201,6 @@ app.use(
     }
   })
 );
-
-function rejectDemoWrite(res, action = "This action") {
-
-  // Allow automated test data setup in CI
-  if (
-    process.env.CI === "true" &&
-    process.env.APP_ENV === "test"
-  ) {
-    return false;
-  }
-
-  // Normal environments allow writes
-  if (!IS_SANDBOX && !DEMO_MODE) {
-    return false;
-  }
-
-  // Demo/Sandbox remains read-only
-  res.status(403).json({
-    success: false,
-    error: `${action} is disabled in the CareerOps Demo.`
-  });
-
-  return true;
-}
 
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
@@ -903,36 +882,37 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         }
       });
 
-app.post("/api/contacts", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
-
+app.post("/api/contacts", requireAuth, async (req, res) => { 
+  console.log("POST /api/contacts BODY:", req.body);
   try {
-
+    const isDemoSandbox = IS_SANDBOX;
+    const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
-      return process.env.CI === "true" &&
-             process.env.APP_ENV === "test";
-    }
+  return process.env.CI === "true" && process.env.APP_ENV === "test";
+}
 
-    // CI shortcut (no database)
-    if (isCIMode()) {
-      console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
+  if (DEMO_MODE && !isAdmin) {
+    return res.status(403).json({ error: "Read-only mode." });
+  }
 
-      const newContact = {
-        id: inMemoryContactId++,
-        ...req.body
-      };
+    // 👉 CI shortcut (no DB)
+if (isCIMode()) {
+  console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
 
-      inMemoryContacts.push(newContact);
+  const newContact = {
+    id: inMemoryContactId++,
+    ...req.body
+  };
 
-      console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
+  inMemoryContacts.push(newContact);
 
-      return res.status(201).json({
-        message: "Contact created successfully",
-        id: newContact.id
-      });
-    }
+  console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
 
-    // Existing production database logic continues here...
+  return res.status(201).json({
+    message: "Contact created successfully",
+    id: newContact.id
+  });
+}
 
     const {
       date_contacted,
@@ -1055,8 +1035,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       }
     });
 
-app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
+    app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
       try {
         const { run_type, trigger_source, notes } = req.body;
 
@@ -1085,8 +1064,6 @@ app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
     });
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
-
   try {
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
@@ -1219,28 +1196,27 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           [seconds, session_id, page_path]
         );
 
-      await pool.query(
-        `
-        INSERT INTO analytics_heartbeat_events (
-          session_id,
-          page_path,
-          event_time,
-          seconds
-        )
-        VALUES (?, ?, NOW(), ?)
-        `,
-        [session_id, page_path, seconds]
-      );
+        await pool.query(
+          `
+      INSERT INTO analytics_heartbeat_events (
+        session_id,
+        page_path,
+        event_time,
+        seconds
+      )
+      VALUES (?, ?, NOW(), ?)
+      `,
+          [session_id, page_path, seconds]
+        );
 
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error("Heartbeat update failed:", error);
-      res.status(500).json({ error: "Heartbeat failed" });
-    }
-  });
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("Heartbeat update failed:", error);
+        res.status(500).json({ error: "Heartbeat failed" });
+      }
+    });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
   try {
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
@@ -1275,8 +1251,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
+    app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
       try {
         const { id } = req.params;
         const { status, notes } = req.body;
@@ -1643,10 +1618,8 @@ app.get("/api/demo-refresh/latest", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/reports", requireAuth, async (req, res) => {
-  if (rejectDemoWrite(res)) return;
-
-  const connection = await pool.getConnection();
+    app.post("/api/reports", requireAuth, async (req, res) => {
+      const connection = await pool.getConnection();
 
   try {
     const isAdmin = req.session?.user?.role === "admin";
