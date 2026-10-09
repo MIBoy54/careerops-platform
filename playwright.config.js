@@ -7,12 +7,14 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     headless: true,
+    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
   },
 
   webServer: {
-    command: 'set APP_ENV=qa && npm start',
+    command: 'npm start',
+    env: { APP_ENV: 'test', CI: 'true', DEMO_MODE: 'true' },
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60000,
   },
 });

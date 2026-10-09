@@ -1,3 +1,4 @@
+import { createSessionTrendLoader } from "./sessionTrendChart.js";
 console.log("app.js loaded");
 let APP_ENV = "production";
 
@@ -321,78 +322,7 @@ function formatDateTime(dateString) {
   });
 }
 
-async function loadAnalyticsTrend() {
-  try {
-    const response = await fetch("/api/analytics/session-trend");
-
-    if (!response.ok) {
-      throw new Error("Failed to load analytics trend");
-    }
-
-    const rows = await response.json();
-    const chart = document.getElementById("sessionTrendChart");
-
-    if (!chart) return;
-
-    chart.innerHTML = "";
-
-const nowHour = new Date().getHours();
-
-const bucketLabels = [
-  { hour: 0, label: "12A" },
-  { hour: 2, label: "2A" },
-  { hour: 4, label: "4A" },
-  { hour: 6, label: "6A" },
-  { hour: 8, label: "8A" },
-  { hour: 10, label: "10A" },
-  { hour: 12, label: "12P" },
-  { hour: 14, label: "2P" },
-  { hour: 16, label: "4P" },
-  { hour: 18, label: "6P" },
-  { hour: 20, label: "8P" }
-];
-
-const sessionByHour = new Map(
-  rows.map((row) => [
-    Number(row.hour),
-    Number(row.sessions) || 0
-  ])
-);
-
-const trendRows = bucketLabels.map((bucket) => ({
-  label: bucket.hour === nowHour ? "Now" : bucket.label,
-  sessions: sessionByHour.get(bucket.hour) || 0
-}));
-
-    const maxSessions = Math.max(
-      ...trendRows.map((row) => row.sessions),
-      1
-    );
-
-    trendRows.forEach((row) => {
-      const heightPercent = Math.max(
-        (row.sessions / maxSessions) * 100,
-        8
-      );
-
-      const wrap = document.createElement("div");
-      wrap.className = "trend-bar-wrap";
-
-      wrap.innerHTML = `
-        <div
-          class="trend-bar"
-          style="height:${heightPercent}%;"
-          title="${row.label} · ${row.sessions} sessions"
-        ></div>
-        <div class="trend-label">${row.label}</div>
-      `;
-
-      chart.appendChild(wrap);
-    });
-  } catch (error) {
-    console.error("Analytics trend load failed:", error);
-  }
-}
+const loadAnalyticsTrend = createSessionTrendLoader(document.getElementById("sessionTrendChart"));
 
 async function loadValidationRuns() {
   try {

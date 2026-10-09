@@ -38,12 +38,6 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         run: npx playwright install --with-deps
 
-      - name: Start App
-        if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
-        run: |
-          APP_ENV=test DEMO_MODE=true CI=true npm start &
-          npx wait-on http://localhost:3000 --timeout 60000
-
       - name: Run Smoke Tests (QA Gate)
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         env:

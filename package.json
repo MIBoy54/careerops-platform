@@ -5,8 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:dev": "node scripts/start-dev.js",
     "test": "vitest run",
-    "api": "node src/server.js"
+    "api": "node src/server.js",
+    "test:session-trend": "vitest run --config tests/sessionTrend.config.js"
   },
   "type": "module",
   "keywords": [],
