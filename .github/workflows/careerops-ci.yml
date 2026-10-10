@@ -17,7 +17,7 @@ on:
 
 jobs:
   quality-gate:
-    name: Quality Gate - ${{ github.ref_name }}
+    name: CareerOps Quality Gate
     runs-on: ubuntu-latest
 
     steps:
