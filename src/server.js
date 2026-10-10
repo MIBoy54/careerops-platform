@@ -1,3 +1,6 @@
+import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
+import { requireAdmin } from "./adminAccess.js";
+import { createSessionTrendHandler } from "./sessionTrend.js";
 import { Octokit } from "@octokit/rest";
 import bcrypt from "bcrypt";
 import session from "express-session";
@@ -17,33 +20,13 @@ console.log("🔥 NEW BUILD VERSION LOADED");
 
 console.log("🔥 LOADING SERVER FILE:", __filename);
 
-const envFile =
-  process.env.APP_ENV === "demo"
-    ? "../.env.demo"
-    : "../.env";
-
-dotenv.config({ path: path.resolve(__dirname, envFile) });
-console.log("GITHUB TOKEN EXISTS:", !!process.env.GITHUB_TOKEN);
-
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
-});
-
-const APP_ENV = (process.env.APP_ENV || 'production').trim()
-
+loadEnvironment(process.env, dotenv.config, path.resolve(__dirname, '..'));
+const environment = resolveEnvironment(process.env);
+const APP_ENV = environment.appEnv;
+const DB_NAME = environment.database;
+const COMMIT_SHA = environment.buildCommitSha;
 const IS_SANDBOX = APP_ENV === "demo";
-
-const dbNameMap = {
-  production: 'careerops',
-  demo: 'careerops_demo',
-  dev: 'careerops_dev'
-}
-
-const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV] || 'careerops'
-
-if (!DB_NAME) {
-  throw new Error(`Invalid APP_ENV: ${APP_ENV}`);
-}
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
 
@@ -60,34 +43,15 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
+  return APP_ENV === "test";
 }
 
 let inMemoryContacts = [];
 let inMemoryContactId = 1;
 
-console.log("DB ENV CHECK", {
-  DB_HOST: process.env.DB_HOST,
-  DB_NAME: DB_NAME,
-  DB_USER: process.env.DB_USER,
-  DB_PORT: process.env.DB_PORT,
-  DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-});
-
-console.log("MODE CHECK", {
-  DEMO_MODE_RAW: process.env.DEMO_MODE,
-  DEMO_MODE_ENABLED: DEMO_MODE
-});
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: DB_NAME,
-  port: Number(process.env.DB_PORT || 3306),
-  ssl: { rejectUnauthorized: false },
-  connectTimeout: 10000
-});
+console.log("Validated runtime", { environment: APP_ENV, database: DB_NAME });
+// Read-only identity/grant verification completes before accepting requests.
+const { pool } = await createDatabaseRuntime(mysql, environment);
 
 app.use(cors());
 app.use(express.json());
@@ -133,7 +97,7 @@ app.use(
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (!IS_SANDBOX && !DEMO_MODE) {
+    if (APP_ENV === "test" || (!IS_SANDBOX && !DEMO_MODE)) {
         return false;
     }
 
@@ -227,7 +191,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const trimmedEmail = String(email).trim().toLowerCase();
 
-    if (process.env.CI === "true" && process.env.APP_ENV === "test") {
+    if (APP_ENV === "test") {
       req.session.user = {
         id: 0,
         email: trimmedEmail,
@@ -306,11 +270,15 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
   });
 });
 
+app.get("/version", (_req, res) => {
+  res.json({ app: "careerops-platform", environment: APP_ENV, commit: COMMIT_SHA });
+});
+
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
 
-app.get("/api/analytics/ping", (req, res) => {
+app.get("/api/analytics/ping", requireAdmin, (req, res) => {
   console.log("REQ GET /api/analytics/ping");
   res.json({
     success: true,
@@ -362,52 +330,13 @@ async function ensureReportsDir() {
   return reportsDir;
 }
 
-app.get("/setup-db", async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS recruiter_tracker (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        date_contacted DATE,
-        recruiter_name VARCHAR(255),
-        company VARCHAR(255),
-        role_level VARCHAR(100),
-        role_type VARCHAR(100),
-        location VARCHAR(255),
-        comp_range VARCHAR(100),
-        status VARCHAR(50),
-        relationship_status VARCHAR(50),
-        phone VARCHAR(50),
-        email VARCHAR(255),
-        address VARCHAR(255),
-        website VARCHAR(255),
-        notes TEXT,
-        reported_to_unemployment VARCHAR(10),
-        follow_up_date DATE
-      );
-    `);
+app.get("/setup-db", requireAdmin, (_req, res) => {
+  res.status(410).json({ error: "Database setup through HTTP is disabled." });
+});
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS weekly_reports (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        week_start DATE,
-        week_end DATE,
-        submitted BOOLEAN DEFAULT FALSE,
-        submitted_at TIMESTAMP NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS report_job_contacts (
-        report_id INT,
-        recruiter_tracker_id INT
-      );
-    `);
-
-    res.send("Database setup complete!");
-  } catch (err) {
-    console.error("setup-db failed:", err);
-    res.status(500).send(`ERROR: ${err.message}`);
-  }
+// The DEV baseline has no synchronization implementation. Never create a destination pool.
+app.post("/api/demo-refresh", requireAdmin, (_req, res) => {
+  res.status(403).json({ error: "Demo refresh is unavailable in this revision." });
 });
 
 app.get("/", (req, res) => {
@@ -476,31 +405,6 @@ try {
     return res.status(500).json({ error: "Failed to fetch contacts" });
   }
 });
-
-    app.get('/api/validation-runs', async (req, res) => {
-      console.log('HIT NEW /api/validation-runs ROUTE');
-      try {
-        const [rows] = await pool.query(`
-      SELECT
-        id,
-        run_type,
-        status,
-        started_at,
-        completed_at,
-        duration_ms,
-        trigger_source,
-        notes,
-        created_at
-      FROM validation_runs
-      ORDER BY id DESC
-    `);
-
-        res.json(rows);
-      } catch (err) {
-        console.error('validation-runs failed:', err);
-        res.status(500).json({ error: 'Failed to load validation run history.' });
-      }
-    });
 
 app.get("/api/github/actions-summary", async (req, res) => {
   try {
@@ -828,12 +732,11 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   try {
 
     function isCIMode() {
-      return process.env.CI === "true" &&
-             process.env.APP_ENV === "test";
+      return APP_ENV === "test";
     }
 
     // Demo/Sandbox is always read-only
-    if (DEMO_MODE) {
+    if (DEMO_MODE && APP_ENV !== "test") {
       return res.status(403).json({
         error: "Save Contact is disabled in the CareerOps Demo."
       });
@@ -981,7 +884,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       }
     });
 
-app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
+app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
     if (rejectDemoWrite(res)) return;
       try {
         const { run_type, trigger_source, notes } = req.body;
@@ -1017,7 +920,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
+  return APP_ENV === "test";
 }
 
     if (DEMO_MODE && !isAdmin) {
@@ -1172,7 +1075,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
     const isDemoSandbox = DEMO_MODE === true;
     const isAdmin = req.session?.user?.role === "admin";
     function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
+  return APP_ENV === "test";
 }
 
     if (DEMO_MODE && !isAdmin) {
@@ -1203,7 +1106,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
+app.put("/api/validation-runs/:id/complete", requireAdmin, async (req, res) => {
     if (rejectDemoWrite(res)) return;
       try {
         const { id } = req.params;
@@ -1408,24 +1311,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
   }
 }
 
-    app.get("/api/analytics/session-trend", requireAuth, async (req, res) => {
-      try {
-        const [rows] = await pool.query(`
-          SELECT
-            HOUR(first_seen) AS hour,
-            COUNT(DISTINCT session_id) AS sessions
-          FROM visitor_analytics
-          WHERE first_seen >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-          GROUP BY HOUR(first_seen)
-          ORDER BY hour ASC
-        `);
-
-        res.json(rows);
-      } catch (error) {
-        console.error("Session trend failed:", error);
-        res.status(500).json({ error: "Failed to load session trend" });
-      }
-    });
+    app.get("/api/analytics/session-trend", requireAuth, createSessionTrendHandler(pool));
 
     app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
       try {
@@ -1559,7 +1445,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
       res.send("hello");
     });
 
-    app.get("/db-ping", async (req, res) => {
+    app.get("/db-ping", requireAdmin, async (req, res) => {
       try {
         const [rows] = await pool.query("SELECT 1 AS ok");
         res.json(rows[0]);
@@ -1574,7 +1460,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
     });
 
 
-app.get("/debug-src", async (req, res) => {
+app.get("/debug-src", requireAdmin, async (req, res) => {
   try {
     const files = await fs.readdir(__dirname);
     res.json(files);
@@ -1583,28 +1469,19 @@ app.get("/debug-src", async (req, res) => {
   }
 });
 
-app.get("/env-check", (req, res) => {
-  res.json({
-    DB_HOST: process.env.DB_HOST,
-    DB_NAME: process.env.DB_NAME,
-    DB_USER: process.env.DB_USER,
-    DB_PORT: process.env.DB_PORT,
-    DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-  });
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION:", err);
-});
-
-process.on("unhandledRejection", (err) => {
-  console.error("UNHANDLED REJECTION:", err);
+app.get("/env-check", requireAdmin, (_req, res) => {
+  res.json({ app_env: APP_ENV, database: DB_NAME, demo_sync_enabled: false });
 });
 
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+export { app };
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const bindHost = APP_ENV === "dev" || APP_ENV === "test" ? "127.0.0.1" : "0.0.0.0";
+  app.listen(PORT, bindHost, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
