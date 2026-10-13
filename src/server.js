@@ -1,3 +1,6 @@
+import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
+import { requireAdmin } from "./adminAccess.js";
+import { createSessionTrendHandler } from "./sessionTrend.js";
 import { Octokit } from "@octokit/rest";
 import bcrypt from "bcrypt";
 import session from "express-session";
@@ -13,44 +16,58 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log("🔥 NEW BUILD VERSION LOADED");
+console.log("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ NEW BUILD VERSION LOADED");
 
-console.log("🔥 LOADING SERVER FILE:", __filename);
+console.log("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ LOADING SERVER FILE:", __filename);
 
-const envFile =
-  process.env.APP_ENV === "demo"
-    ? "../.env.demo"
-    : "../.env";
-
-dotenv.config({ path: path.resolve(__dirname, envFile) });
-console.log("GITHUB TOKEN EXISTS:", !!process.env.GITHUB_TOKEN);
-
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
-});
-
-const APP_ENV = (process.env.APP_ENV || 'production').trim()
-
+loadEnvironment(process.env, dotenv.config, path.resolve(__dirname, '..'));
+const environment = resolveEnvironment(process.env);
+const APP_ENV = environment.appEnv;
+const DB_NAME = environment.database;
+const COMMIT_SHA = environment.buildCommitSha;
 const IS_SANDBOX = APP_ENV === "demo";
-
-const dbNameMap = {
-  production: 'careerops',
-  demo: 'careerops_demo',
-  dev: 'careerops_dev'
-}
-
-const DB_NAME = process.env.DB_NAME || dbNameMap[APP_ENV] || 'careerops'
-
-if (!DB_NAME) {
-  throw new Error(`Invalid APP_ENV: ${APP_ENV}`);
-}
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
+
+// Railway Git deployments supply RAILWAY_GIT_COMMIT_SHA; other builds must
+// inject BUILD_COMMIT_SHA from the checked-out revision.
+
+
+if (APP_ENV === "qa") {
+  if (DB_NAME !== "careerops_qa") {
+    throw new Error("QA requires DB_NAME=careerops_qa");
+  }
+
+  for (const name of ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "SESSION_SECRET"]) {
+    if (!process.env[name]?.trim()) {
+      throw new Error(`QA requires ${name}`);
+    }
+  }
+
+  if (!/^\d+$/.test(process.env.DB_PORT) || Number(process.env.DB_PORT) < 1 || Number(process.env.DB_PORT) > 65535) {
+    throw new Error("QA requires a valid DB_PORT");
+  }
+
+  if (
+    DEMO_MODE ||
+    process.env.NODE_ENV?.trim().toLowerCase() === "test"
+  ) {
+    throw new Error("QA cannot run with DEMO_MODE or NODE_ENV=test");
+  }
+
+  if (!/^[0-9a-f]{40}$/i.test(COMMIT_SHA || "")) {
+    throw new Error("QA requires a full Git commit SHA in RAILWAY_GIT_COMMIT_SHA or BUILD_COMMIT_SHA");
+  }
+}
 
 const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
+// Railway's HTTPS edge is the immediate proxy. Never trust an arbitrary chain.
+// Production ingress must reach this listener through that edge only.
+if (APP_ENV === "production") app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
@@ -60,44 +77,15 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 function isCIMode() {
-  return process.env.CI === "true" && process.env.APP_ENV === "test";
+  return APP_ENV === "test";
 }
 
 let inMemoryContacts = [];
 let inMemoryContactId = 1;
 
-console.log("DB ENV CHECK", {
-  DB_HOST: process.env.DB_HOST,
-  DB_NAME: DB_NAME,
-  DB_USER: process.env.DB_USER,
-  DB_PORT: process.env.DB_PORT,
-  DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-});
-
-console.log("MODE CHECK", {
-  DEMO_MODE_RAW: process.env.DEMO_MODE,
-  DEMO_MODE_ENABLED: DEMO_MODE
-});
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: DB_NAME,
-  port: Number(process.env.DB_PORT || 3306),
-  ssl: { rejectUnauthorized: false },
-  connectTimeout: 10000
-});
-
-const demoPool = mysql.createPool({
-  host: process.env.DEMO_DB_HOST,
-  user: process.env.DEMO_DB_USER,
-  password: process.env.DEMO_DB_PASSWORD,
-  database: process.env.DEMO_DB_NAME,
-  port: Number(process.env.DEMO_DB_PORT || 3306),
-  ssl: { rejectUnauthorized: false },
-  connectTimeout: 10000
-});
+console.log("Validated runtime", { environment: APP_ENV, database: DB_NAME });
+// Read-only identity/grant verification completes before accepting requests.
+const { pool, demoPool } = await createDatabaseRuntime(mysql, environment);
 
 async function verifyDemoDatabase() {
   const [rows] = await demoPool.query(
@@ -160,11 +148,13 @@ app.use((req, res, next) => {
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "careerops-secret",
+    secret: APP_ENV === "production"
+      ? process.env.SESSION_SECRET
+      : process.env.SESSION_SECRET || "careerops-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // IMPORTANT for Railway (no HTTPS termination in Node)
+      secure: APP_ENV === "production",
       httpOnly: true
     }
   })
@@ -187,7 +177,6 @@ function rejectDemoWrite(res, action = "This action") {
 
   return true;
 }
-
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
 
@@ -211,6 +200,12 @@ function requireAuth(req, res, next) {
 }
 
 app.post("/api/auth/register", async (req, res) => {
+  // LIVE uses its existing owner account; public account creation is disabled.
+  if (APP_ENV === "production") {
+    return res.status(403).json({ error: "Registration is disabled in production." });
+  }
+  if (rejectDemoWrite(res, "Registration")) return;
+
   try {
     const { email, password, full_name } = req.body;
 
@@ -270,7 +265,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const trimmedEmail = String(email).trim().toLowerCase();
 
-    if (process.env.CI === "true" && process.env.APP_ENV === "test") {
+    if (APP_ENV === "test") {
       req.session.user = {
         id: 0,
         email: trimmedEmail,
@@ -344,16 +339,20 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "Failed to log out." });
     }
 
-    res.clearCookie("connect.sid");
+    res.clearCookie("connect.sid", { secure: APP_ENV === "production", httpOnly: true });
     res.json({ message: "Logout successful." });
   });
+});
+
+app.get("/version", (_req, res) => {
+  res.json({ app: "careerops-platform", environment: APP_ENV, commit: COMMIT_SHA });
 });
 
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
 
-app.get("/api/analytics/ping", (req, res) => {
+app.get("/api/analytics/ping", requireAdmin, (req, res) => {
   console.log("REQ GET /api/analytics/ping");
   res.json({
     success: true,
@@ -405,53 +404,10 @@ async function ensureReportsDir() {
   return reportsDir;
 }
 
-app.get("/setup-db", async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS recruiter_tracker (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        date_contacted DATE,
-        recruiter_name VARCHAR(255),
-        company VARCHAR(255),
-        role_level VARCHAR(100),
-        role_type VARCHAR(100),
-        location VARCHAR(255),
-        comp_range VARCHAR(100),
-        status VARCHAR(50),
-        relationship_status VARCHAR(50),
-        phone VARCHAR(50),
-        email VARCHAR(255),
-        address VARCHAR(255),
-        website VARCHAR(255),
-        notes TEXT,
-        reported_to_unemployment VARCHAR(10),
-        follow_up_date DATE
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS weekly_reports (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        week_start DATE,
-        week_end DATE,
-        submitted BOOLEAN DEFAULT FALSE,
-        submitted_at TIMESTAMP NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS report_job_contacts (
-        report_id INT,
-        recruiter_tracker_id INT
-      );
-    `);
-
-    res.send("Database setup complete!");
-  } catch (err) {
-    console.error("setup-db failed:", err);
-    res.status(500).send(`ERROR: ${err.message}`);
-  }
+app.get("/setup-db", requireAdmin, (_req, res) => {
+  res.status(410).json({ error: "Database setup through HTTP is disabled." });
 });
+
 
 app.get("/", (req, res) => {
   try {
@@ -482,7 +438,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
 
 try {
   if (isCIMode()) {
-    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
+    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length);
     return res.json(inMemoryContacts);
   }
 
@@ -511,39 +467,16 @@ try {
     `);
 
     console.log("GET /api/contacts ROW COUNT:", rows.length);
-    console.log("GET /api/contacts FIRST ROW:", rows[0]);
+    const visibleRows = IS_SANDBOX
+      ? rows.map(({ notes, ...contact }) => contact)
+      : rows;
 
-    return res.json(rows);
+    return res.json(visibleRows);
   } catch (error) {
     console.error("GET /api/contacts failed:", error);
     return res.status(500).json({ error: "Failed to fetch contacts" });
   }
 });
-
-    app.get('/api/validation-runs', async (req, res) => {
-      console.log('HIT NEW /api/validation-runs ROUTE');
-      try {
-        const [rows] = await pool.query(`
-      SELECT
-        id,
-        run_type,
-        status,
-        started_at,
-        completed_at,
-        duration_ms,
-        trigger_source,
-        notes,
-        created_at
-      FROM validation_runs
-      ORDER BY id DESC
-    `);
-
-        res.json(rows);
-      } catch (err) {
-        console.error('validation-runs failed:', err);
-        res.status(500).json({ error: 'Failed to load validation run history.' });
-      }
-    });
 
 app.get("/api/github/actions-summary", async (req, res) => {
   try {
@@ -632,7 +565,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
       try {
         const isAdmin = req.session?.user?.role === "admin";
 
-        if (isDemoSandbox && !isAdmin) {
+        if (IS_SANDBOX && !isAdmin) {
           return res.status(403).json({ error: "Read-only mode." });
         }
 
@@ -669,7 +602,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
           report_start: start,
           report_end: end,
           total_jobs_reported: rows.length,
-          jobs: rows
+          jobs: IS_SANDBOX ? rows.map(({ notes, ...contact }) => contact) : rows
         });
       } catch (error) {
         console.error("Unemployment report failed:", error);
@@ -780,9 +713,13 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
           [reportId]
         );
 
+        const visibleEmployers = IS_SANDBOX
+          ? employerRows.map(({ notes, ...employer }) => employer)
+          : employerRows;
+
         res.json({
           ...report,
-          employers: employerRows
+          employers: visibleEmployers
         });
       } catch (error) {
         console.error("GET /api/reports/:id failed:", error);
@@ -832,13 +769,13 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
             "Email",
             "Address",
             "Website",
-            "Notes"
+            ...(IS_SANDBOX ? [] : ["Notes"])
           ].join(",");
 
           const csv = [
             headers,
             ...rows.map(row =>
-              Object.values(row)
+              Object.values(IS_SANDBOX ? (({ notes, ...publicContact }) => publicContact)(row) : row)
                 .map((value, index) => {
                   if (index === 1 && value) {
                     const d = new Date(value);
@@ -882,20 +819,12 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
       console.log(
         "CI POST /api/contacts AFTER:",
-        inMemoryContacts.length,
-        newContact
+        inMemoryContacts.length
       );
 
       return res.status(201).json({
         message: "Contact created successfully",
         id: newContact.id
-      });
-    }
-
-    // Demo/Sandbox is always read-only
-    if (DEMO_MODE) {
-      return res.status(403).json({
-        error: "Save Contact is disabled in the CareerOps Demo."
       });
     }
 
@@ -920,7 +849,6 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       notes
     } = req.body;
 
-    console.log("POST /api/contacts payload:", req.body);
 
     const [result] = await pool.query(
       `
@@ -1022,7 +950,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       }
     });
 
-app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
+app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
     if (rejectDemoWrite(res)) return;
       try {
         const { run_type, trigger_source, notes } = req.body;
@@ -1052,12 +980,11 @@ app.post("/api/validation-runs/start", requireAuth, async (req, res) => {
     });
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
+  if (rejectDemoWrite(res)) return;
 
   try {
-    const isAdmin = req.session?.user?.role === "admin";
 
-    // 👉 CI shortcut (no DB)
+    // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) { 
       const id = Number(req.params.id);
       const index = inMemoryContacts.findIndex((c) => c.id === id);
@@ -1083,11 +1010,6 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       };
 
       return res.json({ message: "Contact updated successfully" });
-    }
-
-    // Demo/Sandbox remains read-only
-    if (DEMO_MODE && !isAdmin) {
-      return res.status(403).json({ error: "Read-only mode." });
     }
 
     const { id } = req.params;
@@ -1184,36 +1106,33 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           [seconds, session_id, page_path]
         );
 
-      await pool.query(
-        `
-        INSERT INTO analytics_heartbeat_events (
-          session_id,
-          page_path,
-          event_time,
-          seconds
-        )
-        VALUES (?, ?, NOW(), ?)
-        `,
-        [session_id, page_path, seconds]
-      );
+        await pool.query(
+          `
+      INSERT INTO analytics_heartbeat_events (
+        session_id,
+        page_path,
+        event_time,
+        seconds
+      )
+      VALUES (?, ?, NOW(), ?)
+      `,
+          [session_id, page_path, seconds]
+        );
 
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error("Heartbeat update failed:", error);
-      res.status(500).json({ error: "Heartbeat failed" });
-    }
-  });
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("Heartbeat update failed:", error);
+        res.status(500).json({ error: "Heartbeat failed" });
+      }
+    });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
-    if (rejectDemoWrite(res)) return;
+  if (rejectDemoWrite(res)) return;
+
   try {
-    const isAdmin = req.session?.user?.role === "admin";
 
-    if (DEMO_MODE && !isAdmin) {
-      return res.status(403).json({ error: "Read-only mode." });
-    }
 
-    // 👉 CI shortcut (no DB)
+    // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) {
       const id = Number(req.params.id);
       inMemoryContacts = inMemoryContacts.filter((c) => c.id !== id);
@@ -1237,7 +1156,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.put("/api/validation-runs/:id/complete", requireAuth, async (req, res) => {
+app.put("/api/validation-runs/:id/complete", requireAdmin, async (req, res) => {
     if (rejectDemoWrite(res)) return;
       try {
         const { id } = req.params;
@@ -1429,11 +1348,16 @@ async function syncLiveToDemo() {
     );
 
     // Copy parent/business data first.
+    const demoContacts = contacts.map((contact) => ({
+      ...contact,
+      notes: null
+    }));
+
     const contactsInsert =
       buildBulkInsert(
         "recruiter_tracker",
         contactFields,
-        contacts
+        demoContacts
       );
 
     if (contactsInsert) {
@@ -1511,7 +1435,10 @@ async function syncLiveToDemo() {
     demoConnection.release();
   }
 }
-app.post("/api/demo-refresh", requireAuth, async (req, res) => {
+app.post("/api/demo-refresh", requireAdmin, async (req, res) => {
+  if (APP_ENV !== "production" || !environment.demoSyncEnabled || !demoPool) {
+    return res.status(403).json({ error: "DEMO synchronization is not authorized." });
+  }
   let refreshId = null;
 
   try {
@@ -1605,16 +1532,12 @@ app.get("/api/demo-refresh/latest", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/reports", requireAuth, async (req, res) => {
+    app.post("/api/reports", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
 
-  const connection = await pool.getConnection();
-
+  let connection;
   try {
-    const isAdmin = req.session?.user?.role === "admin";
-    if (DEMO_MODE && !isAdmin) {
-      return res.status(403).json({ error: "Read-only mode." });
-    }
+    connection = await pool.getConnection();
 
         const { selectedIds = [] } = req.body;
         const uniqueIds = [...new Set(selectedIds.map(Number))];
@@ -1665,9 +1588,9 @@ app.post("/api/reports", requireAuth, async (req, res) => {
 
     let refreshId = null;
 
-if (!DEMO_MODE) {
-  try {
-    refreshId = await startDemoRefresh("WEEKLY_REPORT");
+if (APP_ENV === "production" && environment.demoSyncEnabled && demoPool) {
+    try {
+      refreshId = await startDemoRefresh("WEEKLY_REPORT");
 
 // Refresh the read-only DEMO business-data snapshot from LIVE.
     const rowsSynced = await syncLiveToDemo();
@@ -1704,11 +1627,17 @@ if (!DEMO_MODE) {
           reportId
         });
       } catch (error) {
-        await connection.rollback();
+        if (connection) {
+          try {
+            await connection.rollback();
+          } catch (rollbackError) {
+            console.error("Weekly report rollback failed:", rollbackError);
+          }
+        }
         console.error("POST /api/reports failed:", error);
         res.status(500).json({ error: "Failed to generate weekly report" });
       } finally {
-        connection.release();
+        if (connection) connection.release();
       }
     });
 
@@ -1807,24 +1736,7 @@ if (!DEMO_MODE) {
   }
 }
 
-    app.get("/api/analytics/session-trend", requireAuth, async (req, res) => {
-      try {
-        const [rows] = await pool.query(`
-          SELECT
-            HOUR(first_seen) AS hour,
-            COUNT(DISTINCT session_id) AS sessions
-          FROM visitor_analytics
-          WHERE first_seen >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-          GROUP BY HOUR(first_seen)
-          ORDER BY hour ASC
-        `);
-
-        res.json(rows);
-      } catch (error) {
-        console.error("Session trend failed:", error);
-        res.status(500).json({ error: "Failed to load session trend" });
-      }
-    });
+    app.get("/api/analytics/session-trend", requireAuth, createSessionTrendHandler(pool));
 
     app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
       try {
@@ -1945,9 +1857,8 @@ if (!DEMO_MODE) {
           return res.status(404).json({ error: "No company record found." });
         }
 
-        console.log("Company details returned:", rows[0]);
-
-        res.json(rows[0]);
+        const { notes, ...publicContact } = rows[0];
+        res.json(IS_SANDBOX ? publicContact : rows[0]);
       } catch (error) {
         console.error("GET /api/companies/details failed:", error);
         res.status(500).json({ error: "Failed to fetch company details." });
@@ -1958,7 +1869,7 @@ if (!DEMO_MODE) {
       res.send("hello");
     });
 
-    app.get("/db-ping", async (req, res) => {
+    app.get("/db-ping", requireAdmin, async (req, res) => {
       try {
         const [rows] = await pool.query("SELECT 1 AS ok");
         res.json(rows[0]);
@@ -1973,7 +1884,7 @@ if (!DEMO_MODE) {
     });
 
 
-app.get("/debug-src", async (req, res) => {
+app.get("/debug-src", requireAdmin, async (req, res) => {
   try {
     const files = await fs.readdir(__dirname);
     res.json(files);
@@ -1982,28 +1893,19 @@ app.get("/debug-src", async (req, res) => {
   }
 });
 
-app.get("/env-check", (req, res) => {
-  res.json({
-    DB_HOST: process.env.DB_HOST,
-    DB_NAME: process.env.DB_NAME,
-    DB_USER: process.env.DB_USER,
-    DB_PORT: process.env.DB_PORT,
-    DB_PASSWORD_SET: !!process.env.DB_PASSWORD
-  });
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION:", err);
-});
-
-process.on("unhandledRejection", (err) => {
-  console.error("UNHANDLED REJECTION:", err);
+app.get("/env-check", requireAdmin, (_req, res) => {
+  res.json({ app_env: APP_ENV, database: DB_NAME, demo_sync_enabled: environment.demoSyncEnabled });
 });
 
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../ui/index.html"));
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+export { app };
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const bindHost = APP_ENV === "dev" || APP_ENV === "test" ? "127.0.0.1" : "0.0.0.0";
+  app.listen(PORT, bindHost, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}

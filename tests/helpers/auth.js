@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import "dotenv/config";
+import { waitForAppReady } from "./readiness.js";
 
 export async function login(page) {
   await page.goto("/login.html", { waitUntil: "domcontentloaded" });
@@ -24,5 +25,5 @@ export async function login(page) {
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
-  await expect(page.locator("#logoutBtn")).toBeVisible({ timeout: 10000 });
+  await waitForAppReady(page);
 }
