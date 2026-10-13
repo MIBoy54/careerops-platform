@@ -1,5 +1,22 @@
 # Deployment Guide
 
+## Verified LIVE database mapping
+
+For production, the fixed schema mapping is `railway`. The operator verified
+LIVE `DB_NAME=railway` and `SELECT DATABASE()` returned `railway`. This evidence
+establishes schema identity, not full schema compatibility or deployment approval.
+DEV, QA, and DEMO remain `careerops_dev`, `careerops_qa`, and `careerops_demo`.
+Explicit mismatched DB_NAME values and mismatched connected identities fail closed.
+Production-to-DEMO synchronization still requires explicit enablement and the
+verified `careerops_demo` destination; NOTES alone are suppressed.
+
+`backup_careerops.bat` still hardcodes `DB_NAME=careerops`. A separately authorized
+change must target the verified LIVE schema `railway` and verify the LIVE service,
+connection bindings, restore procedure, and schema compatibility before relying
+on that backup for rollback. The script was not changed or executed as part of
+the mapping correction. Do not run the baseline or ADD COLUMN migrations blindly:
+the industry baseline is VARCHAR(100), while its migration declares VARCHAR(50).
+
 ## Status and intended mapping
 
 This guide defines the approved QA deployment design. A dedicated QA Railway

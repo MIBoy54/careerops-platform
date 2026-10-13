@@ -13,7 +13,7 @@ must exactly match the mapping:
 | dev | careerops_dev |
 | qa | careerops_qa |
 | demo | careerops_demo |
-| production | careerops |
+| production | railway |
 | test | No database connections |
 
 An omitted DB_NAME derives only from this validated mapping; no production fallback

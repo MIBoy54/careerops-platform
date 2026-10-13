@@ -42,7 +42,7 @@ function stubEnv(name, extra = {}) {
   })) vi.stubEnv(key, value);
 }
 function installPool(name) {
-  const database = { dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'careerops' }[name];
+  const database = { dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'railway' }[name];
   const connection = {
     query: vi.fn(async sql => {
       if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];

@@ -14,7 +14,7 @@ operational QA deployment and database isolation still require verification.
 | **careerops_dev** | Active development |
 | **careerops_qa** | Functional validation and testing |
 | **careerops_demo** | Public demonstration environment |
-| **careerops** | Production |
+| **railway** | Production (verified LIVE schema identity) |
 
 ---
 
@@ -30,7 +30,7 @@ careerops_qa
 careerops_demo
         │
         ▼
-careerops
+railway
 ```
 
 Database changes are promoted sequentially through each environment.
@@ -106,7 +106,7 @@ Before promoting any schema change:
 - [ ] Demo validated
 - [ ] Applied to careerops_demo
 - [ ] Production deployment approved
-- [ ] Applied to careerops
+- [ ] Applied to railway
 
 ---
 

@@ -1,7 +1,7 @@
 import { isSafeDevGrant } from "./devGrantValidation.js";
 
 export const DATABASE_NAMES = Object.freeze({
-  dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'careerops'
+  dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'railway'
 });
 const LOOPBACK = new Set(['127.0.0.1', '::1']);
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
@@ -144,7 +144,7 @@ export async function createDatabaseRuntime(mysql, config) {
       assertDemoSyncAllowed(config);
 
       if (config.appEnv !== 'production' ||
-          config.database !== 'careerops' ||
+          config.database !== DATABASE_NAMES.production ||
           config.secondary.database !== 'careerops_demo') {
         throw new Error('DEMO synchronization requires authorized PROD and DEMO databases');
       }
