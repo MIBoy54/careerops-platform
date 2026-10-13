@@ -2,6 +2,22 @@
 
 ## Verified LIVE database mapping
 
+Production sessions require a configured SESSION_SECRET of at least 32 UTF-8
+bytes with at least eight distinct characters. Generate it cryptographically;
+these validation checks reject missing/obviously weak values but cannot prove
+randomness. No production fallback secret is used. Do not put secrets in Git.
+Production cookies use Secure and HttpOnly, including logout cookie clearing.
+
+Express trusts only the immediate proxy hop in production (`trust proxy=1`),
+for Railway's HTTPS edge and its X-Forwarded-Proto header. This assumes all public
+traffic reaches Node through Railway's edge, with no direct public TCP ingress
+or shorter alternate path. Verify this topology and header handling before
+deployment; the hop limit is not an IP allowlist. DEV/QA/DEMO/test proxy trust and
+cookie behavior are unchanged. Verify owner login/session persistence/logout
+over the deployed HTTPS hostname after separately authorized deployment.
+Sessions still use in-memory storage: restarts clear sessions and multiple
+replicas are unsupported without a separately approved store change.
+
 For production, the fixed schema mapping is `railway`. The operator verified
 LIVE `DB_NAME=railway` and `SELECT DATABASE()` returned `railway`. This evidence
 establishes schema identity, not full schema compatibility or deployment approval.

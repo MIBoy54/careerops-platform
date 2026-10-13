@@ -26,6 +26,13 @@ export function resolveEnvironment(env) {
   if (env.DEMO_SYNC_ENABLED === 'true' && appEnv !== 'production') {
     throw new Error('DEMO synchronization is permitted only in production');
   }
+  if (appEnv === 'production' && (
+    !nonempty(env.SESSION_SECRET) ||
+    Buffer.byteLength(env.SESSION_SECRET.trim(), 'utf8') < 32 ||
+    new Set(env.SESSION_SECRET.trim()).size < 8
+  )) {
+    throw new Error('Production requires a strong configured SESSION_SECRET (at least 32 bytes; use a cryptographically random secret)');
+  }
   if (appEnv === 'test') {
     if (Object.keys(env).some(key => (databaseBinding(key) || railwayBinding(key)) && nonempty(env[key]))) {
       throw new Error('Database and deployment bindings are prohibited in test mode');

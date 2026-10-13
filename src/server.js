@@ -65,6 +65,9 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
+// Railway's HTTPS edge is the immediate proxy. Never trust an arbitrary chain.
+// Production ingress must reach this listener through that edge only.
+if (APP_ENV === "production") app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
@@ -145,11 +148,13 @@ app.use((req, res, next) => {
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "careerops-secret",
+    secret: APP_ENV === "production"
+      ? process.env.SESSION_SECRET
+      : process.env.SESSION_SECRET || "careerops-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // IMPORTANT for Railway (no HTTPS termination in Node)
+      secure: APP_ENV === "production",
       httpOnly: true
     }
   })
@@ -334,7 +339,7 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "Failed to log out." });
     }
 
-    res.clearCookie("connect.sid");
+    res.clearCookie("connect.sid", { secure: APP_ENV === "production", httpOnly: true });
     res.json({ message: "Logout successful." });
   });
 });
