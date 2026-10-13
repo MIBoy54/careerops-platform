@@ -19,11 +19,11 @@ function res() {
     }
   };
 }
-async function route(app, method, path, user, body = {}) {
+async function route(app, method, path, user, body = {}, id = '11', query = {}) {
   const registered = app.router.stack.find(layer => layer.route?.path === path && layer.route.methods[method]);
   expect(registered, `${method} ${path} is registered`).toBeDefined();
   const response = res();
-  const req = { session: { user }, body, headers: {}, params: { id: "11" } };
+  const req = { session: { user }, body, headers: {}, params: { id }, query };
   for (const layer of registered.route.stack) {
     let continued = false;
     await layer.handle(req, response, () => { continued = true; });
@@ -58,6 +58,46 @@ function installPool(name) {
 beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {}); });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
+describe('Contact mutation release safeguards', () => {
+  it.each(['demo', 'production'])('blocks all contact mutations in %s read-only mode before SQL', async name => {
+    stubEnv(name, { DEMO_MODE: name === 'production' ? 'true' : 'false',
+      RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool, connection } = installPool(name);
+    const { app } = await import('../../src/server.js');
+    pool.query.mockClear();
+    pool.getConnection.mockClear();
+    connection.query.mockClear();
+    for (const user of [{ role: 'admin' }, { role: 'guest' }]) {
+      for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+        expect((await route(app, method, path, user, { company: 'blocked' })).code).toBe(403);
+      }
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.getConnection).not.toHaveBeenCalled();
+    expect(connection.query).not.toHaveBeenCalled();
+  });
+
+  it('supports exactly one isolated fixture through create, update, and delete, requiring authentication', async () => {
+    stubEnv('test', { CI: 'true', DEMO_MODE: 'true' });
+    const { app } = await import('../../src/server.js');
+    for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined)).code).toBe(401);
+    }
+    const user = { role: 'admin' };
+    const created = await route(app, 'post', '/api/contacts', user, { company: 'fixture', notes: 'PRIVATE fixture notes' });
+    expect(created.code).toBe(201);
+    const id = String(created.body.id);
+    expect((await route(app, 'get', '/api/contacts', user)).body).toHaveLength(1);
+    expect((await route(app, 'put', '/api/contacts/:id', user, { company: 'updated' }, id)).code).toBe(200);
+    expect((await route(app, 'get', '/api/contacts', user)).body[0].company).toBe('updated');
+    expect((await route(app, 'delete', '/api/contacts/:id', user, {}, id)).code).toBe(200);
+    expect((await route(app, 'get', '/api/contacts', user)).body).toEqual([]);
+    expect(mocks.createPool).not.toHaveBeenCalled();
+    expect(mocks.loadDotenv).not.toHaveBeenCalled();
+    expect(JSON.stringify(console.log.mock.calls)).not.toContain('PRIVATE fixture notes');
+  });
+});
+
 describe('DEMO contact privacy', () => {
   it('hides private recruiter fields from guest contact-list responses', async () => {
     stubEnv('demo', {
@@ -88,7 +128,8 @@ describe('DEMO contact privacy', () => {
     expect(response.body).toEqual([{
       id: 7,
       recruiter_name: 'Public Recruiter',
-      company: 'Public Employer'
+      company: 'Public Employer',
+      reported_unemployment: 'Yes'
     }]);
 
     expect(storedContact.notes).toBe('PRIVATE recruiter notes');
@@ -140,7 +181,7 @@ describe('Weekly-report detail privacy', () => {
     expect(visible.company).toBe('Public Employer');
     expect(visible.recruiter_name).toBe('Public Recruiter');
     expect(Object.hasOwn(visible, 'notes')).toBe(includePrivate);
-    expect(Object.hasOwn(visible, 'reported_to_unemployment')).toBe(includePrivate);
+    expect(visible.reported_to_unemployment).toBe('Yes');
 
     if (includePrivate) {
       expect(visible.notes).toBe('PRIVATE recruiter notes');
@@ -151,6 +192,47 @@ describe('Weekly-report detail privacy', () => {
     expect(employer.reported_to_unemployment).toBe('Yes');
   });
 });
+describe('Additional recruiter response NOTES protection', () => {
+  it.each([
+    ['demo', '/api/companies/details'],
+    ['production', '/api/companies/details'],
+    ['demo', '/api/reports/unemployment'],
+    ['production', '/api/reports/unemployment']
+  ])('suppresses only NOTES for %s %s without logging the record', async (name, path) => {
+    stubEnv(name, { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool(name);
+    const contact = Object.freeze({ id: 7, company: 'Public Employer',
+      recruiter_name: 'Public Recruiter', email: 'fixture@example.test', phone: '555-0100',
+      address: 'Fixture Address', comp_range: '120000', reported_unemployment: 'Yes',
+      reported_to_unemployment: 'Yes', notes: 'PRIVATE recruiter notes' });
+    pool.query.mockResolvedValue([[contact]]);
+    const { app } = await import('../../src/server.js');
+    const response = await route(app, 'get', path, { role: 'admin' }, {}, '11',
+      { company: 'Public Employer', start: '2026-10-01', end: '2026-10-13' });
+    expect(response.code).toBe(200);
+    const visible = path === '/api/companies/details' ? response.body : response.body.jobs[0];
+    const { notes, ...others } = contact;
+    expect(visible).toEqual(name === 'demo' ? others : contact);
+    expect(contact.notes).toBe('PRIVATE recruiter notes');
+    expect(JSON.stringify(console.log.mock.calls)).not.toContain('PRIVATE recruiter notes');
+  });
+
+  it('retains authentication and the DEMO nonadmin unemployment-report restriction', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('demo');
+    const { app } = await import('../../src/server.js');
+    expect((await route(app, 'get', '/api/reports/unemployment', { role: 'guest' })).code).toBe(403);
+    expect(pool.query).not.toHaveBeenCalled();
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    vi.resetModules();
+    installPool('production');
+    const production = (await import('../../src/server.js')).app;
+    for (const path of ['/api/companies/details', '/api/reports/unemployment']) {
+      expect((await route(production, 'get', path, undefined)).code).toBe(401);
+    }
+  });
+});
+
 describe('CSV export privacy', () => {
   const fields = [
     'id', 'date_contacted', 'recruiter_name', 'company',
@@ -409,7 +491,7 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
       'Public Recruiter',
       'Public Employer',
       null,
-      null
+      'Yes'
     ]);
 
     expect(originalContact.notes).toBe('PRIVATE recruiter notes');

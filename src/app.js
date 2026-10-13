@@ -2018,7 +2018,9 @@ function wireCompanyAutocomplete() {
     companySuggestions.style.display = "block";
   });
 
-companySuggestions.addEventListener("click", (e) => {
+companySuggestions.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+
   const item = e.target.closest(".suggestion-item");
   if (!item) return;
 
@@ -2055,45 +2057,15 @@ companySuggestions.addEventListener("click", (e) => {
   );
 });
 
-  companySuggestions.addEventListener("click", (e) => {
-    const item = e.target.closest(".suggestion-item");
-    if (!item) return;
-
-    const selectedCompany = item.dataset.company;
-
-    companyInput.value = selectedCompany;
+companyInput.addEventListener("blur", () => {
+  setTimeout(() => {
     companySuggestions.innerHTML = "";
     companySuggestions.style.display = "none";
+  }, 150);
+});
+}
 
-    const contact = contacts.find(
-      (c) =>
-        String(c.company || "").trim().toLowerCase() ===
-        String(selectedCompany || "").trim().toLowerCase()
-    );
-
-    if (!contact || !form || !form.elements) return;
-
-    editId = contact.id;
-
-    Object.keys(contact).forEach((key) => {
-      const field = form.elements[key];
-
-      if (field) {
-        field.value =
-          key === "date_contacted" || key === "next_follow_up_date"
-            ? formatDate(contact[key])
-            : contact[key] || "";
-      }
-    });
-
-    renderMessage(
-      messageDiv,
-      "Existing contact loaded. Update fields and click Save Contact."
-    );
-  });
-  }
-
-  wireCompanyAutocomplete();
+wireCompanyAutocomplete();
 
     const statusFilter = document.getElementById("statusFilter");
 

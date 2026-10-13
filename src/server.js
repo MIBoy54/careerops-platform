@@ -156,16 +156,21 @@ app.use(
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (APP_ENV === "test" || (!IS_SANDBOX && !DEMO_MODE)) {
-        return false;
-    }
+  // CI test runs use isolated in-memory data and must be allowed to seed fixtures.
+  if (isCIMode()) {
+    return false;
+  }
 
-    res.status(403).json({
-        success: false,
-        error: `${action} is disabled in the CareerOps Demo.`
-    });
+  if (!IS_SANDBOX && !DEMO_MODE) {
+    return false;
+  }
 
-    return true;
+  res.status(403).json({
+    success: false,
+    error: `${action} is disabled in the CareerOps Demo.`
+  });
+
+  return true;
 }
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
@@ -422,7 +427,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
 
 try {
   if (isCIMode()) {
-    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
+    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length);
     return res.json(inMemoryContacts);
   }
 
@@ -452,7 +457,7 @@ try {
 
     console.log("GET /api/contacts ROW COUNT:", rows.length);
     const visibleRows = IS_SANDBOX
-      ? rows.map(({ notes, reported_unemployment, ...contact }) => contact)
+      ? rows.map(({ notes, ...contact }) => contact)
       : rows;
 
     return res.json(visibleRows);
@@ -549,7 +554,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
       try {
         const isAdmin = req.session?.user?.role === "admin";
 
-        if (isDemoSandbox && !isAdmin) {
+        if (IS_SANDBOX && !isAdmin) {
           return res.status(403).json({ error: "Read-only mode." });
         }
 
@@ -586,7 +591,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
           report_start: start,
           report_end: end,
           total_jobs_reported: rows.length,
-          jobs: rows
+          jobs: IS_SANDBOX ? rows.map(({ notes, ...contact }) => contact) : rows
         });
       } catch (error) {
         console.error("Unemployment report failed:", error);
@@ -698,7 +703,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         );
 
         const visibleEmployers = IS_SANDBOX
-          ? employerRows.map(({ notes, reported_to_unemployment, ...employer }) => employer)
+          ? employerRows.map(({ notes, ...employer }) => employer)
           : employerRows;
 
         res.json({
@@ -785,40 +790,34 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         }
       });
 
-app.post("/api/contacts", requireAuth, async (req, res) => { 
-  console.log("POST /api/contacts BODY:", req.body);
-  try {
-    const isDemoSandbox = IS_SANDBOX;
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-      return APP_ENV === "test";
-    }
+app.post("/api/contacts", requireAuth, async (req, res) => {
+  if (rejectDemoWrite(res)) return;
 
-    // DEMO is read-only, including for administrators.
-    if (APP_ENV === "demo") {
-      return res.status(403).json({
-        error: "Save Contact is disabled in the CareerOps Demo."
+  try {
+
+    // CI shortcut (no database)
+    if (isCIMode()) {
+      console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
+
+      const newContact = {
+        id: inMemoryContactId++,
+        ...req.body
+      };
+
+      inMemoryContacts.push(newContact);
+
+      console.log(
+        "CI POST /api/contacts AFTER:",
+        inMemoryContacts.length
+      );
+
+      return res.status(201).json({
+        message: "Contact created successfully",
+        id: newContact.id
       });
     }
 
-    // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
-if (isCIMode()) {
-  console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
-
-  const newContact = {
-    id: inMemoryContactId++,
-    ...req.body
-  };
-
-  inMemoryContacts.push(newContact);
-
-  console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
-
-  return res.status(201).json({
-    message: "Contact created successfully",
-    id: newContact.id
-  });
-}
+    // Existing production database logic continues here...
 
     const {
       date_contacted,
@@ -839,7 +838,6 @@ if (isCIMode()) {
       notes
     } = req.body;
 
-    console.log("POST /api/contacts payload:", req.body);
 
     const [result] = await pool.query(
       `
@@ -971,13 +969,9 @@ app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
     });
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
-  try {
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-  return APP_ENV === "test";
-}
+  if (rejectDemoWrite(res)) return;
 
-    if (rejectDemoWrite(res)) return;
+  try {
 
     // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) { 
@@ -1122,13 +1116,10 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
-  try {
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-  return APP_ENV === "test";
-}
+  if (rejectDemoWrite(res)) return;
 
-    if (rejectDemoWrite(res)) return;
+  try {
+
 
     // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) {
@@ -1348,8 +1339,7 @@ async function syncLiveToDemo() {
     // Copy parent/business data first.
     const demoContacts = contacts.map((contact) => ({
       ...contact,
-      notes: null,
-      reported_to_unemployment: null
+      notes: null
     }));
 
     const contactsInsert =
@@ -1856,9 +1846,8 @@ if (APP_ENV === "production" && environment.demoSyncEnabled && demoPool) {
           return res.status(404).json({ error: "No company record found." });
         }
 
-        console.log("Company details returned:", rows[0]);
-
-        res.json(rows[0]);
+        const { notes, ...publicContact } = rows[0];
+        res.json(IS_SANDBOX ? publicContact : rows[0]);
       } catch (error) {
         console.error("GET /api/companies/details failed:", error);
         res.status(500).json({ error: "Failed to fetch company details." });
