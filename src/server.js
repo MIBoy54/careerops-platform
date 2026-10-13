@@ -195,6 +195,12 @@ function requireAuth(req, res, next) {
 }
 
 app.post("/api/auth/register", async (req, res) => {
+  // LIVE uses its existing owner account; public account creation is disabled.
+  if (APP_ENV === "production") {
+    return res.status(403).json({ error: "Registration is disabled in production." });
+  }
+  if (rejectDemoWrite(res, "Registration")) return;
+
   try {
     const { email, password, full_name } = req.body;
 

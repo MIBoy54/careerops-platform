@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import bcrypt from 'bcrypt';
 const mocks = vi.hoisted(() => ({ createPool: vi.fn(), loadDotenv: vi.fn() }));
 vi.mock('mysql2/promise', () => ({ default: { createPool: mocks.createPool } }));
 vi.mock('dotenv', () => ({ default: { config: mocks.loadDotenv } }));
@@ -57,6 +58,76 @@ function installPool(name) {
 }
 beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {}); });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
+describe('Single-owner LIVE registration and access', () => {
+  it.each([undefined, { role: 'guest' }, { role: 'admin' }])('denies production registration before any database work %#', async user => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('production');
+    const { app } = await import('../../src/server.js');
+    pool.getConnection.mockClear();
+    for (const body of [{}, { email: 'fixture@example.test', password: 'fixture-password' }]) {
+      expect((await route(app, 'post', '/api/auth/register', user, body)).code).toBe(403);
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.getConnection).not.toHaveBeenCalled();
+  });
+
+  it('preserves existing password-backed LIVE login and authorized SQL contact operations', async () => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('production');
+    const password = 'synthetic-fixture-password';
+    const account = { id: 7, email: 'owner-fixture@example.test', full_name: 'Fixture Owner',
+      password_hash: await bcrypt.hash(password, 4) };
+    pool.query.mockImplementation(async sql => /FROM users/.test(sql) ? [[account]] : [{ insertId: 42, affectedRows: 1 }]);
+    const { app } = await import('../../src/server.js');
+    expect(mocks.createPool.mock.calls[0][0].database).toBe('railway');
+    const login = await route(app, 'post', '/api/auth/login', undefined,
+      { email: account.email, password });
+    expect(login.code).toBe(200);
+    expect(login.body.user.id).toBe(account.id);
+    expect(login.body.user).not.toHaveProperty('password_hash');
+    expect((await route(app, 'post', '/api/auth/login', undefined,
+      { email: account.email, password: 'incorrect' })).code).toBe(401);
+    pool.query.mockClear();
+    const contact = { company: 'Fixture Employer', notes: 'Fixture notes', reported_unemployment: 'Yes' };
+    expect((await route(app, 'post', '/api/contacts', login.body.user, contact)).code).toBe(201);
+    expect((await route(app, 'put', '/api/contacts/:id', login.body.user, contact)).code).toBe(200);
+    expect((await route(app, 'delete', '/api/contacts/:id', login.body.user)).code).toBe(200);
+    const calls = pool.query.mock.calls;
+    expect(calls).toHaveLength(3);
+    expect(calls[0][0]).toMatch(/INSERT INTO recruiter_tracker/);
+    expect(calls[0][1]).toContain('Yes');
+    expect(calls[0][1]).toContain('Fixture notes');
+    expect(calls[1][0]).toMatch(/UPDATE recruiter_tracker/);
+    expect(calls[1][1]).toContain('Yes');
+    expect(calls[1][1]).toContain('Fixture notes');
+    expect(calls[2][0]).toMatch(/DELETE FROM recruiter_tracker/);
+    for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined, contact)).code).toBe(401);
+    }
+    expect(pool.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('preserves public DEMO guest access while blocking registration and contact writes', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('demo');
+    const { app } = await import('../../src/server.js');
+    const me = await route(app, 'get', '/api/auth/me', undefined);
+    expect(me.code).toBe(200);
+    expect(me.body.user.role).toBe('guest');
+    expect(me.body.app_env).toBe('demo');
+    const contact = { id: 7, company: 'Fixture Employer', notes: 'Fixture notes', reported_unemployment: 'Yes' };
+    pool.query.mockResolvedValue([[contact]]);
+    expect((await route(app, 'get', '/api/contacts', undefined)).body).toEqual([
+      { id: 7, company: 'Fixture Employer', reported_unemployment: 'Yes' }
+    ]);
+    pool.query.mockClear();
+    for (const [method, path] of [['post', '/api/auth/register'], ['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined, contact)).code).toBe(403);
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});
 
 describe('Contact mutation release safeguards', () => {
   it.each(['demo', 'production'])('blocks all contact mutations in %s read-only mode before SQL', async name => {
