@@ -55,24 +55,22 @@
         guestBtn.textContent = "Logging in...";
 
         try {
-          const formData = new URLSearchParams();
-          formData.append("email", "guest@careerops.com");
-          formData.append("password", "GuestCPSS2@26");
-
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formData
+          const res = await fetch("/api/auth/me", {
+            credentials: "same-origin"
           });
 
-          if (res.ok || res.redirected) {
-            window.location.href = "/";
-            return;
+          if (!res.ok) {
+            throw new Error("Guest session request failed");
           }
 
-          throw new Error("Guest login failed");
+          const data = await res.json();
+
+          if (data.app_env !== "demo" || data.user?.role !== "guest") {
+            throw new Error("DEMO guest session not established");
+          }
+
+          window.location.href = "/";
+          return;
         } catch (err) {
           console.error(err);
           guestBtn.disabled = false;
