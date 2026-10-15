@@ -29,6 +29,7 @@ function stubEnv(name, extra = {}) {
   for (const [key, value] of Object.entries({
     APP_ENV: name, CI: '', NODE_ENV: '', VITEST: '', DEMO_MODE: 'false', BUILD_COMMIT_SHA: '', SESSION_SECRET: '',
     ...(name === 'test' ? {} : { DB_HOST: '127.0.0.1', DB_USER: 'fixture', DB_PASSWORD: 'fixture' }),
+    ...(name === 'dev' ? devFile : {}),
     ...extra
   })) vi.stubEnv(key, value);
 }
@@ -46,11 +47,34 @@ function installPool(name) {
   mocks.createPool.mockReturnValue(pool);
   return { pool, connection };
 }
-beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {}); });
+const devFile = { DB_HOST: '127.0.0.1', DB_PORT: '3306', DB_NAME: 'careerops_dev', DB_USER: 'careerops_dev_app',
+  DB_PASSWORD: 'synthetic-db-password', SESSION_SECRET: 'synthetic-session-secret', SESSION_TREND_SOURCE_TIME_ZONE: 'America/Chicago' };
+beforeEach(() => {
+  vi.resetModules(); vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {});
+  mocks.loadDotenv.mockImplementation(options => {
+    if (!options.processEnv) return { parsed: {} };
+    Object.assign(options.processEnv, devFile);
+    return { parsed: { ...devFile } };
+  });
+});
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 const sensitive = ['/setup-db', '/db-ping', '/debug-src', '/env-check', '/api/analytics/ping', '/api/demo-refresh', '/api/validation-runs/start', '/api/validation-runs/:id/complete'];
 describe('actual administrative route wiring, with mocked infrastructure', () => {
+  it('aborts DEV startup for an unreadable file without a pool or secret diagnostics', async () => {
+    stubEnv('dev'); installPool('dev');
+    mocks.loadDotenv.mockReturnValueOnce({ error: new Error(devFile.DB_PASSWORD) });
+    await expect(import('../../src/server.js')).rejects.toThrow('readable .env.dev');
+    expect(mocks.createPool).not.toHaveBeenCalled();
+    expect(JSON.stringify(console.log.mock.calls)).not.toContain(devFile.DB_PASSWORD);
+  });
+  it('does not print DEV credential or session-secret values during successful startup', async () => {
+    stubEnv('dev'); installPool('dev');
+    await import('../../src/server.js');
+    const output = JSON.stringify(console.log.mock.calls);
+    expect(output).not.toContain(devFile.DB_PASSWORD);
+    expect(output).not.toContain(devFile.SESSION_SECRET);
+  });
   it.each(sensitive)('protects %s from anonymous and nonadmin sessions', async path => {
     stubEnv('dev'); installPool('dev');
     const { app } = await import('../../src/server.js');
