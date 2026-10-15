@@ -28,9 +28,7 @@ function applyRoleBasedAccess() {
   const admin = isAdminUser();
 
   const isDemo =
-    APP_ENV === "demo" ||
-    window.location.hostname.includes("demo") ||
-    window.location.hostname.includes("sandbox");
+    APP_ENV === "demo";
 
   console.log("BANNER CHECK:", {
     APP_ENV,
@@ -1546,9 +1544,7 @@ function wireEditButtons() {
 
 function isDemoEnvironment() {
   return (
-    APP_ENV === "demo" ||
-    window.location.hostname.includes("demo") ||
-    window.location.hostname.includes("sandbox")
+    APP_ENV === "demo"
   );
 }
 
