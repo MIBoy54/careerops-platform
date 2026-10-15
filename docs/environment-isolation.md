@@ -16,13 +16,21 @@ must exactly match the mapping:
 | production | careerops |
 | test | No database connections |
 
-An omitted DB_NAME derives only from this validated mapping; no production fallback
+For deployed environments, an omitted DB_NAME derives only from this validated mapping; no production fallback
 exists. Missing or invalid APP_ENV, unsafe overrides, incomplete connection
 configuration, and malformed ports fail before pool creation.
 
-Inherited environment variables retain precedence over dotenv. `.env.demo` is
-selected when inherited APP_ENV is demo; otherwise `.env` is selected. Test mode
-never loads an environment file and rejects nonempty database/deployment bindings.
+DEV explicitly reads `.env.dev` when APP_ENV=dev is selected before loading
+configuration (normally by `npm run start:dev`). There is no `.env` fallback.
+The file must contain all required DEV settings; inherited values cannot fill
+missing settings, and conflicting inherited file keys fail startup with names-only
+errors. Inherited deployment/secondary bindings are still rejected. A legacy
+`.env` cannot select DEV through generic startup.
+
+For QA and production, the existing `.env` loader and inherited-variable precedence
+are unchanged: Railway service variables remain authoritative. DEMO continues to
+select `.env.demo`; no deployment configuration is reconciled in this change.
+Test mode never loads an environment file and rejects nonempty database/deployment bindings.
 NODE_ENV=test (case/whitespace normalized) or VITEST=true requires APP_ENV=test.
 CI=true alone is permitted for a deployed runtime, including Railway QA; it never
 activates test shortcuts unless APP_ENV=test. All test DB calls fail
@@ -32,9 +40,11 @@ remains available. Tests requiring SQL must use separate opt-in isolated fixture
 ## Local DEV prerequisites (configure only after separate authorization)
 
 Use APP_ENV=dev, DB_NAME=careerops_dev, a literal DB_HOST of 127.0.0.1 or ::1,
-the verified local DB_PORT, and a dedicated local DEV account. DB_USER must be
-explicit and DB_PASSWORD must be present (empty passwords remain permitted for
-local accounts). No DEMO_DB_*, RAILWAY_*, MYSQL*, or DATABASE_URL binding may be
+the verified local DB_PORT, and DB_USER=careerops_dev_app. All must be explicit
+in `.env.dev`, with nonempty DB_PASSWORD, SESSION_SECRET, and
+SESSION_TREND_SOURCE_TIME_ZONE. There is no credential or timezone default for DEV.
+See [DEV configuration runbook](dev-configuration.md) for setup and validation.
+No DEMO_DB_*, RAILWAY_*, MYSQL*, or DATABASE_URL binding may be
 nonempty in DEV. Broad root accounts are deliberately rejected: direct grants must
 be limited to SELECT/INSERT/UPDATE/DELETE in the exact careerops_dev schema plus
 global USAGE, without grant option, role grants, or cross-schema/global privileges.
@@ -47,11 +57,11 @@ With partial_revokes=ON, schema names are literal and `careerops_dev`.* is accep
 Table/column grant schemas are literal independently of that setting. Unknown or
 unavailable server semantics fail startup; no global settings are changed.
 
-`npm run start:dev` forces DEV before dotenv loading, but does not silently replace
-an unsafe DB_NAME. Thus the previously reported `.env` DB_NAME=careerops will
-prevent startup until an approved configuration correction is made. Generic
-`npm start` with local APP_ENV=production also fails because deployed environments
-require Railway project and environment IDs. No real .env was altered here.
+`npm run start:dev` forces DEV before dotenv loading. Missing/unreadable `.env.dev`,
+missing required variables, conflicting inherited values, incorrect account/schema,
+or a remote host fail before pool creation. Generic `npm start` requires APP_ENV=dev
+to be selected in the shell for DEV; `.env` cannot select it. No real environment
+file was altered during implementation.
 
 The DEV listener binds to loopback. DEMO synchronization is unavailable and no secondary pool is created.
 The DEV 9a543bb baseline contains no synchronization implementation; the guarded

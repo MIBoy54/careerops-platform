@@ -7,12 +7,45 @@ const LOOPBACK = new Set(['127.0.0.1', '::1']);
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
 const databaseBinding = key => /^(DB_|DEMO_DB_|MYSQL|DATABASE_URL$)/.test(key);
 const railwayBinding = key => key.startsWith('RAILWAY_');
+const DEV_REQUIRED = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+  'SESSION_SECRET', 'SESSION_TREND_SOURCE_TIME_ZONE'];
+
+function validateDevConfiguration(env) {
+  for (const key of DEV_REQUIRED) {
+    if (!nonempty(env[key])) throw new Error(`DEV requires ${key} in .env.dev`);
+  }
+  if (env.DB_USER !== 'careerops_dev_app') throw new Error('DEV requires the dedicated DB_USER careerops_dev_app');
+  if (!/^\d+$/.test(env.DB_PORT)) throw new Error('DEV requires a valid DB_PORT');
+}
 
 export function loadEnvironment(env, loadDotenv, directory) {
   // Tests never read the developer's .env, which may contain deployed credentials.
   if (env.APP_ENV?.trim() === 'test') return;
+  if (env.APP_ENV?.trim() === 'dev') {
+    // Read only the selected file, without populating process.env or logging values.
+    const fileEnv = {};
+    const result = loadDotenv({ path: `${directory}/.env.dev`, quiet: true, processEnv: fileEnv });
+    if (result?.error || !result?.parsed) throw new Error('DEV requires a readable .env.dev; no .env fallback is permitted');
+    if (fileEnv.APP_ENV !== undefined && fileEnv.APP_ENV !== 'dev') {
+      throw new Error('.env.dev APP_ENV must be dev');
+    }
+    validateDevConfiguration(fileEnv);
+    for (const key of Object.keys(fileEnv)) {
+      if (env[key] !== undefined && env[key] !== fileEnv[key]) {
+        throw new Error(`DEV configuration conflicts with inherited ${key}; clear the inherited variable`);
+      }
+    }
+    // Inherited Railway/secondary bindings must still fail the existing restrictions.
+    const candidate = { ...env, ...fileEnv, APP_ENV: 'dev' };
+    resolveEnvironment(candidate);
+    Object.assign(env, fileEnv);
+    return;
+  }
   const file = env.APP_ENV?.trim() === 'demo' ? '.env.demo' : '.env';
   loadDotenv({ path: `${directory}/${file}`, quiet: true });
+  if (env.APP_ENV?.trim() === 'dev') {
+    throw new Error('Select DEV before configuration loading with npm run start:dev or APP_ENV=dev; .env cannot select DEV');
+  }
 }
 
 export function resolveEnvironment(env) {
@@ -30,6 +63,7 @@ export function resolveEnvironment(env) {
     return Object.freeze({ appEnv, database: null, primary: null, secondary: null, demoSyncEnabled: false });
   }
   const database = DATABASE_NAMES[appEnv];
+  if (appEnv === 'dev') validateDevConfiguration(env);
   if (env.DB_NAME !== undefined && env.DB_NAME !== database) {
     throw new Error('DB_NAME does not match APP_ENV');
   }

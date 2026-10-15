@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAMES, resolveEnvironment, loadEnvironment, createDatabaseRuntime, assertDemoSyncAllowed } from '../../src/environment.js';
-const dev = (extra = {}) => ({ APP_ENV: 'dev', DB_HOST: '127.0.0.1', DB_USER: 'dev_fixture', DB_PASSWORD: 'fixture', ...extra });
+const dev = (extra = {}) => ({ APP_ENV: 'dev', DB_HOST: '127.0.0.1', DB_PORT: '3306', DB_NAME: 'careerops_dev',
+  DB_USER: 'careerops_dev_app', DB_PASSWORD: 'fixture', SESSION_SECRET: 'synthetic-session-secret',
+  SESSION_TREND_SOURCE_TIME_ZONE: 'America/Chicago', ...extra });
 const deployed = (name, extra = {}) => dev({ APP_ENV: name, DB_HOST: 'mock-deployment',
+  DB_NAME: DATABASE_NAMES[name],
   DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: 'a'.repeat(40),
   RAILWAY_PROJECT_ID: 'fixture-project', RAILWAY_ENVIRONMENT_ID: 'fixture-environment', ...extra });
 const demo = { DEMO_DB_HOST: 'mock-demo', DEMO_DB_USER: 'fixture', DEMO_DB_PASSWORD: 'fixture', DEMO_DB_NAME: 'careerops_demo' };
@@ -25,9 +28,9 @@ describe('environment selection and offline validation', () => {
   it.each(['careerops', 'careerops_demo', 'careerops_qa', 'careerops_dev '])('rejects DEV database %s', name => {
     expect(() => resolveEnvironment(dev({ DB_NAME: name }))).toThrow('DB_NAME');
   });
-  it('selects DEV explicitly with or without its exact DB_NAME', () => {
+  it('requires DEV to explicitly select its exact DB_NAME', () => {
     expect(resolveEnvironment(dev()).database).toBe('careerops_dev');
-    expect(resolveEnvironment(dev({ DB_NAME: 'careerops_dev' })).database).toBe('careerops_dev');
+    expect(() => resolveEnvironment(dev({ DB_NAME: undefined }))).toThrow('DB_NAME');
   });
   it.each(['railway.example', 'localhost', '0.0.0.0', '127.0.0.2', ' 127.0.0.1', undefined])('rejects nonapproved DEV host %s', host => {
     expect(() => resolveEnvironment(dev({ DB_HOST: host }))).toThrow();
@@ -68,8 +71,6 @@ describe('environment selection and offline validation', () => {
     expect(loader).not.toHaveBeenCalled();
     loadEnvironment({ APP_ENV: 'demo' }, loader, '/fixture');
     expect(loader).toHaveBeenCalledWith({ path: '/fixture/.env.demo', quiet: true });
-    loadEnvironment({ APP_ENV: 'dev' }, loader, '/fixture');
-    expect(loader).toHaveBeenLastCalledWith({ path: '/fixture/.env', quiet: true });
   });
 });
 

@@ -15,9 +15,11 @@ clock reading. The existing sixty-second refresh is retained.
 ## Required DEV configuration
 
 Set `SESSION_TREND_SOURCE_TIME_ZONE` to the **verified timezone used to record
-historical `first_seen` DATETIME values**. It has no default: missing configuration
-or unavailable MySQL timezone conversion produces an explicit HTTP 500 and a
-visible chart error, rather than misleading zero activity.
+historical `first_seen` DATETIME values** in `.env.dev`. It has no default:
+missing/blank configuration now fails DEV startup. The report handler still fails
+explicitly with HTTP 500 if configuration is missing at request time or MySQL
+timezone conversion is unavailable, rather than showing misleading zero activity.
+See the [recording-zone validation procedure](dev-configuration.md#session-trend-recording-zone).
 
 For genuinely UTC historical values, use `+00:00`. For a fixed-offset historical
 convention, use that verified offset. For regional wall-clock values, use the
