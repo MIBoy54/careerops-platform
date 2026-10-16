@@ -70,7 +70,7 @@ describe('explicit DEV file selection using real dotenv and synthetic files', ()
     expect(message).not.toContain(settings.DB_PASSWORD);
     logs.forEach(log => expect(log).not.toHaveBeenCalled());
   });
-  it.each(['qa', 'production', 'demo'])('preserves %s loading and inherited variable precedence', appEnv => {
+  it.each(['production', 'demo'])('preserves %s loading and inherited variable precedence', appEnv => {
     write('.env', { DB_PASSWORD: 'FILE_SENTINEL' });
     write('.env.demo', { DB_PASSWORD: 'DEMO_FILE_SENTINEL' });
     const env = { APP_ENV: appEnv, DB_PASSWORD: 'INHERITED_SENTINEL' };

@@ -36,7 +36,8 @@ LEFT JOIN counts c ON c.bucket_index = b.bucket_index
 ORDER BY b.bucket_index
 `;
 
-export function createSessionTrendHandler(pool, getSourceTimeZone = () => process.env.SESSION_TREND_SOURCE_TIME_ZONE) {
+export function createSessionTrendHandler(pool, getSourceTimeZone = () => process.env.SESSION_TREND_SOURCE_TIME_ZONE,
+  logFailure = error => console.error('Session trend failed:', error.message)) {
   return async (_req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
@@ -62,7 +63,7 @@ export function createSessionTrendHandler(pool, getSourceTimeZone = () => proces
         }))
       });
     } catch (error) {
-      console.error('Session trend failed:', error.message);
+      logFailure(error);
       res.status(500).json({ error: 'Session activity is unavailable. Please try again later.' });
     }
   };

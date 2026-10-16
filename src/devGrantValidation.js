@@ -29,8 +29,8 @@ function splitPrivileges(text) {
   return result;
 }
 
-function exactSchema(pattern, patternEnabled) {
-  if (!patternEnabled) return pattern === 'careerops_dev';
+function exactSchema(pattern, patternEnabled, expectedSchema) {
+  if (!patternEnabled) return pattern === expectedSchema;
   let literal = '';
   for (let i = 0; i < pattern.length; i++) {
     if (pattern[i] === '\\') {
@@ -43,10 +43,11 @@ function exactSchema(pattern, patternEnabled) {
       literal += pattern[i];
     }
   }
-  return literal === 'careerops_dev';
+  return literal === expectedSchema;
 }
 
-export function isSafeDevGrant(grant, partialRevokes) {
+export function isSafeSchemaGrant(grant, partialRevokes, expectedSchema) {
+  if (!['careerops_dev', 'careerops_qa'].includes(expectedSchema)) return false;
   if (typeof grant !== 'string' || typeof partialRevokes !== 'boolean') return false;
   const statement = /^\s*GRANT\s+(.+?)\s+ON\s+(.+?)\s+TO\s+(.+?)\s*$/i.exec(grant);
   if (!statement || !account.test(statement[3])) return false;
@@ -61,7 +62,22 @@ export function isSafeDevGrant(grant, partialRevokes) {
   const schemaLevel = scope[2] === '*';
   // Database-level grants use patterns unless partial_revokes is ON.
   // Table/column grants always identify the schema literally.
-  if (!exactSchema(schema, schemaLevel && !partialRevokes)) return false;
+  if (!exactSchema(schema, schemaLevel && !partialRevokes, expectedSchema)) return false;
   return privileges.every(privilege => /^(SELECT|INSERT|UPDATE|DELETE)$/i.test(privilege) ||
     (!schemaLevel && columnPrivilege.test(privilege)));
+}
+
+export function isSafeDevGrant(grant, partialRevokes) {
+  return isSafeSchemaGrant(grant, partialRevokes, 'careerops_dev');
+}
+
+// Full-schema SELECT is needed to enumerate every QA table for a complete backup.
+// Table-only grants could hide an unknown legacy table from information_schema.
+export function hasQaSchemaSelect(grants, partialRevokes) {
+  return grants.some(grant => {
+    if (!isSafeSchemaGrant(grant, partialRevokes, 'careerops_qa')) return false;
+    const statement = /^\s*GRANT\s+([A-Z,\s]+)\s+ON\s+(.+?)\s+TO\s+/i.exec(grant);
+    return statement && /\.\s*\*$/.test(statement[2]) &&
+      statement[1].split(',').some(p => p.trim().toUpperCase() === 'SELECT');
+  });
 }

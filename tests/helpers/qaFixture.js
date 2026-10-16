@@ -1,0 +1,9 @@
+// Synthetic identifiers only; never discovers a developer environment.
+export const QA_UUID = '11111111-1111-4111-8111-111111111111';
+export const LOCAL_UUID = '22222222-2222-4222-8222-222222222222';
+export const qaBindings = (host = 'mock-deployment', user = 'careerops_dev_app') => ({
+  DB_NAME: 'careerops_qa', QA_EXPECTED_DB_HOST: host, QA_EXPECTED_DB_PORT: '3306', QA_EXPECTED_DB_USER: user,
+  RAILWAY_PROJECT_ID: QA_UUID, RAILWAY_ENVIRONMENT_ID: QA_UUID, RAILWAY_SERVICE_ID: QA_UUID,
+  QA_EXPECTED_RAILWAY_PROJECT_ID: QA_UUID, QA_EXPECTED_RAILWAY_ENVIRONMENT_ID: QA_UUID,
+  QA_EXPECTED_RAILWAY_SERVICE_ID: QA_UUID, QA_EXPECTED_DB_SERVER_UUID: QA_UUID
+});

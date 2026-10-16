@@ -62,6 +62,10 @@ jobs:
 
           SESSION_TREND_TEST_MYSQL=1 npx vitest run --config tests/sessionTrend.config.js tests/regression/sessionTrendSql.test.js
 
+      - name: Run isolated QA refresh and restore regression
+        if: github.event_name == 'pull_request'
+        run: bash scripts/test-qa-refresh.sh
+
       - name: Run Unit Tests (DEV Gate)
         run: npx vitest run tests/unit
 

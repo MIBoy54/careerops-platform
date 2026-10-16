@@ -1,5 +1,9 @@
 # Database Operations Guide
 
+For QA use the [recovery-gated operator runbook](../qa-refresh-runbook.md). Database
+refresh is separate from code promotion. Historical counts and scripts are not
+proof of current Railway readiness. No deployment or database mutation is implied.
+
 CareerOps applies Quality Engineering principles to database management by treating the database as a version-controlled engineering artifact.
 
 ---
@@ -13,26 +17,15 @@ CareerOps maintains four independent database environments.
 | **careerops_dev** | Active development |
 | **careerops_qa** | Functional validation and testing |
 | **careerops_demo** | Public demonstration environment |
-| **careerops** | Production |
+| **railway** | Verified Railway production schema (dev runtime mapping discrepancy requires separate owner review) |
 
 ---
 
 # Promotion Workflow
 
-```
-careerops_dev
-        │
-        ▼
-careerops_qa
-        │
-        ▼
-careerops_demo
-        │
-        ▼
-careerops
-```
-
-Database changes are promoted sequentially through each environment.
+Code promotion: DEV → QA → PROD. DEMO is a restricted public view and is not a
+promotion step. A QA dataset refresh is independently approved and may use only
+verified local, privacy-reviewed staging; it never connects to live PROD.
 
 ---
 
@@ -81,10 +74,9 @@ Before promoting any schema change:
 - [ ] Smoke tests passed
 - [ ] Regression tests passed
 - [ ] Applied to careerops_qa
-- [ ] Demo validated
-- [ ] Applied to careerops_demo
-- [ ] Production deployment approved
-- [ ] Applied to careerops
+- [ ] QA validation completed
+- [ ] Separate production deployment/migration approval
+- [ ] PROD runtime/schema mapping reconciled and independently verified
 
 ---
 

@@ -1,3 +1,4 @@
+import { qaBindings, QA_UUID } from '../helpers/qaFixture.js';
 import { describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAMES, resolveEnvironment, loadEnvironment, createDatabaseRuntime, assertDemoSyncAllowed } from '../../src/environment.js';
 const dev = (extra = {}) => ({ APP_ENV: 'dev', DB_HOST: '127.0.0.1', DB_PORT: '3306', DB_NAME: 'careerops_dev',
@@ -6,7 +7,7 @@ const dev = (extra = {}) => ({ APP_ENV: 'dev', DB_HOST: '127.0.0.1', DB_PORT: '3
 const deployed = (name, extra = {}) => dev({ APP_ENV: name, DB_HOST: 'mock-deployment',
   DB_NAME: DATABASE_NAMES[name],
   DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: 'a'.repeat(40),
-  RAILWAY_PROJECT_ID: 'fixture-project', RAILWAY_ENVIRONMENT_ID: 'fixture-environment', ...extra });
+  RAILWAY_PROJECT_ID: 'fixture-project', RAILWAY_ENVIRONMENT_ID: 'fixture-environment', ...(name === 'qa' ? qaBindings() : {}), ...extra });
 const demo = { DEMO_DB_HOST: 'mock-demo', DEMO_DB_USER: 'fixture', DEMO_DB_PASSWORD: 'fixture', DEMO_DB_NAME: 'careerops_demo' };
 const mockMysql = (database = 'careerops_dev', grants = [
   "GRANT USAGE ON *.* TO 'fixture'@'localhost'",
@@ -14,6 +15,8 @@ const mockMysql = (database = 'careerops_dev', grants = [
 ], partialRevokes = 0) => {
   const connection = { query: vi.fn(async sql => {
     if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];
+    if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0 }]];
+    if (sql === 'SHOW GRANTS FOR CURRENT_USER' && database === 'careerops_qa') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_qa`.* TO 'fixture'@'localhost'" }]];
     if (sql.includes('partial_revokes')) return [[{ partial_revokes: partialRevokes }]];
     return [grants.map(grant => ({ grant }))];
   }), release: vi.fn() };
@@ -50,7 +53,7 @@ describe('environment selection and offline validation', () => {
     expect(() => resolveEnvironment(deployed(name, { DB_NAME: 'careerops_dev' }))).toThrow('DB_NAME');
   });
   it.each(['production', 'qa', 'demo'])('does not import destination pools or synchronization into %s', name => {
-    const config = resolveEnvironment(deployed(name, demo));
+    const config = resolveEnvironment(deployed(name, name === 'qa' ? {} : demo));
     expect(config.secondary).toBeNull();
     expect(() => assertDemoSyncAllowed(config)).toThrow();
   });
@@ -124,10 +127,10 @@ describe('database initialization fail-fast checks (mocked only)', () => {
   });
   it.each(['qa', 'production', 'demo'])('checks %s identity and preserves deployed primary pool configuration', async name => {
     const mysql = mockMysql(DATABASE_NAMES[name]);
-    const config = resolveEnvironment(deployed(name, demo));
+    const config = resolveEnvironment(deployed(name, name === 'qa' ? {} : demo));
     const runtime = await createDatabaseRuntime(mysql, config);
     expect(mysql.createPool).toHaveBeenCalledWith(config.primary);
-    expect(mysql.connection.query).toHaveBeenCalledTimes(1);
+    expect(mysql.connection.query).toHaveBeenCalledTimes(name === 'qa' ? 10 : 1);
     expect(mysql.createPool).toHaveBeenCalledTimes(1);
     expect(runtime.demoPool).toBeNull();
   });

@@ -1,3 +1,4 @@
+import { qaBindings, QA_UUID } from '../helpers/qaFixture.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ createPool: vi.fn(), loadDotenv: vi.fn() }));
 vi.mock('mysql2/promise', () => ({ default: { createPool: mocks.createPool } }));
@@ -38,6 +39,8 @@ function installPool(name) {
   const connection = {
     query: vi.fn(async sql => {
       if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];
+      if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0 }]];
+      if (sql === 'SHOW GRANTS FOR CURRENT_USER' && name === 'qa') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_qa`.* TO 'fixture'@'localhost'" }]];
       if (sql.includes('partial_revokes')) return [[{ partial_revokes: 0 }]];
       if (sql === 'SHOW GRANTS FOR CURRENT_USER') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_dev`.* TO 'fixture'@'localhost'" }]];
       return [{ insertId: 42 }];
@@ -133,7 +136,7 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
     const sha = 'b'.repeat(40);
     stubEnv('qa', {
       CI: 'true', RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture',
-      DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: sha
+      DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: sha, ...qaBindings('127.0.0.1', 'fixture')
     });
     const { pool } = installPool('qa');
     const { app } = await import('../../src/server.js');
@@ -144,6 +147,17 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
     const login = await route(app, 'post', '/api/auth/login', undefined, { email: 'fixture@example.test', password: 'fixture' });
     expect(login.code).toBe(401);
     expect(pool.query).toHaveBeenCalled();
+  });
+  it('reports QA Quality Gate History errors without leaking driver or session values', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    stubEnv('qa', { CI: 'true', DB_PORT: '3306', SESSION_SECRET: 'synthetic-only', BUILD_COMMIT_SHA: 'b'.repeat(40), ...qaBindings('127.0.0.1', 'fixture') });
+    const { pool } = installPool('qa');
+    const { app } = await import('../../src/server.js');
+    pool.query.mockRejectedValue(new Error('PRIVATE_DRIVER_VALUE'));
+    const response = await route(app, 'get', '/api/validation-runs', { role: 'admin', email: 'PRIVATE_SESSION_VALUE' });
+    expect(response.code).toBe(500);
+    expect(response.body).toEqual({ error: 'Failed to load validation run history.' });
+    expect(JSON.stringify([errors.mock.calls, console.log.mock.calls])).not.toMatch(/PRIVATE_/);
   });
   it('keeps CI contacts and login functional while test mode creates no DB pools', async () => {
     stubEnv('test', { CI: 'true', DEMO_MODE: 'true' });

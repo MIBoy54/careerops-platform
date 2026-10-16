@@ -1,3 +1,4 @@
+import { createRuntimeLogger } from './runtimeLogger.js';
 import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
 import { requireAdmin } from "./adminAccess.js";
 import { createSessionTrendHandler } from "./sessionTrend.js";
@@ -23,6 +24,7 @@ console.log("🔥 LOADING SERVER FILE:", __filename);
 loadEnvironment(process.env, dotenv.config, path.resolve(__dirname, '..'));
 const environment = resolveEnvironment(process.env);
 const APP_ENV = environment.appEnv;
+const runtimeLogger = createRuntimeLogger(APP_ENV);
 const DB_NAME = environment.database;
 const COMMIT_SHA = environment.buildCommitSha;
 const IS_SANDBOX = APP_ENV === "demo";
@@ -36,7 +38,7 @@ const STALE_THRESHOLD_MINUTES = 5;
 const app = express();
 
 app.use((req, res, next) => {
-  console.log(`REQ ${req.method} ${req.url}`);
+  runtimeLogger.log(`REQ ${req.method} ${req.url}`);
   next();
 });
 
@@ -49,7 +51,7 @@ function isCIMode() {
 let inMemoryContacts = [];
 let inMemoryContactId = 1;
 
-console.log("Validated runtime", { environment: APP_ENV, database: DB_NAME });
+runtimeLogger.log("Validated runtime", { environment: APP_ENV, database: DB_NAME });
 // Read-only identity/grant verification completes before accepting requests.
 const { pool } = await createDatabaseRuntime(mysql, environment);
 
@@ -80,7 +82,7 @@ app.use(
 
 app.use(express.static(path.join(__dirname, "../ui")));
 app.use((req, res, next) => {
-  console.log(`REQ ${req.method} ${req.url}`);
+  runtimeLogger.log(`REQ ${req.method} ${req.url}`);
   next();
 });
 
@@ -110,7 +112,7 @@ function rejectDemoWrite(res, action = "This action") {
 }
 
 function requireAuth(req, res, next) {
-  console.log("requireAuth session user:", req.session.user);
+  runtimeLogger.log("requireAuth session user:", req.session.user);
 
   if (IS_SANDBOX) {
     if (!req.session.user) {
@@ -176,7 +178,7 @@ app.post("/api/auth/register", async (req, res) => {
       user: req.session.user
     });
   } catch (error) {
-    console.error("Register failed:", error);
+    runtimeLogger.error("Register failed:", error);
     res.status(500).json({ error: "Failed to register user." });
   }
 });
@@ -253,7 +255,7 @@ app.post("/api/auth/login", async (req, res) => {
       user: req.session.user
     });
   } catch (error) {
-    console.error("Login error:", error);
+    runtimeLogger.error("Login error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -261,7 +263,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error("Logout failed:", err);
+      runtimeLogger.error("Logout failed:", err);
       return res.status(500).json({ error: "Failed to log out." });
     }
 
@@ -279,7 +281,7 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/api/analytics/ping", requireAdmin, (req, res) => {
-  console.log("REQ GET /api/analytics/ping");
+  runtimeLogger.log("REQ GET /api/analytics/ping");
   res.json({
     success: true,
     app: "careerops-platform",
@@ -342,33 +344,33 @@ app.post("/api/demo-refresh", requireAdmin, (_req, res) => {
 app.get("/", (req, res) => {
   try {
     const indexPath = path.join(__dirname, "../ui/index.html");
-    console.log("ROOT HIT", {
+    runtimeLogger.log("ROOT HIT", {
       hasUser: !!req.session?.user,
       demoMode: DEMO_MODE,
       indexPath
     });
 
     if (!req.session?.user && !DEMO_MODE) {
-      console.log("ROOT REDIRECT -> /login.html");
+      runtimeLogger.log("ROOT REDIRECT -> /login.html");
       return res.redirect("/login.html");
     }
 
-    console.log("ROOT SENDFILE ->", indexPath);
+    runtimeLogger.log("ROOT SENDFILE ->", indexPath);
     return res.sendFile(indexPath);
   } catch (err) {
-    console.error("Root route error:", err);
+    runtimeLogger.error("Root route error:", err);
     return res.status(500).send("Server error");
   }
 });
 
 app.get("/api/contacts", requireAuth, async (req, res) => {
  
- console.log("HIT PROTECTED /api/contacts ROUTE");
-  console.log("GET /api/contacts MODE:", DEMO_MODE);
+ runtimeLogger.log("HIT PROTECTED /api/contacts ROUTE");
+  runtimeLogger.log("GET /api/contacts MODE:", DEMO_MODE);
 
 try {
   if (isCIMode()) {
-    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
+    runtimeLogger.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
     return res.json(inMemoryContacts);
   }
 
@@ -396,12 +398,12 @@ try {
       ORDER BY id DESC
     `);
 
-    console.log("GET /api/contacts ROW COUNT:", rows.length);
-    console.log("GET /api/contacts FIRST ROW:", rows[0]);
+    runtimeLogger.log("GET /api/contacts ROW COUNT:", rows.length);
+    runtimeLogger.log("GET /api/contacts FIRST ROW:", rows[0]);
 
     return res.json(rows);
   } catch (error) {
-    console.error("GET /api/contacts failed:", error);
+    runtimeLogger.error("GET /api/contacts failed:", error);
     return res.status(500).json({ error: "Failed to fetch contacts" });
   }
 });
@@ -447,7 +449,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
 
     res.json(formattedRuns);
   } catch (error) {
-    console.error("GitHub Actions Summary Failed:", {
+    runtimeLogger.error("GitHub Actions Summary Failed:", {
       message: error.message,
       status: error.status,
       response: error.response?.data
@@ -484,7 +486,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
 
         res.json(rows);
       } catch (error) {
-        console.error("GET /api/reports failed:", error);
+        runtimeLogger.error("GET /api/reports failed:", error);
         res.status(500).json({ error: "Failed to load weekly reports" });
       }
     });
@@ -534,7 +536,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
           jobs: rows
         });
       } catch (error) {
-        console.error("Unemployment report failed:", error);
+        runtimeLogger.error("Unemployment report failed:", error);
         res.status(500).json({ error: "Error generating unemployment report" });
       }
     });
@@ -585,7 +587,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
 
     res.send(csv);
   } catch (error) {
-    console.error("Export failed:", error);
+    runtimeLogger.error("Export failed:", error);
     res.status(500).json({ error: "Failed to export report" });
   }
 });
@@ -647,7 +649,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
           employers: employerRows
         });
       } catch (error) {
-        console.error("GET /api/reports/:id failed:", error);
+        runtimeLogger.error("GET /api/reports/:id failed:", error);
         res.status(500).json({ error: "Failed to load weekly report detail" });
       }
     });
@@ -721,7 +723,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
           res.attachment("recruiter_export.csv");
           res.send(csv);
         } catch (error) {
-          console.error("CSV export failed:", error);
+          runtimeLogger.error("CSV export failed:", error);
           res.status(500).send("Error generating CSV");
         }
       });
@@ -744,7 +746,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
     // CI shortcut (no database)
     if (isCIMode()) {
-      console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
+      runtimeLogger.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
 
       const newContact = {
         id: inMemoryContactId++,
@@ -753,7 +755,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
       inMemoryContacts.push(newContact);
 
-      console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
+      runtimeLogger.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
 
       return res.status(201).json({
         message: "Contact created successfully",
@@ -782,7 +784,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       notes
     } = req.body;
 
-    console.log("POST /api/contacts payload:", req.body);
+    runtimeLogger.log("POST /api/contacts payload:", req.body);
 
     const [result] = await pool.query(
       `
@@ -830,7 +832,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       id: result.insertId
     });
   } catch (error) {
-    console.error("POST /api/contacts failed:", {
+    runtimeLogger.error("POST /api/contacts failed:", {
       message: error.message,
       code: error.code,
       errno: error.errno,
@@ -853,7 +855,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
           sessions_today: rows[0]?.sessions_today ?? 0
         });
       } catch (error) {
-        console.error("GET /api/analytics/sessions-today failed:", error);
+        runtimeLogger.error("GET /api/analytics/sessions-today failed:", error);
         res.json({ sessions_today: 0 });
       }
     });
@@ -879,7 +881,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
         res.json(rows);
       } catch (error) {
-        console.error("GET /api/validation-runs failed:", error);
+        runtimeLogger.error("GET /api/validation-runs failed:", error);
         res.status(500).json({ error: "Failed to load validation run history." });
       }
     });
@@ -908,7 +910,7 @@ app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
           message: "Validation run started."
         });
       } catch (error) {
-        console.error("POST /api/validation-runs/start failed:", error);
+        runtimeLogger.error("POST /api/validation-runs/start failed:", error);
         res.status(500).json({ error: "Failed to start validation run." });
       }
     });
@@ -1025,7 +1027,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 
     res.json({ message: "Contact updated successfully" });
   } catch (error) {
-    console.error("PUT /api/contacts/:id failed:", error);
+    runtimeLogger.error("PUT /api/contacts/:id failed:", error);
     res.status(500).json({ error: "Failed to update contact" });
   }
 });
@@ -1064,7 +1066,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
 
         res.status(200).json({ success: true });
       } catch (error) {
-        console.error("Heartbeat update failed:", error);
+        runtimeLogger.error("Heartbeat update failed:", error);
         res.status(500).json({ error: "Heartbeat failed" });
       }
     });
@@ -1101,7 +1103,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 
     res.json({ message: "Contact deleted successfully" });
   } catch (error) {
-    console.error("DELETE /api/contacts/:id failed:", error);
+    runtimeLogger.error("DELETE /api/contacts/:id failed:", error);
     res.status(500).json({ error: "Failed to delete contact" });
   }
 });
@@ -1140,7 +1142,7 @@ app.put("/api/validation-runs/:id/complete", requireAdmin, async (req, res) => {
 
         res.json({ message: "Validation run completed." });
       } catch (error) {
-        console.error("PUT /api/validation-runs/:id/complete failed:", error);
+        runtimeLogger.error("PUT /api/validation-runs/:id/complete failed:", error);
         res.status(500).json({ error: "Failed to complete validation run." });
       }
     });
@@ -1209,7 +1211,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
         });
       } catch (error) {
         await connection.rollback();
-        console.error("POST /api/reports failed:", error);
+        runtimeLogger.error("POST /api/reports failed:", error);
         res.status(500).json({ error: "Failed to generate weekly report" });
       } finally {
         connection.release();
@@ -1249,7 +1251,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
 
         res.status(200).json({ totals, pages });
       } catch (error) {
-        console.error("GET /api/analytics/summary failed:", error);
+        runtimeLogger.error("GET /api/analytics/summary failed:", error);
         res.status(500).json({ error: "Failed to load analytics summary." });
       }
     });
@@ -1283,7 +1285,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
       );
         res.status(200).json({ success: true });
       } catch (error) {
-        console.error("POST /api/analytics/start failed:", {
+        runtimeLogger.error("POST /api/analytics/start failed:", {
           message: error.message,
           code: error.code,
           errno: error.errno,
@@ -1311,12 +1313,12 @@ app.post("/api/reports", requireAuth, async (req, res) => {
   }
 }
 
-    app.get("/api/analytics/session-trend", requireAuth, createSessionTrendHandler(pool));
+    app.get("/api/analytics/session-trend", requireAuth, createSessionTrendHandler(pool, undefined, error => runtimeLogger.error('Session trend failed:', error)));
 
     app.get("/api/analytics/active-users", requireAuth, async (req, res) => {
       try {
         const [dbCheck] = await pool.query("SELECT DATABASE() AS db");
-        console.log("ACTIVE USERS DB:", dbCheck);
+        runtimeLogger.log("ACTIVE USERS DB:", dbCheck);
 
         const activeCutoff = new Date(
           Date.now() - ACTIVE_THRESHOLD_MINUTES * 60 * 1000
@@ -1335,7 +1337,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
           active_users: rows[0]?.active_users ?? 0
         });
       } catch (error) {
-        console.error("GET /api/analytics/active-users failed:", error);
+        runtimeLogger.error("GET /api/analytics/active-users failed:", error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -1343,7 +1345,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
     app.get("/api/analytics/stale-sessions", requireAuth, async (req, res) => {
       try {
         const [dbCheck] = await pool.query("SELECT DATABASE() AS db");
-        console.log("STALE SESSIONS DB:", dbCheck);
+        runtimeLogger.log("STALE SESSIONS DB:", dbCheck);
 
         const staleCutoff = new Date(
           Date.now() - STALE_THRESHOLD_MINUTES * 60 * 1000
@@ -1362,7 +1364,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
           stale_sessions: rows[0]?.stale_sessions ?? 0
         });
       } catch (error) {
-        console.error("GET /api/analytics/stale-sessions failed:", error);
+        runtimeLogger.error("GET /api/analytics/stale-sessions failed:", error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -1389,7 +1391,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
 
         res.json(rows.map((row) => row.company));
       } catch (error) {
-        console.error("GET /api/companies/search failed:", error);
+        runtimeLogger.error("GET /api/companies/search failed:", error);
         res.status(500).json({ error: "Failed to search companies." });
       }
     });
@@ -1432,11 +1434,11 @@ app.post("/api/reports", requireAuth, async (req, res) => {
           return res.status(404).json({ error: "No company record found." });
         }
 
-        console.log("Company details returned:", rows[0]);
+        runtimeLogger.log("Company details returned:", rows[0]);
 
         res.json(rows[0]);
       } catch (error) {
-        console.error("GET /api/companies/details failed:", error);
+        runtimeLogger.error("GET /api/companies/details failed:", error);
         res.status(500).json({ error: "Failed to fetch company details." });
       }
     });
@@ -1450,7 +1452,7 @@ app.post("/api/reports", requireAuth, async (req, res) => {
         const [rows] = await pool.query("SELECT 1 AS ok");
         res.json(rows[0]);
       } catch (err) {
-        console.error("db-ping failed:", err);
+        runtimeLogger.error("db-ping failed:", err);
         res.status(500).json({
           error: err.message,
           code: err.code,
@@ -1482,6 +1484,6 @@ export { app };
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   const bindHost = APP_ENV === "dev" || APP_ENV === "test" ? "127.0.0.1" : "0.0.0.0";
   app.listen(PORT, bindHost, () => {
-    console.log(`Server running on port ${PORT}`);
+    runtimeLogger.log(`Server running on port ${PORT}`);
   });
 }
