@@ -30,7 +30,7 @@ describe('QA runtime isolation', () => {
   it.each(QA_TABLES)('missing %s blocks QA startup and emits no driver secrets', async missing => {
     const connection = { query: vi.fn(async sql => {
       if (sql === 'SELECT DATABASE() AS db') return [[{ db: 'careerops_qa' }]];
-      if (sql.includes('@@server_uuid')) return [[{ db: 'careerops_qa', server_uuid: QA_UUID, partial_revokes: 0 }]];
+      if (sql.includes('@@server_uuid')) return [[{ db: 'careerops_qa', server_uuid: QA_UUID, partial_revokes: 0, authenticated_account: 'careerops_dev_app@synthetic-host' }]];
       if (sql.startsWith('SHOW GRANTS')) return [[{ grant: "GRANT SELECT ON `careerops\\_qa`.* TO 'fixture'@'localhost'" }]];
       if (sql.includes(`\`${missing}\``)) throw new Error('PRIVATE_PASSWORD');
       return [[]];
@@ -40,8 +40,8 @@ describe('QA runtime isolation', () => {
     expect(pool.end).toHaveBeenCalled(); expect(connection.release).toHaveBeenCalled();
   });
   it('rejects a mismatched physical server identity before table reads', async () => {
-    const query = vi.fn(async () => [[{ db: 'careerops_qa', server_uuid: 'wrong', partial_revokes: 0 }]]);
-    await expect(verifyQaConnection({ query }, QA_UUID)).rejects.toThrow('identity'); expect(query).toHaveBeenCalledTimes(1);
+    const query = vi.fn(async () => [[{ db: 'careerops_qa', server_uuid: 'wrong', partial_revokes: 0, authenticated_account: 'careerops_dev_app@synthetic-host' }]]);
+    await expect(verifyQaConnection({ query }, QA_UUID, 'careerops_dev_app')).rejects.toThrow('identity'); expect(query).toHaveBeenCalledTimes(1);
   });
 });
 describe('local dataset privacy, schema and recovery gates', () => {

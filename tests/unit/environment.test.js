@@ -15,7 +15,7 @@ const mockMysql = (database = 'careerops_dev', grants = [
 ], partialRevokes = 0) => {
   const connection = { query: vi.fn(async sql => {
     if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];
-    if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0 }]];
+    if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0, authenticated_account: 'careerops_dev_app@synthetic-host' }]];
     if (sql === 'SHOW GRANTS FOR CURRENT_USER' && database === 'careerops_qa') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_qa`.* TO 'fixture'@'localhost'" }]];
     if (sql.includes('partial_revokes')) return [[{ partial_revokes: partialRevokes }]];
     return [grants.map(grant => ({ grant }))];

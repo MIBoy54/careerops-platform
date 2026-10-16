@@ -5,11 +5,12 @@ import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { REFRESH_TABLES, digest, requireGate, sanitizeDataset, assertTableSchemas } from '../src/qaDataset.js';
-import { assertApproval, assertInventory, inspectDatabase, createRefreshPlan, executeRefresh, validateRestore } from '../src/qaRefresh.js';
+import { assertApproval, assertInventory, inspectDatabase, createRefreshPlan, createCounterReadinessPlan, executeRefresh, validateRestore } from '../src/qaRefresh.js';
 import { verifyQaConnection } from '../src/qaIdentity.js';
 
 const usage = `QA refresh: offline by default
   node scripts/qa-refresh.js plan --bundle B --manifest M --audit A --backup D --restore R --output P
+  node scripts/qa-refresh.js counter-plan --bundle B --manifest M --audit A --backup D --restore R --output C
   node scripts/qa-refresh.js sanitize --input I --orphans N --output B --orphan-audit O
   node scripts/qa-refresh.js export-local --schema S --server-uuid U --snapshot D --output I --connect-stdin
   node scripts/qa-refresh.js inspect --manifest M --approval A --output I --connect-stdin
@@ -24,6 +25,7 @@ function parse(argv) {
   const options = {};
   const allowed = {
     plan: ['bundle', 'manifest', 'audit', 'backup', 'restore', 'output'],
+    'counter-plan': ['bundle', 'manifest', 'audit', 'backup', 'restore', 'output'],
     sanitize: ['input', 'orphans', 'output', 'orphan-audit'],
     'export-local': ['schema', 'server-uuid', 'snapshot', 'output', 'connect-stdin'],
     inspect: ['manifest', 'approval', 'output', 'connect-stdin'],
@@ -98,10 +100,11 @@ export async function main(argv = process.argv.slice(2)) {
     writePrivate(o['orphan-audit'], { sourceSha256: digest(readFileSync(privatePath(o.input))), removed: orphanAudit });
     writePrivate(o.output, bundle); console.log('Local sanitization complete; owner field review still required.'); return;
   }
-  if (command === 'plan') {
-    const plan = createRefreshPlan(readPrivate(o.bundle), readPrivate(o.manifest), readPrivate(o.audit),
+  if (command === 'plan' || command === 'counter-plan') {
+    const build = command === 'plan' ? createRefreshPlan : createCounterReadinessPlan;
+    const plan = build(readPrivate(o.bundle), readPrivate(o.manifest), readPrivate(o.audit),
       readFileSync(privatePath(o.backup)), readPrivate(o.restore));
-    writePrivate(o.output, plan); console.log(`Offline plan validated: ${plan.planHash}`); return;
+    writePrivate(o.output, plan); console.log(command === 'plan' ? `Offline plan validated: ${plan.planHash}` : `Offline counter readiness report: ${plan.reportHash}; separate approval required`); return;
   }
   if (command === 'export-local' || command === 'verify-restore') {
     const database = command === 'export-local' ? o.schema : 'careerops_qa_restore_validation';
@@ -142,7 +145,7 @@ export async function main(argv = process.argv.slice(2)) {
   writeFileSync(receiptPath, JSON.stringify({ status: 'in-progress', planHash: plan?.planHash || digest(manifest.target) }), { flag: 'wx', mode: 0o600 });
   const connection = await connect(o, manifest.target);
   try {
-    await verifyQaConnection(connection, manifest.target.serverUuid);
+    await verifyQaConnection(connection, manifest.target.serverUuid, manifest.target.user);
     if (command === 'inspect') {
       await connection.query('SET SESSION TRANSACTION READ ONLY');
       await connection.beginTransaction();

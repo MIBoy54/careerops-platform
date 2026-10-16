@@ -115,7 +115,7 @@ export async function verifyPrimaryDatabase(pool, config) {
   try {
     const [rows] = await connection.query('SELECT DATABASE() AS db');
     if (rows[0]?.db !== config.database) throw new Error('Primary database identity does not match APP_ENV');
-    if (config.appEnv === 'qa') await verifyQaConnection(connection, config.qaServerUuid);
+    if (config.appEnv === 'qa') await verifyQaConnection(connection, config.qaServerUuid, config.primary.user);
     if (config.appEnv === 'dev') {
       // Reject accounts capable of reaching other schemas, even through a local tunnel.
       const [settings] = await connection.query('SELECT @@GLOBAL.partial_revokes AS partial_revokes');

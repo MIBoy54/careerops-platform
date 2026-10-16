@@ -33,7 +33,13 @@ export function assertTableSchemas(schemas) {
     for (const c of columns) {
       requireGate(Object.hasOwn(FIELD_POLICY[table], c.name), 'unclassified field');
       requireGate(typeof c.type === 'string' && typeof c.nullable === 'boolean' && Object.hasOwn(c, 'default'), 'column metadata');
-      requireGate(!c.extra || c.extra === 'auto_increment', 'generated or unknown column');
+      // MySQL labels temporal CURRENT_TIMESTAMP defaults DEFAULT_GENERATED.
+      // This is not a generated column; permit only the reviewed timestamp default.
+      const temporalDefault = c.extra === 'DEFAULT_GENERATED' &&
+        /^(timestamp|datetime)(\(\d+\))?$/i.test(c.type) &&
+        /^(created_at|updated_at|submitted_at)$/.test(c.name) &&
+        /^CURRENT_TIMESTAMP(?:\(\d*\))?$/i.test(c.default || '');
+      requireGate(!c.extra || c.extra === 'auto_increment' || temporalDefault, 'generated or unknown column');
     }
     const names = columns.map(c => c.name);
     for (const name of table === 'report_job_contacts' ? ['report_id', 'recruiter_tracker_id'] : ['id']) {
@@ -47,10 +53,14 @@ function assertRows(schemas, data) {
   for (const table of REFRESH_TABLES) {
     requireGate(Array.isArray(data[table]) && data[table].length > 0, 'zero rows');
     const ids = new Set();
+    const primaryIds = new Set();
     for (const row of data[table]) {
       requireGate(sameKeys(Object.keys(row), schemas[table].map(c => c.name)), 'row columns');
       for (const key of ['id', 'report_id', 'recruiter_tracker_id'].filter(k => Object.hasOwn(row, k))) {
         requireGate(Number.isSafeInteger(row[key]) && row[key] > 0 && row[key] < 10000000, 'key range');
+      }
+      if (Object.hasOwn(row, 'id')) {
+        requireGate(!primaryIds.has(row.id), 'duplicate primary IDs'); primaryIds.add(row.id);
       }
       const key = table === 'report_job_contacts' ? `${row.report_id}:${row.recruiter_tracker_id}` : row.id;
       requireGate(!ids.has(key), 'duplicate keys'); ids.add(key);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Plans by default. No password argument, dotenv, Railway API or source PROD access.
+import { assertQaDatabaseIdentity } from '../src/qaIdentity.js';
 import { readFileSync, writeFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -38,8 +39,8 @@ export function backupMain(argv = process.argv.slice(2)) {
     requireGate(!result.error && result.status === 0, 'backup client failed'); return result.stdout;
   };
   const identity = run('mysql', [...connectionArgs, '--batch', '--skip-column-names', `--database=${t.database}`,
-    '--execute=SELECT DATABASE(), @@server_uuid, @@GLOBAL.partial_revokes']).trim().split('\t');
-  requireGate(identity[0] === 'careerops_qa' && identity[1] === t.serverUuid && ['0', '1'].includes(identity[2]), 'backup identity');
+    '--execute=SELECT DATABASE(), @@server_uuid, @@GLOBAL.partial_revokes, CURRENT_USER()']).trim().split('\t');
+  assertQaDatabaseIdentity({ db: identity[0], server_uuid: identity[1], partial_revokes: identity[2], authenticated_account: identity[3] }, t.serverUuid, t.user);
   const grants = run('mysql', [...connectionArgs, '--batch', '--raw', '--skip-column-names', '--execute=SHOW GRANTS FOR CURRENT_USER']).trim().split('\n');
   requireGate(hasQaSchemaSelect(grants, identity[2] === '1') && grants.length > 0 && grants.every(g => isSafeSchemaGrant(g, identity[2] === '1', 'careerops_qa')), 'backup privileges');
   // Reserve both destinations before starting mysqldump; no overwrite/retry.

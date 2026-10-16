@@ -39,9 +39,9 @@ function installPool(name) {
   const connection = {
     query: vi.fn(async sql => {
       if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];
-      if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0 }]];
+      if (sql.includes('@@server_uuid')) return [[{ db: database, server_uuid: QA_UUID, partial_revokes: 0, authenticated_account: 'fixture@synthetic-host' }]];
       if (sql === 'SHOW GRANTS FOR CURRENT_USER' && name === 'qa') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_qa`.* TO 'fixture'@'localhost'" }]];
-      if (sql.includes('partial_revokes')) return [[{ partial_revokes: 0 }]];
+      if (sql.includes('partial_revokes')) return [[{ partial_revokes: 0, authenticated_account: 'fixture@synthetic-host' }]];
       if (sql === 'SHOW GRANTS FOR CURRENT_USER') return [[{ grant: "GRANT SELECT, INSERT, UPDATE, DELETE ON `careerops\\_dev`.* TO 'fixture'@'localhost'" }]];
       return [{ insertId: 42 }];
     }), release: vi.fn(), beginTransaction: vi.fn(), commit: vi.fn(), rollback: vi.fn()

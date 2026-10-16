@@ -12,6 +12,10 @@ const contentHash = rows => digest(rows.map(r => JSON.stringify(r)).sort());
 export async function inspectDatabase(connection, schema, lock = false) {
   const [identity] = await connection.query('SELECT DATABASE() AS db, @@server_uuid AS server_uuid');
   requireGate(identity[0]?.db === schema && uuidPattern.test(identity[0]?.server_uuid || ''), 'database identity');
+  // Cached information_schema statistics can hide a newer counter and lead an
+  // operator to propose lowering it. This session-only setting performs no DDL
+  // or data change; unsupported servers fail closed instead of using stale data.
+  await connection.query('SET SESSION information_schema_stats_expiry = 0');
   const [tables] = await connection.query(`SELECT TABLE_NAME AS name, ENGINE AS engine, TABLE_TYPE AS kind,
     AUTO_INCREMENT AS autoIncrement FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, [schema]);
   requireGate(tables.length > 0 && tables.every(t => t.kind === 'BASE TABLE' && t.engine === 'InnoDB'), 'transactional tables required');
@@ -85,7 +89,7 @@ export function validateRestore(audit, restored, backup, bytes, localIdentity) {
     localServerUuid: localIdentity.serverUuid, verifiedAt: new Date().toISOString(), passed: true };
 }
 
-export function createRefreshPlan(bundle, manifest, audit, backupBytes, restore, now = Date.now()) {
+function validateRefreshReadiness(bundle, manifest, audit, backupBytes, restore, now) {
   assertInventory(manifest.target);
   requireGate(manifest.version === 1 && manifest.source?.kind === 'verified-local-restore' &&
     hashPattern.test(manifest.source.snapshotSha256 || '') && hashPattern.test(manifest.source.restoreEvidenceSha256 || ''), 'verified local source required');
@@ -110,14 +114,47 @@ export function createRefreshPlan(bundle, manifest, audit, backupBytes, restore,
   }
   for (const table of REFRESH_TABLES) {
     requireGate(manifest.expectedCounts?.[table] > 0 && manifest.expectedCounts[table] === bundle.data[table].length, 'expected count mismatch');
-    const auto = audit.tables[table].columns.find(c => c.extra === 'auto_increment');
-    if (auto) {
-      const highWater = audit.tables[table].autoIncrement;
-      requireGate(highWater !== null && BigInt(highWater) > BigInt(Math.max(...bundle.data[table].map(r => r[auto.name]))), 'AUTO_INCREMENT reserve required before rehearsal');
-    }
   }
   checkSchemaCompatibility(bundle.schemas, schemasFrom(audit), bundle.data);
   requireGate(manifest.rollback?.owner && manifest.rollback.restoreProcedureReviewed === true && manifest.rollback.writersQuiesced === true && manifest.rollback.dependencyReviewApproved === true, 'rollback and maintenance prerequisites');
+  return;
+}
+
+// Offline evidence only. Never connects, emits SQL, changes counters or grants,
+// or yields an executable refresh plan. Reuses every recovery/privacy/schema gate.
+export function createCounterReadinessPlan(bundle, manifest, audit, backupBytes, restore, now = Date.now()) {
+  validateRefreshReadiness(bundle, manifest, audit, backupBytes, restore, now);
+  const counters = REFRESH_TABLES.map(table => {
+    const auto = audit.tables[table].columns.filter(c => c.extra === 'auto_increment');
+    requireGate(auto.length <= 1, 'multiple auto-increment columns');
+    if (!auto.length) return { table, column: null, ready: true };
+    const column = auto[0];
+    requireGate(column.name === 'id', 'unreviewed auto-increment key');
+    const type = /^(tinyint|smallint|mediumint|int|bigint)(?:\(\d+\))?( unsigned)?$/i.exec(column.type);
+    requireGate(type, 'counter integer type');
+    const bits = { tinyint: 8, smallint: 16, mediumint: 24, int: 32, bigint: 64 }[type[1].toLowerCase()];
+    const capacity = (1n << BigInt(bits - (type[2] ? 0 : 1))) - 1n;
+    const current = audit.tables[table].autoIncrement;
+    requireGate(typeof current === 'string' && /^[1-9]\d*$/.test(current), 'counter metadata');
+    const maximum = bundle.data[table].reduce((max, row) => {
+      requireGate(Number.isSafeInteger(row[column.name]) && row[column.name] > 0, 'staged counter key');
+      return BigInt(row[column.name]) > max ? BigInt(row[column.name]) : max;
+    }, 0n);
+    const minimum = maximum + 1n;
+    requireGate(minimum <= capacity && BigInt(current) <= capacity, 'counter capacity');
+    return { table, column: column.name, stagedMaximum: maximum.toString(), current: current,
+      minimumNextValue: minimum.toString(), proposedNextValue: (BigInt(current) > minimum ? BigInt(current) : minimum).toString(),
+      ready: BigInt(current) > maximum };
+  });
+  const report = { kind: 'counter-readiness-only', requiresSeparateOwnerApproval: true,
+    bundleHash: digest(bundle), targetInventoryHash: digest(manifest.target), targetStateHash: stateHash(audit),
+    backupSha256: manifest.backup.sha256, counters, ready: counters.every(c => c.ready) };
+  return { ...report, reportHash: digest(report) };
+}
+
+export function createRefreshPlan(bundle, manifest, audit, backupBytes, restore, now = Date.now()) {
+  const readiness = createCounterReadinessPlan(bundle, manifest, audit, backupBytes, restore, now);
+  requireGate(readiness.ready, 'AUTO_INCREMENT reserve required before rehearsal');
   const plan = { version: 1, bundle, manifest, audit, restore };
   return { ...plan, planHash: digest(plan) };
 }
@@ -136,7 +173,7 @@ export async function executeRefresh(connection, plan, { mode = 'rehearse', appr
   let active = false;
   let commitAttempted = false;
   try {
-    await verifyQaConnection(connection, plan.manifest.target.serverUuid);
+    await verifyQaConnection(connection, plan.manifest.target.serverUuid, plan.manifest.target.user);
     const [settings] = await connection.query('SELECT @@SESSION.sql_mode AS mode');
     requireGate(/(?:^|,)(STRICT_ALL_TABLES|STRICT_TRANS_TABLES)(?:,|$)/.test(settings[0]?.mode || ''), 'strict SQL mode required');
     await connection.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');

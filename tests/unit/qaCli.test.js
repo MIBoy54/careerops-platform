@@ -1,3 +1,4 @@
+import { discoveryFixture } from '../helpers/qaDiscoveryFixture.js';
 import { it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,4 +42,16 @@ it('sanitizes without logging source values and separates orphan evidence', asyn
   expect(readFileSync(join(directory, 'clean.json'), 'utf8')).not.toMatch(/PRIVATE|private@example/);
   expect(JSON.parse(readFileSync(join(directory, 'orphans.json'), 'utf8')).removed).toHaveLength(1);
   expect(JSON.stringify(console.log.mock.calls)).not.toMatch(/PRIVATE/);
+});
+
+it('creates an offline counter report for sparse staged maxima without an execute switch or DB driver', async () => {
+  const f = discoveryFixture(); const backup = join(directory, 'synthetic-counter-backup'); writeFileSync(backup, f.backupBytes);
+  const output = join(directory, 'counter-report.json');
+  const command = ['counter-plan', '--bundle', save('bundle.json', f.bundle), '--manifest', save('manifest.json', f.manifest),
+    '--audit', save('audit.json', f.audit), '--backup', backup, '--restore', save('restore.json', f.restore), '--output', output];
+  await main(command);
+  const report = JSON.parse(readFileSync(output, 'utf8'));
+  expect(report.ready).toBe(false); expect(report.counters[2].minimumNextValue).toBe('9022');
+  expect(report).not.toHaveProperty('planHash'); expect(report).not.toHaveProperty('bundle');
+  await expect(main([...command, '--execute'])).rejects.toThrow('arguments');
 });

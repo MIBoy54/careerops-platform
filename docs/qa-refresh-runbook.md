@@ -1,5 +1,12 @@
 # Railway QA isolation and recovery-gated refresh
 
+The [October 16 QA discovery follow-up](qa-discovery-follow-up.md) supersedes
+historical unknowns below: the owner reports eight InnoDB tables, empty business
+tables, 686 protected rows, ALL PRIVILEGES on the app account and counters at 1.
+It provides the evidence matrix, separately approved grant/counter procedures,
+backup bootstrap limitations and MySQL 9.7 compatibility gate. Discovery is not
+permission to perform those operations. The feature remains draft.
+
 Issue #76 implementation, based on `dev` / PR #75 (`5a53441`). **Nothing in this
 change establishes current live Railway status or deploys data.** All examples
 below are for an operator to review, fill in privately, and separately authorize.

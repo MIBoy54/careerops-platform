@@ -23,11 +23,19 @@ export function assertQaBindings(env) {
   if (env.DEMO_SYNC_ENABLED !== undefined && env.DEMO_SYNC_ENABLED !== 'false') fail();
 }
 
-export async function verifyQaConnection(connection, expectedUuid) {
-  const [identity] = await connection.query('SELECT DATABASE() AS db, @@server_uuid AS server_uuid, @@GLOBAL.partial_revokes AS partial_revokes');
-  const row = identity[0];
+export function assertQaDatabaseIdentity(row, expectedUuid, expectedUser) {
+  const account = row?.authenticated_account;
+  if (typeof expectedUser !== 'string' || !expectedUser || expectedUser.toLowerCase() === 'root' ||
+      typeof account !== 'string' || account.lastIndexOf('@') <= 0 || account.endsWith('@') ||
+      account.slice(0, account.lastIndexOf('@')) !== expectedUser) fail();
   if (!uuid(expectedUuid) || row?.db !== 'careerops_qa' || row.server_uuid !== expectedUuid ||
       ![0, 1, '0', '1', false, true].includes(row.partial_revokes)) fail();
+}
+
+export async function verifyQaConnection(connection, expectedUuid, expectedUser) {
+  const [identity] = await connection.query('SELECT DATABASE() AS db, @@server_uuid AS server_uuid, CURRENT_USER() AS authenticated_account, @@GLOBAL.partial_revokes AS partial_revokes');
+  const row = identity[0];
+  assertQaDatabaseIdentity(row, expectedUuid, expectedUser);
   const [grants] = await connection.query('SHOW GRANTS FOR CURRENT_USER');
   if (!hasQaSchemaSelect(grants.map(grant => Object.values(grant)[0]), [1, '1', true].includes(row.partial_revokes)) || !grants.length || !grants.every(grant => isSafeSchemaGrant(Object.values(grant)[0],
     [1, '1', true].includes(row.partial_revokes), 'careerops_qa'))) {
