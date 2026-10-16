@@ -1,5 +1,14 @@
 # CareerOps environment isolation (DEV implementation)
 
+QA now has additional fail-closed identity, schema and recovery requirements; see
+[QA refresh operator runbook](qa-refresh-runbook.md). Inherited `APP_ENV=qa` skips
+all dotenv reads (including `.env.qa`) and requires independently approved
+`QA_EXPECTED_*` Railway IDs / endpoint / account / server UUID. The historical QA
+loading descriptions below are superseded by that contract; DEV PR #75 behavior
+is unchanged. The verified live PROD schema is `railway`; this dev baseline still
+maps production to `careerops`, recorded as a separate defect rather than changing
+PROD behavior in this QA PR.
+
 No credentials, environment files, schemas, or deployments were changed.
 
 ## Selection contract

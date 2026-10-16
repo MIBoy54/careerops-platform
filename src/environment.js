@@ -1,3 +1,4 @@
+import { assertQaBindings, verifyQaConnection } from './qaIdentity.js';
 import { isSafeDevGrant } from "./devGrantValidation.js";
 
 export const DATABASE_NAMES = Object.freeze({
@@ -20,7 +21,7 @@ function validateDevConfiguration(env) {
 
 export function loadEnvironment(env, loadDotenv, directory) {
   // Tests never read the developer's .env, which may contain deployed credentials.
-  if (env.APP_ENV?.trim() === 'test') return;
+  if (['test', 'qa'].includes(env.APP_ENV?.trim())) return;
   if (env.APP_ENV?.trim() === 'dev') {
     // Read only the selected file, without populating process.env or logging values.
     const fileEnv = {};
@@ -83,6 +84,7 @@ export function resolveEnvironment(env) {
   const buildCommitSha = env.RAILWAY_GIT_COMMIT_SHA || env.BUILD_COMMIT_SHA || null;
   // CI=true is a Railway runtime marker, not evidence that this is a test process.
   if (appEnv === 'qa') {
+    assertQaBindings(env);
     for (const key of ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'SESSION_SECRET']) {
       if (!nonempty(env[key])) throw new Error(`QA requires ${key}`);
     }
@@ -98,7 +100,8 @@ export function resolveEnvironment(env) {
     ...(appEnv === 'dev' ? {} : { ssl: { rejectUnauthorized: false } })
   };
   // Synchronization is absent from the selected DEV baseline; do not import it.
-  return Object.freeze({ appEnv, database, primary, secondary: null, demoSyncEnabled: false, buildCommitSha });
+  return Object.freeze({ appEnv, database, primary, secondary: null, demoSyncEnabled: false, buildCommitSha,
+    ...(appEnv === 'qa' ? { qaServerUuid: env.QA_EXPECTED_DB_SERVER_UUID } : {}) });
 }
 
 export function assertDemoSyncAllowed(config) {
@@ -112,6 +115,7 @@ export async function verifyPrimaryDatabase(pool, config) {
   try {
     const [rows] = await connection.query('SELECT DATABASE() AS db');
     if (rows[0]?.db !== config.database) throw new Error('Primary database identity does not match APP_ENV');
+    if (config.appEnv === 'qa') await verifyQaConnection(connection, config.qaServerUuid, config.primary.user);
     if (config.appEnv === 'dev') {
       // Reject accounts capable of reaching other schemas, even through a local tunnel.
       const [settings] = await connection.query('SELECT @@GLOBAL.partial_revokes AS partial_revokes');
@@ -136,13 +140,15 @@ export async function createDatabaseRuntime(mysql, config) {
     const unavailable = async () => { throw new Error('Database access is disabled in test mode'); };
     return { pool: { query: unavailable, getConnection: unavailable }, demoPool: null };
   }
-  const pool = mysql.createPool(config.primary);
+  let pool;
   try {
+    pool = mysql.createPool(config.primary);
     await verifyPrimaryDatabase(pool, config);
     const demoPool = null;
     return { pool, demoPool };
   } catch (error) {
-    await pool.end();
+    try { if (pool) await pool.end(); } catch { /* Preserve safe initialization failure. */ }
+    if (config.appEnv === 'qa') throw new Error('QA database readiness validation failed');
     throw error;
   }
 }
