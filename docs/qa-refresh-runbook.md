@@ -7,6 +7,11 @@ It provides the evidence matrix, separately approved grant/counter procedures,
 backup bootstrap limitations and MySQL 9.7 compatibility gate. Discovery is not
 permission to perform those operations. The feature remains draft.
 
+The [latest recovery verification plan](qa-recovery-validation.md) records the
+owner's preliminary same-instance restore (8 tables / 686 rows / 65 columns /
+10 indexes). Exact DDL/content, quiesced baseline, separate-instance isolation and
+MySQL 9.6/9.7 qualification remain open. Preserve all prior artifacts unchanged.
+
 Issue #76 implementation, based on `dev` / PR #75 (`5a53441`). **Nothing in this
 change establishes current live Railway status or deploys data.** All examples
 below are for an operator to review, fill in privately, and separately authorize.

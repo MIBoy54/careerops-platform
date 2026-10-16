@@ -1,5 +1,10 @@
 # QA discovery follow-up: evidence and owner gates
 
+The [latest recovery verification plan](qa-recovery-validation.md) records the
+owner's preliminary same-instance restore (8 tables / 686 rows / 65 columns /
+10 indexes). Exact DDL/content, quiesced baseline, separate-instance isolation and
+MySQL 9.6/9.7 qualification remain open. Preserve all prior artifacts unchanged.
+
 This document addresses the owner's [issue #76 discovery](https://github.com/MIBoy54/careerops-platform/issues/76#issuecomment-6219827312)
 and [PR #77 follow-up](https://github.com/MIBoy54/careerops-platform/pull/77#issuecomment-6219828132),
 posted October 16, 2026. It records reported evidence, not a new live inspection.
