@@ -330,7 +330,6 @@ export async function bootstrapDev(env, connect = mysql.createConnection, stage 
 
 export function hiddenInput(label, input = process.stdin, output = process.stdout) {
   if (!input.isTTY || !output.isTTY) throw new Error('Interactive input requires a terminal; use secure local configuration otherwise.');
-  output.write(`${label}: `);
   return new Promise((resolve, reject) => {
     // readline handles editing but its echo stream is discarded.
     const muted = new Writable({ write(_chunk, _encoding, done) { done(); } });
@@ -339,6 +338,7 @@ export function hiddenInput(label, input = process.stdin, output = process.stdou
     reader.once('line', value => { answered = true; reader.close(); resolve(value); });
     reader.once('SIGINT', () => reader.close());
     reader.once('close', () => { output.write('\n'); if (!answered) reject(new Error('Input cancelled.')); });
+    output.write(`${label}: `);
   });
 }
 
