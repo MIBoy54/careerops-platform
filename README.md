@@ -56,7 +56,8 @@ src/validateWeeklyReport.js        Weekly-report validation
 src/sessionTrend*.js               Session-trend API and browser rendering
 ui/                                HTML pages and additional styles
 scripts/start-dev.js                Local DEV entry point
-scripts/                           Additional operational script placeholders
+scripts/dev-bootstrap.js            Guarded fresh DEV database/account setup
+scripts/dev-create-user.js           Synthetic DEV administrator provisioning
 database/schema/                   Baseline schema and placeholder SQL files
 migrations/                        Incremental ALTER TABLE scripts
 tests/unit/                        Default Vitest suite
@@ -82,8 +83,8 @@ the configured Playwright test directory; active CI smoke selection is under
   `engines` requirement. Use a dependency-compatible Node version and the committed
   lockfile.
 - A local MySQL server supporting the schema's MySQL 8-style collation and the
-  runtime's `partial_revokes` check. The exact local server version and fresh
-  database provisioning procedure have not been validated here.
+  runtime's `partial_revokes` check. Isolated validation used MySQL 8.4.13;
+  persistent local setup still requires a verified instance and bindings.
 - A dedicated local DEV database/account with reviewed schema and grants.
 - For browser tests, the appropriate Playwright browser installation. The separate
   session-trend chart suite expects Chromium at `/usr/bin/chromium` or an explicit
@@ -91,11 +92,12 @@ the configured Playwright test directory; active CI smoke selection is under
 - For opt-in SQL regression tests, Docker with the local Unix socket and the
   specifically named disposable MySQL container described below.
 
-The following is the setup sequence derived from source and configuration. It
-has not been exercised as a fresh-clone installation during this README update.
+The reviewed application baseline passed two independent clean-clone installs
+and isolated runtime validation. See [run history](docs/run-history.md) for exact
+results and limits. A persistent local DEV instance still needs provisioning.
 
 ```sh
-git clone https://github.com/MIBoy54/careerops-platform.git
+git clone --branch develop https://github.com/MIBoy54/careerops-platform.git
 cd careerops-platform
 npm ci
 ```
@@ -105,8 +107,10 @@ account. Review [database operations](docs/database/README.md) and
 [environment isolation](docs/environment-isolation.md). Do not apply every SQL
 file sequentially: the baseline already includes `users.role` and
 `recruiter_tracker.industry`, while the root migrations add those columns again;
-the industry widths also differ. A reconciled, repeatable bootstrap remains to
-be verified. HTTP database setup is disabled.
+the industry widths also differ. Use the guarded `npm run dev:bootstrap`
+fresh-install procedure and
+`npm run dev:create-user` synthetic account setup documented in the database
+guide. Neither command upgrades existing schemas. HTTP database setup is disabled.
 
 Configure a local ignored `.env` or supply process environment variables. No
 `.env.example` is currently supplied. Existing process variables take precedence
@@ -138,8 +142,9 @@ npm run start:dev
 ```
 
 Open `http://127.0.0.1:3000` (or the configured port). A usable local account and
-its role must be established through a reviewed local account setup; no seeded
-login is documented. `npm start` and `npm run api` both run `src/server.js`
+its role can be established with `npm run dev:create-user`; there is no shared
+seeded password. DEV login uses the stored role; deployed modes retain the
+existing owner-email administrator mapping. `npm start` and `npm run api` both run `src/server.js`
 directly and require an explicitly configured runtime.
 
 The source maps `dev`, `qa`, `demo`, and `production` to `careerops_dev`,
@@ -150,8 +155,9 @@ not independent verification of deployed configuration.
 
 ## Tests and automated validation
 
-Commands below describe available selections; no test suite or installation was
-run for this documentation update, and no current passing status is asserted.
+Commands below describe available selections. Historical baseline results are
+recorded in [run history](docs/run-history.md); they do not establish results for
+future changes. Linux PTY tests require `python3`.
 After dependencies are installed, `npx` commands use the project's test tools.
 
 | Command | Scope and prerequisites |
@@ -180,7 +186,8 @@ separate prerequisites, not actions performed by these instructions being read.
 ### What GitHub Actions selects
 
 The [workflow](.github/workflows/careerops-ci.yml) runs on pushes and pull requests
-for `dev`, `develop`, `qa`, `demo`, and `main`:
+for `dev`, `develop`, `qa`, `demo`, and `main`; PRs also allow the reviewed
+transfer branch as a base. The documented DEV branch is `develop`:
 
 - All triggered runs install with `npm ci` and run the unit suite.
 - Pull requests also run the SQL regression against a disposable MySQL 8.4
@@ -208,14 +215,13 @@ for results tied to a specific commit.
 - [Session activity trend](docs/session-activity-trend.md): timestamp assumptions,
   endpoint contract, and regression prerequisites.
 
-Some operational notes describe earlier implementation snapshots. In particular,
-the deployment guide's unverified QA-service-existence note predates the owner's
-confirmation of separate Railway projects; its prohibition on `CI=true` also
-differs from current environment code, where `CI=true` alone does not select test
-mode. The isolation guide's no-secondary-pool statement predates the guarded
-production-to-DEMO synchronization path now in `src/environment.js`. Verify
-current source and runtime settings before using these notes operationally.
+The operational guides were reconciled against baseline `7fc0fa9` on
+2026-10-31. The established promotion path is **DEV → QA → DEMO → PROD** with
+`develop`, `qa`, `demo`, and `main` respectively. Railway automatic deployment
+is separate from CI; verify branch bindings before environment updates.
 
-Fresh database setup, local account bootstrap, live endpoints, deployed revision
-and database permissions, and current test outcomes remain unverified by this
-README update. The historical demo URL is omitted pending an availability check.
+See [architecture](docs/architecture.md), [API](docs/api.md),
+[testing](docs/testing.md), [roadmap](docs/roadmap.md), and
+[run history](docs/run-history.md). Persistent local DEV provisioning, full live
+workflow verification, deployed schema parity, backup restore validation, and
+the CI-excluded weekly-report-history case remain tracked follow-ups.
