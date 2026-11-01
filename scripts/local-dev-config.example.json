@@ -1,0 +1,10 @@
+{
+  "url": "http://127.0.0.1:3000",
+  "APP_ENV": "dev",
+  "DB_NAME": "careerops_dev",
+  "DB_HOST": "127.0.0.1 (inside shared container network namespace)",
+  "DB_USER": "careerops_app",
+  "credentialsDirectory": "~/.config/careerops-dev (generated locally, never committed)",
+  "syntheticAdmin": "dev-admin@example.invalid",
+  "databaseVolume": "careerops-local-dev-data"
+}

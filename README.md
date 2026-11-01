@@ -225,3 +225,10 @@ See [architecture](docs/architecture.md), [API](docs/api.md),
 [run history](docs/run-history.md). Persistent local DEV provisioning, full live
 workflow verification, deployed schema parity, backup restore validation, and
 the CI-excluded weekly-report-history case remain tracked follow-ups.
+
+## Persistent Ubuntu DEV and showcase rehearsal
+
+Use [local DEV operations](docs/local-dev.md) for the isolated persistent runtime,
+private credentials, restart/recovery commands, and the pending WSL restart check.
+See [showcase readiness](docs/showcase-readiness.md) for the synthetic presentation
+journey and known limits. No production data or credentials are copied locally.

@@ -31,12 +31,17 @@
           Continue as Guest
         </button>
       </form>
+      <p id="guestError" role="alert" hidden></p>
     </section>
   </main>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const isDemo = window.location.hostname === "democareerops-platform.com";
+    document.addEventListener("DOMContentLoaded", async () => {
+      let isDemo = false;
+      try {
+        const response = await fetch("/version", { cache: "no-store" });
+        if (response.ok) isDemo = (await response.json()).environment === "demo";
+      } catch { /* Keep ordinary login if runtime identity is unavailable. */ }
 
       const loginBtn = document.getElementById("loginBtn");
       const guestBtn = document.getElementById("guestLogin");
@@ -51,33 +56,25 @@
       }
 
       guestBtn?.addEventListener("click", async () => {
+        const errorMessage = document.getElementById("guestError");
+        errorMessage.hidden = true;
         guestBtn.disabled = true;
         guestBtn.textContent = "Logging in...";
 
         try {
-          const formData = new URLSearchParams();
-          formData.append("email", "guest@careerops.com");
-          formData.append("password", "GuestCPSS2@26");
-
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formData
-          });
-
-          if (res.ok || res.redirected) {
-            window.location.href = "/";
-            return;
+          const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+          if (!res.ok) throw new Error("Guest session request failed");
+          const data = await res.json();
+          if (data.app_env !== "demo" || data.user?.role !== "guest") {
+            throw new Error("DEMO guest session not established");
           }
-
-          throw new Error("Guest login failed");
+          window.location.href = "/";
         } catch (err) {
           console.error(err);
           guestBtn.disabled = false;
           guestBtn.textContent = "Continue as Guest";
-          alert("Guest login failed");
+          errorMessage.textContent = "Guest access is temporarily unavailable. Please try again.";
+          errorMessage.hidden = false;
         }
       });
     });

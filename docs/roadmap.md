@@ -23,8 +23,8 @@ These milestones do not certify every live workflow. See [run history](run-histo
 ## Current work
 
 1. Refresh operational documentation in DEV.
-2. Provision a persistent local DEV runtime; current code is aligned to PROD,
-   but disposable validation fixtures were removed and are not that runtime.
+2. Maintain the persistent local DEV runtime now provisioned; app/database restart
+   and volume reuse passed. The disruptive WSL restart check is still pending.
 3. Resume showcase-readiness assessment against agreed user journeys.
 4. Promote each candidate through DEV → QA → DEMO → PROD with stage evidence.
 

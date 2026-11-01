@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 
 #test-results
 test-results/
+# Python DEV controller cache
+__pycache__/

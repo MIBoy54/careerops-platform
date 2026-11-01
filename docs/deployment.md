@@ -23,8 +23,9 @@ show successful production deployment and PROD gate #409 after PR #79, at
 `7fc0fa9`. GitHub PR CI was independently checked. See [run history](run-history.md).
 QA/DEMO project existence does not verify each service's source binding, deployed
 revision, runtime settings, or database privileges. Confirm those during promotion.
-DEV develop was aligned with main at this revision; a persistent local DEV app
-and database have not yet been provisioned. Prior local fixtures were disposable.
+DEV develop was aligned with main at this revision. A persistent local DEV app
+and database were subsequently provisioned; see [local DEV operations](local-dev.md).
+The earlier validation fixtures were disposable.
 
 GitHub Actions performs tests and contains no application deployment step.
 Railway auto-deployment is separate and was observed after the main merge.

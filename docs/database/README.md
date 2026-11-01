@@ -43,8 +43,8 @@ VARCHAR(50) in the migration. Do not apply all SQL files in filename order.
 
 ## Guarded fresh local DEV setup
 
-The persistent local DEV runtime is pending; completed validation used disposable
-fixtures. The following procedure is for a new, verified local MySQL instance,
+The persistent local DEV runtime is documented in [local DEV operations](../local-dev.md);
+its restart/volume checks are separate from the earlier disposable fixtures. The following procedure is for a new, verified local MySQL instance,
 not an existing deployment or upgrade. Use MySQL compatible with the baseline's
 utf8mb4_0900_ai_ci collation; runtime validation used pinned MySQL 8.4.13.
 
