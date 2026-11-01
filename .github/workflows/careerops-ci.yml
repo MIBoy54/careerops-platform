@@ -15,6 +15,7 @@ on:
       - qa
       - demo
       - main
+      - transfer/careerops-reviewed-bcd81cc
 
 jobs:
   quality-gate:
