@@ -61,6 +61,11 @@ export async function createReadOnlySnapshotPool(mysql, primary, config) {
       granted.add(match[1].toLowerCase());
     }
     if (granted.size !== 3) throw new Error('Snapshot source needs SELECT on all three tables');
+    const [tables] = await connection.query(
+      "SELECT TABLE_NAME, ENGINE FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('recruiter_tracker', 'weekly_reports', 'report_job_contacts')");
+    if (tables.length !== 3 || tables.some(table => String(table.ENGINE).toUpperCase() !== 'INNODB')) {
+      throw new Error('All snapshot source tables must use InnoDB');
+    }
     return pool;
   } catch (error) { connection?.release(); connection = null; await pool.end(); throw error; }
   finally { connection?.release(); }

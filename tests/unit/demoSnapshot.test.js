@@ -61,12 +61,20 @@ describe('protected LIVE snapshot', () => {
     for(const extra of ['', 'GRANT ALL PRIVILEGES ON *.* TO `reader`@`%`']) {
       const grants=['recruiter_tracker','weekly_reports','report_job_contacts'].map(table=>({g:'GRANT SELECT ON `railway`.`'+table+'` TO `reader`@`%`'}));
       if(extra)grants.push({g:extra});
-      const connection={query:vi.fn().mockResolvedValueOnce([[{db:'railway'}]]).mockResolvedValueOnce([grants]),release:vi.fn()};
+      const connection={query:vi.fn().mockResolvedValueOnce([[{db:'railway'}]]).mockResolvedValueOnce([grants]).mockResolvedValueOnce([[{ENGINE:'InnoDB'},{ENGINE:'InnoDB'},{ENGINE:'InnoDB'}]]),release:vi.fn()};
       const pool={getConnection:async()=>connection,end:vi.fn()};
       const task=createReadOnlySnapshotPool({createPool:()=>pool},{},{user:'reader',password:'private'});
       if(extra)await expect(task).rejects.toThrow('allowlist');else expect(await task).toBe(pool);
       expect(connection.release).toHaveBeenCalledOnce();
     }
+  });
+  it('refuses nontransactional source tables even with correct SELECT grants', async () => {
+    const grants=['recruiter_tracker','weekly_reports','report_job_contacts'].map(table=>({g:'GRANT SELECT ON `railway`.`'+table+'` TO `reader`@`%`'}));
+    const connection={query:vi.fn().mockResolvedValueOnce([[{db:'railway'}]]).mockResolvedValueOnce([grants])
+      .mockResolvedValueOnce([[{ENGINE:'InnoDB'},{ENGINE:'MyISAM'},{ENGINE:'InnoDB'}]]),release:vi.fn()};
+    const pool={getConnection:async()=>connection,end:vi.fn()};
+    await expect(createReadOnlySnapshotPool({createPool:()=>pool},{},{user:'reader',password:'private'})).rejects.toThrow('InnoDB');
+    expect(pool.end).toHaveBeenCalledOnce();expect(connection.release).toHaveBeenCalledOnce();
   });
   it('bounds the fetched body and rejects redirects and failed source responses', async () => {
     const request=vi.fn(async()=>new Response(JSON.stringify(raw())));

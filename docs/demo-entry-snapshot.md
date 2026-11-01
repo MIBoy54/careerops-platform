@@ -41,7 +41,8 @@ remains until explicitly enabled. Do not label that legacy mode as entry-time.
 2. Provision a distinct PROD database identity with only SELECT on the three
    tables railway.recruiter_tracker, railway.weekly_reports, and
    railway.report_job_contacts. No schema-wide, global, write, role, or grant
-   privileges. Startup verifies the exact grant allowlist.
+   privileges. Startup verifies the exact grant allowlist and requires all three source tables
+   to use InnoDB.
 3. Generate a random server-to-server DEMO_SNAPSHOT_TOKEN (at least 32 bytes).
    Keep it in Railway secret variables, never Git, browser configuration or logs.
 4. Promote source through DEVELOP -> QA -> DEMO -> main using the existing unit,
@@ -79,3 +80,13 @@ verified shared DEMO view. Disable the PROD source flag and revoke/rotate the
 new source identity/token if abandoning the rollout. No production business data
 is changed by capture. Neither activation nor new PROD credentials were applied
 during DEV implementation.
+
+## Review and remaining enabled-flow acceptance
+
+Independent Codex source review found no clear blocking access-control defect.
+Before activation, complete browser tests against the enabled deployed server,
+HTTP expiry/concurrent entry/logout-during-capture/restart checks, source timeout
+and disconnection checks, and protected-field content review. Text accidentally
+entered in allowed company/location/status fields is not automatically anonymized.
+The 64 MiB limit measures retained JSON, not total process memory including
+pending fetches, parsing and serialization. Load testing remains required.
