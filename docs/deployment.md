@@ -1,126 +1,105 @@
-# Deployment Guide
+# Deployment and promotion
 
-## Status and intended mapping
+Reviewed 2026-10-31 against `7fc0fa9`. Established flow: **DEV → QA → DEMO → PROD**.
+Start new work from develop, validate in DEV, and promote the reviewed candidate
+through each stage. Do not use a direct main merge as the normal promotion path.
 
-This guide defines the approved QA deployment design. A dedicated QA Railway
-service, URL, source-branch binding, database bindings, and deployed revision have
-not yet been verified. Existing Railway environments labeled `production` must
-not be assumed to provide QA. The application safety changes on
-`feature/qa-deployment-safety` are not evidence of a deployed service.
+| Branch | Runtime APP_ENV | Required database |
+| --- | --- | --- |
+| develop | dev | careerops_dev |
+| qa | qa | careerops_qa |
+| demo | demo | careerops_demo |
+| main | production | railway |
 
-| Source branch | Intended environment |
-| --- | --- |
-| `develop` | DEV |
-| `qa` | QA |
-| `demo` | DEMO |
-| `main` | PROD |
+Branch names do not configure the runtime. Keep databases, credentials, session
+secrets, and data policy separate even when environments run identical code.
+The legacy dev branch is not the documented DEV branch; it has divergent work
+and must not be reset or discarded during alignment.
 
-The GitHub Actions workflow runs isolated tests; it does not deploy the application.
-A successful CI run does not establish deployed QA availability or identity.
+## Verified baseline and current limits
 
-## Intended QA deployment flow
+The owner confirmed separate Railway projects for QA, DEMO, and PROD. Screenshots
+show successful production deployment and PROD gate #409 after PR #79, at
+`7fc0fa9`. GitHub PR CI was independently checked. See [run history](run-history.md).
+QA/DEMO project existence does not verify each service's source binding, deployed
+revision, runtime settings, or database privileges. Confirm those during promotion.
+DEV develop was aligned with main at this revision; a persistent local DEV app
+and database have not yet been provisioned. Prior local fixtures were disposable.
 
-1. Review and validate the candidate, including the application safety changes,
-   before explicitly approving its integration into `qa`.
-2. Identify or create a dedicated QA Railway environment and application service
-   in a separately approved infrastructure phase. Bind the service to
-   `MIBoy54/careerops-platform`, source branch `qa`, and the QA database only.
-3. Configure the runtime bindings below through secure settings. Use the existing
-   `npm start` command and `/health` health check. Record the QA application URL
-   and Railway project, environment, and service identifiers after verification.
-4. Disable automatic deployment initially. Obtain explicit approval to deploy
-   the exact full candidate SHA, then verify that the source revision has not
-   changed before triggering the deployment.
-5. Record deployment evidence and complete the QA validation checklist. Stop for
-   review; QA approval does not authorize promotion to DEMO or PROD.
+GitHub Actions performs tests and contains no application deployment step.
+Railway auto-deployment is separate and was observed after the main merge.
+Before pushing an environment branch, inspect that service's source branch and
+activation settings: an approved branch update may cause an automatic deployment.
+Do not change those settings merely to fit this document.
 
-Each subsequent environment requires its own validation and explicit promotion
-approval. No automatic promotions are authorized by this guide.
+## Promotion procedure
 
-## QA runtime bindings
+1. Develop on a feature branch from current develop; preserve unrelated checkouts.
+   Validate changes in local DEV with synthetic data and record exact revision.
+2. Review the candidate and integrate through the established DEV process. Use a
+   PR into qa, then demo, then main, retaining a traceable source revision and
+   stage-specific approvals. Merge commits may differ; verify the resulting tree
+   and build SHA rather than claiming every branch has the same commit ID.
+3. Before each promotion, confirm source/base diff, CI, rollback build, migration
+   compatibility, and actual Railway service/environment/branch bindings.
+4. After deployment, verify Railway status, /health, /version, and authenticated
+   core workflows in the target stage. Record failed and unrun checks explicitly.
+5. Advance only after that stage's validation and the user's promotion decision.
+   Keep credentials and data isolated; no automatic promotion follows from CI.
 
-| Name | QA requirement |
-| --- | --- |
-| `APP_ENV` | `qa` |
-| `DB_NAME` | Explicitly configure `careerops_qa`; this is also the QA application default. Any other effective name is rejected. |
-| `DB_HOST` | Required QA database host binding. |
-| `DB_PORT` | Required integer port from 1 through 65535. |
-| `DB_USER` | Required QA-only database account. |
-| `DB_PASSWORD` | Required secret for the QA-only account. |
-| `SESSION_SECRET` | Required QA-specific secret; do not reuse production session secrets. |
-| `PORT` | Railway-assigned application port; the application otherwise defaults to 3000. |
-| `RAILWAY_GIT_COMMIT_SHA` | Railway Git deployment commit identity, when supplied; takes precedence over `BUILD_COMMIT_SHA`. |
-| `BUILD_COMMIT_SHA` | Fallback for an approved build mechanism; inject the full SHA of the checked-out source during the build. |
+The recent direct integration to main is a recorded historical event, not a new
+promotion policy. This guide does not perform deployments or authorize data changes.
 
-QA startup requires a 40-character hexadecimal commit SHA. A malformed Railway
-SHA is rejected even if the fallback is valid. The identity must match the actual
-source build, not merely a manually entered candidate reference.
+## Runtime bindings
 
-`CI` and `DEMO_MODE` must not be enabled, and `NODE_ENV` must not be `test`.
-`GITHUB_TOKEN` is optional for GitHub dashboard functionality; if enabled, supply
-only the read access that functionality requires. No `DEMO_DB_*` bindings are
-required for this QA scope.
+All database-backed runtimes require explicit DB_HOST, DB_USER, and DB_PASSWORD;
+DB_PORT defaults to 3306 outside QA. If supplied, DB_NAME must match the table.
+Startup checks SELECT DATABASE() before accepting traffic. DEV additionally
+checks grants; schema identity alone does not prove account isolation elsewhere.
 
-QA credentials must have no production database privileges. Verify isolation
-through approved database permission evidence; the application database-name
-check alone cannot establish account isolation. Before accepting traffic, the
-QA application queries `SELECT DATABASE()` and requires `careerops_qa`.
+QA/DEMO/production require RAILWAY_PROJECT_ID and RAILWAY_ENVIRONMENT_ID. Supply
+per-stage SESSION_SECRET and the actual build identity, preferably Railway's
+RAILWAY_GIT_COMMIT_SHA; BUILD_COMMIT_SHA is the fallback. Never invent build metadata.
 
-Never store secret values in documentation, source control, examples, logs, or
-validation evidence. Document binding names and verification status only; supply
-values through approved secure settings. Use synthetic or approved sanitized QA
-data, not unapproved production copies.
+QA additionally requires nonempty DB_PORT/DB_PASSWORD/SESSION_SECRET, a strictly
+decimal port in 1..65535, and a full 40-hex build SHA. It rejects DEMO_MODE=true
+and actual test runtime. **CI=true alone is permitted** and does not enable test
+shortcuts. Test mode requires APP_ENV=test and prohibits DB/deployment bindings.
 
-## Availability and version validation
+Production requires a session secret of at least 32 UTF-8 bytes and eight distinct
+characters; generate it cryptographically. These checks cannot prove randomness.
+Cookies are Secure/HttpOnly and trust proxy is one hop, assuming all ingress
+passes through Railway's HTTPS edge. Verify topology and no direct public TCP
+path. Sessions are in memory: restart logs users out; shared sessions across
+replicas are not implemented.
 
-- `GET /health` must return HTTP 200 with body `ok`. It is an availability probe,
-  not proof of authentication, database functionality, or deployed commit identity.
-- `GET /version` returns only `app`, `environment`, and `commit`. Require
-  `app=careerops-platform`, `environment=qa`, and the full approved SHA.
-- Confirm database-backed behavior separately through authenticated application
-  checks. The dashboard's GitHub Actions commit identifies a CI run, not the
-  running application build.
+GITHUB_TOKEN is optional for dashboard access; grant only required read access.
+SESSION_TREND_SOURCE_TIME_ZONE must match the verified stored timestamp convention.
+Do not copy production secrets or personal records into local DEV.
 
-## Required deployment evidence
+## Production-to-DEMO snapshot
 
-Retain the approved full source SHA, validation results, and deployment approval.
-Record the Railway deployment ID, QA project/environment/service identity, source
-repository and revision, successful deployment status, and QA application URL.
-Require a GitHub deployment record for environment `QA` at the same full SHA,
-linked to the deployment and QA URL. Whether Railway supplies that record needs
-verification; any additional reporting integration requires separate approval.
+Only production with DEMO_SYNC_ENABLED=true can create a secondary pool, requiring
+DEMO_DB_HOST, DEMO_DB_USER, DEMO_DB_PASSWORD, DB name careerops_demo, and a valid
+optional DEMO_DB_PORT. It verifies the destination identity and rejects identical
+source/destination bindings. Manual admin refresh and report creation can trigger
+synchronization. This is data synchronization, not code promotion; do not run it
+as a health check or assume all fields have been sanitized (notes are suppressed).
 
-The approved SHA, Railway revision, GitHub deployment record, and `/version`
-response must agree. Build metadata alone does not prove isolation or deployment
-success. Do not treat existing `production` records as QA evidence.
+## Stage checks and rollback
 
-## QA validation checklist
+- Confirm actual deployed build via /version (app, environment, commit), Railway
+  deployment identity, and source SHA. A dashboard CI commit is not build identity.
+- /health returning 200/ok is an availability probe, not a persistence/login test.
+- Verify authorized login/logout, contacts, detail view, reporting, and exports
+  using safe stage data; record mutations separately from read-only observations.
+- Verify QA/DEMO database account isolation independently from database-name checks.
+- Record a compatible previous build and any database changes before promotion.
+  An application rollback does not roll back schema or safely reset data.
+- Confirm any expected GitHub deployment record exists; Railway screenshot evidence
+  does not prove a separate GitHub environment record was emitted.
 
-- [ ] Candidate SHA and deployment are explicitly approved; required CI passes.
-- [ ] Railway service is bound to `qa`; exact source SHA is confirmed.
-- [ ] QA URL and project/environment/service identifiers are recorded.
-- [ ] Runtime bindings are complete, QA-specific, and free of inherited production secrets.
-- [ ] QA database is `careerops_qa`; QA account has no production database privileges.
-- [ ] Unsafe configuration and missing commit identity fail startup before traffic is accepted.
-- [ ] Railway and GitHub deployment evidence match the approved full SHA.
-- [ ] `/health` and `/version` pass the checks above.
-- [ ] Full unit suite and CI-selected E2E suite pass for the candidate.
-- [ ] Detail Viewer smoke passes 20 repetitions in the isolated candidate validation.
-- [ ] Independent early-navigation regression passes analytics HTTP 200 and 500 cases; negative controls fail as expected in isolation.
-- [ ] Deployed QA login, Saved Contacts, Detail Viewer, and contact loading/rendering pass using existing authorized access and safe data.
-- [ ] Readiness and real navigation behavior are confirmed; deployed early navigation is exercised if practical, with any limitation recorded.
-- [ ] Compare deployed results with isolated results; record failures, differences, and unrun checks.
-- [ ] Rollback target and compatibility are recorded; stop for review without DEMO or PROD promotion.
-
-## Rollback
-
-Before deployment, record the previous QA deployment ID and full SHA, if one
-exists, and verify its database compatibility. An explicitly approved rollback
-reverts only the QA application service to a known compatible build; it must not
-switch database bindings, reset data, or promote another environment.
-
-The application safety changes require no schema migration. An older build
-without the QA guards requires separately verified safe bindings before reuse.
-Repeat identity, availability, and core functional checks after rollback. If this
-is the first QA deployment and no safe rollback target exists, record that
-limitation and agree on a containment plan before deployment approval.
+No migration is needed solely for the DEV stored-role login code in an already
+compatible schema. Do not apply baseline or historical ADD COLUMN migrations
+blindly. See [database operations](database/README.md). The legacy backup script
+hardcodes a different schema name; it is not a verified production restore plan.

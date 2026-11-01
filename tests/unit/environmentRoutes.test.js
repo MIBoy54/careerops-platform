@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import bcrypt from 'bcrypt';
 const mocks = vi.hoisted(() => ({ createPool: vi.fn(), loadDotenv: vi.fn() }));
 vi.mock('mysql2/promise', () => ({ default: { createPool: mocks.createPool } }));
 vi.mock('dotenv', () => ({ default: { config: mocks.loadDotenv } }));
@@ -19,11 +20,11 @@ function res() {
     }
   };
 }
-async function route(app, method, path, user, body = {}) {
+async function route(app, method, path, user, body = {}, id = '11', query = {}) {
   const registered = app.router.stack.find(layer => layer.route?.path === path && layer.route.methods[method]);
   expect(registered, `${method} ${path} is registered`).toBeDefined();
   const response = res();
-  const req = { session: { user }, body, headers: {}, params: { id: "11" } };
+  const req = { session: { user }, body, headers: {}, params: { id }, query };
   for (const layer of registered.route.stack) {
     let continued = false;
     await layer.handle(req, response, () => { continued = true; });
@@ -36,13 +37,13 @@ function stubEnv(name, extra = {}) {
     if (/^(DB_|DEMO_DB_|MYSQL|DATABASE_URL$|RAILWAY_)/.test(key)) vi.stubEnv(key, undefined);
   }
   for (const [key, value] of Object.entries({
-    APP_ENV: name, CI: '', NODE_ENV: '', VITEST: '', DEMO_MODE: 'false', BUILD_COMMIT_SHA: '', SESSION_SECRET: '',
+    APP_ENV: name, CI: '', NODE_ENV: '', VITEST: '', DEMO_MODE: 'false', BUILD_COMMIT_SHA: '', SESSION_SECRET: name === 'production' ? 'synthetic-only-secret-0123456789-ABCDEF' : '',
     ...(name === 'test' ? {} : { DB_HOST: '127.0.0.1', DB_USER: 'fixture', DB_PASSWORD: 'fixture' }),
     ...extra
   })) vi.stubEnv(key, value);
 }
 function installPool(name) {
-  const database = { dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'careerops' }[name];
+  const database = { dev: 'careerops_dev', qa: 'careerops_qa', demo: 'careerops_demo', production: 'railway' }[name];
   const connection = {
     query: vi.fn(async sql => {
       if (sql === 'SELECT DATABASE() AS db') return [[{ db: database }]];
@@ -58,12 +59,190 @@ function installPool(name) {
 beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {}); });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
+describe('Single-owner LIVE registration and access', () => {
+  it.each([undefined, '', 'careerops-secret', 'x'.repeat(64)])('fails production startup before DB access for missing or weak secrets %#', secret => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture', SESSION_SECRET: secret });
+    return expect(import('../../src/server.js')).rejects.toThrow('SESSION_SECRET').then(() => {
+      expect(mocks.createPool).not.toHaveBeenCalled();
+    });
+  });
+
+  it('uses Secure HttpOnly cookies behind one HTTPS proxy for login, persisted contacts, and logout', async () => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('production');
+    const password = 'synthetic-fixture-password';
+    const account = { id: 7, email: 'owner-fixture@example.test', full_name: 'Fixture Owner', password_hash: await bcrypt.hash(password, 4) };
+    pool.query.mockImplementation(async sql => /FROM users/.test(sql) ? [[account]] : [{ insertId: 42, affectedRows: 1 }]);
+    const { app } = await import('../../src/server.js');
+    expect(app.get('trust proxy')).toBe(1);
+    expect(app.get('trust proxy fn')('127.0.0.1', 1)).toBe(false);
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const request = (path, method = 'GET', data, cookie, proto = 'https') => fetch(base + path, {
+      method, headers: { 'X-Forwarded-Proto': proto, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+      ...(data ? { body: JSON.stringify(data) } : {})
+    });
+    try {
+      const login = await request('/api/auth/login', 'POST', { email: account.email, password });
+      expect(login.status).toBe(200);
+      const setCookie = login.headers.get('set-cookie');
+      expect(setCookie).toMatch(/; Secure(?:;|$)/i);
+      expect(setCookie).toMatch(/; HttpOnly(?:;|$)/i);
+      const cookie = setCookie.split(';')[0];
+      expect((await (await request('/api/auth/me', 'GET', undefined, cookie)).json()).user.id).toBe(account.id);
+      const contact = { company: 'Fixture Employer', reported_unemployment: 'Yes', notes: 'Fixture notes' };
+      expect((await request('/api/contacts', 'POST', contact, cookie)).status).toBe(201);
+      expect((await request('/api/contacts/42', 'PUT', contact, cookie)).status).toBe(200);
+      expect((await request('/api/contacts/42', 'DELETE', undefined, cookie)).status).toBe(200);
+      const logout = await request('/api/auth/logout', 'POST', {}, cookie);
+      expect(logout.status).toBe(200);
+      expect(logout.headers.get('set-cookie')).toMatch(/; Secure(?:;|$)/i);
+      expect(logout.headers.get('set-cookie')).toMatch(/; HttpOnly(?:;|$)/i);
+      expect((await request('/api/auth/me', 'GET', undefined, cookie)).status).toBe(401);
+      const httpLogin = await request('/api/auth/login', 'POST', { email: account.email, password }, undefined, 'http');
+      expect(httpLogin.headers.get('set-cookie')).toBeNull();
+    } finally {
+      await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  });
+
+  it('keeps DEMO guest sessions usable over HTTP without trusting forwarded headers', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    installPool('demo');
+    const { app } = await import('../../src/server.js');
+    expect(app.get('trust proxy')).toBe(false);
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      const me = await fetch(base + '/api/auth/me', { headers: { 'X-Forwarded-Proto': 'https' } });
+      expect((await me.json()).user.role).toBe('guest');
+      const setCookie = me.headers.get('set-cookie');
+      expect(setCookie).toContain('HttpOnly');
+      expect(setCookie).not.toMatch(/; Secure(?:;|$)/i);
+      const write = await fetch(base + '/api/contacts', { method: 'POST', headers: { Cookie: setCookie.split(';')[0] } });
+      expect(write.status).toBe(403);
+    } finally {
+      await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  });
+
+  it.each([undefined, { role: 'guest' }, { role: 'admin' }])('denies production registration before any database work %#', async user => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('production');
+    const { app } = await import('../../src/server.js');
+    pool.getConnection.mockClear();
+    for (const body of [{}, { email: 'fixture@example.test', password: 'fixture-password' }]) {
+      expect((await route(app, 'post', '/api/auth/register', user, body)).code).toBe(403);
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.getConnection).not.toHaveBeenCalled();
+  });
+
+  it('preserves existing password-backed LIVE login and authorized SQL contact operations', async () => {
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('production');
+    const password = 'synthetic-fixture-password';
+    const account = { id: 7, email: 'owner-fixture@example.test', full_name: 'Fixture Owner',
+      password_hash: await bcrypt.hash(password, 4) };
+    pool.query.mockImplementation(async sql => /FROM users/.test(sql) ? [[account]] : [{ insertId: 42, affectedRows: 1 }]);
+    const { app } = await import('../../src/server.js');
+    expect(mocks.createPool.mock.calls[0][0].database).toBe('railway');
+    const login = await route(app, 'post', '/api/auth/login', undefined,
+      { email: account.email, password });
+    expect(login.code).toBe(200);
+    expect(login.body.user.id).toBe(account.id);
+    expect(login.body.user).not.toHaveProperty('password_hash');
+    expect((await route(app, 'post', '/api/auth/login', undefined,
+      { email: account.email, password: 'incorrect' })).code).toBe(401);
+    pool.query.mockClear();
+    const contact = { company: 'Fixture Employer', notes: 'Fixture notes', reported_unemployment: 'Yes' };
+    expect((await route(app, 'post', '/api/contacts', login.body.user, contact)).code).toBe(201);
+    expect((await route(app, 'put', '/api/contacts/:id', login.body.user, contact)).code).toBe(200);
+    expect((await route(app, 'delete', '/api/contacts/:id', login.body.user)).code).toBe(200);
+    const calls = pool.query.mock.calls;
+    expect(calls).toHaveLength(3);
+    expect(calls[0][0]).toMatch(/INSERT INTO recruiter_tracker/);
+    expect(calls[0][1]).toContain('Yes');
+    expect(calls[0][1]).toContain('Fixture notes');
+    expect(calls[1][0]).toMatch(/UPDATE recruiter_tracker/);
+    expect(calls[1][1]).toContain('Yes');
+    expect(calls[1][1]).toContain('Fixture notes');
+    expect(calls[2][0]).toMatch(/DELETE FROM recruiter_tracker/);
+    for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined, contact)).code).toBe(401);
+    }
+    expect(pool.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('preserves public DEMO guest access while blocking registration and contact writes', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('demo');
+    const { app } = await import('../../src/server.js');
+    const me = await route(app, 'get', '/api/auth/me', undefined);
+    expect(me.code).toBe(200);
+    expect(me.body.user.role).toBe('guest');
+    expect(me.body.app_env).toBe('demo');
+    const contact = { id: 7, company: 'Fixture Employer', notes: 'Fixture notes', reported_unemployment: 'Yes' };
+    pool.query.mockResolvedValue([[contact]]);
+    expect((await route(app, 'get', '/api/contacts', undefined)).body).toEqual([
+      { id: 7, company: 'Fixture Employer', reported_unemployment: 'Yes' }
+    ]);
+    pool.query.mockClear();
+    for (const [method, path] of [['post', '/api/auth/register'], ['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined, contact)).code).toBe(403);
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('Contact mutation release safeguards', () => {
+  it.each(['demo', 'production'])('blocks all contact mutations in %s read-only mode before SQL', async name => {
+    stubEnv(name, { DEMO_MODE: name === 'production' ? 'true' : 'false',
+      RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool, connection } = installPool(name);
+    const { app } = await import('../../src/server.js');
+    pool.query.mockClear();
+    pool.getConnection.mockClear();
+    connection.query.mockClear();
+    for (const user of [{ role: 'admin' }, { role: 'guest' }]) {
+      for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+        expect((await route(app, method, path, user, { company: 'blocked' })).code).toBe(403);
+      }
+    }
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.getConnection).not.toHaveBeenCalled();
+    expect(connection.query).not.toHaveBeenCalled();
+  });
+
+  it('supports exactly one isolated fixture through create, update, and delete, requiring authentication', async () => {
+    stubEnv('test', { CI: 'true', DEMO_MODE: 'true' });
+    const { app } = await import('../../src/server.js');
+    for (const [method, path] of [['post', '/api/contacts'], ['put', '/api/contacts/:id'], ['delete', '/api/contacts/:id']]) {
+      expect((await route(app, method, path, undefined)).code).toBe(401);
+    }
+    const user = { role: 'admin' };
+    const created = await route(app, 'post', '/api/contacts', user, { company: 'fixture', notes: 'PRIVATE fixture notes' });
+    expect(created.code).toBe(201);
+    const id = String(created.body.id);
+    expect((await route(app, 'get', '/api/contacts', user)).body).toHaveLength(1);
+    expect((await route(app, 'put', '/api/contacts/:id', user, { company: 'updated' }, id)).code).toBe(200);
+    expect((await route(app, 'get', '/api/contacts', user)).body[0].company).toBe('updated');
+    expect((await route(app, 'delete', '/api/contacts/:id', user, {}, id)).code).toBe(200);
+    expect((await route(app, 'get', '/api/contacts', user)).body).toEqual([]);
+    expect(mocks.createPool).not.toHaveBeenCalled();
+    expect(mocks.loadDotenv).not.toHaveBeenCalled();
+    expect(JSON.stringify(console.log.mock.calls)).not.toContain('PRIVATE fixture notes');
+  });
+});
+
 describe('DEMO contact privacy', () => {
   it('hides private recruiter fields from guest contact-list responses', async () => {
     stubEnv('demo', {
       RAILWAY_PROJECT_ID: 'fixture-project',
       RAILWAY_ENVIRONMENT_ID: 'fixture-environment',
-      SESSION_SECRET: 'demo-fixture-secret'
+      SESSION_SECRET: 'demo-fixture-secret-synthetic-only-0123456789-ABCDEF'
     });
 
     const { pool } = installPool('demo');
@@ -88,7 +267,8 @@ describe('DEMO contact privacy', () => {
     expect(response.body).toEqual([{
       id: 7,
       recruiter_name: 'Public Recruiter',
-      company: 'Public Employer'
+      company: 'Public Employer',
+      reported_unemployment: 'Yes'
     }]);
 
     expect(storedContact.notes).toBe('PRIVATE recruiter notes');
@@ -103,7 +283,7 @@ describe('Weekly-report detail privacy', () => {
     stubEnv(environmentName, {
       RAILWAY_PROJECT_ID: 'fixture-project',
       RAILWAY_ENVIRONMENT_ID: 'fixture-environment',
-      SESSION_SECRET: 'fixture-secret'
+      SESSION_SECRET: 'fixture-secret-synthetic-only-0123456789-ABCDEF'
     });
 
     const { pool } = installPool(environmentName);
@@ -140,7 +320,7 @@ describe('Weekly-report detail privacy', () => {
     expect(visible.company).toBe('Public Employer');
     expect(visible.recruiter_name).toBe('Public Recruiter');
     expect(Object.hasOwn(visible, 'notes')).toBe(includePrivate);
-    expect(Object.hasOwn(visible, 'reported_to_unemployment')).toBe(includePrivate);
+    expect(visible.reported_to_unemployment).toBe('Yes');
 
     if (includePrivate) {
       expect(visible.notes).toBe('PRIVATE recruiter notes');
@@ -151,6 +331,47 @@ describe('Weekly-report detail privacy', () => {
     expect(employer.reported_to_unemployment).toBe('Yes');
   });
 });
+describe('Additional recruiter response NOTES protection', () => {
+  it.each([
+    ['demo', '/api/companies/details'],
+    ['production', '/api/companies/details'],
+    ['demo', '/api/reports/unemployment'],
+    ['production', '/api/reports/unemployment']
+  ])('suppresses only NOTES for %s %s without logging the record', async (name, path) => {
+    stubEnv(name, { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool(name);
+    const contact = Object.freeze({ id: 7, company: 'Public Employer',
+      recruiter_name: 'Public Recruiter', email: 'fixture@example.test', phone: '555-0100',
+      address: 'Fixture Address', comp_range: '120000', reported_unemployment: 'Yes',
+      reported_to_unemployment: 'Yes', notes: 'PRIVATE recruiter notes' });
+    pool.query.mockResolvedValue([[contact]]);
+    const { app } = await import('../../src/server.js');
+    const response = await route(app, 'get', path, { role: 'admin' }, {}, '11',
+      { company: 'Public Employer', start: '2026-10-01', end: '2026-10-13' });
+    expect(response.code).toBe(200);
+    const visible = path === '/api/companies/details' ? response.body : response.body.jobs[0];
+    const { notes, ...others } = contact;
+    expect(visible).toEqual(name === 'demo' ? others : contact);
+    expect(contact.notes).toBe('PRIVATE recruiter notes');
+    expect(JSON.stringify(console.log.mock.calls)).not.toContain('PRIVATE recruiter notes');
+  });
+
+  it('retains authentication and the DEMO nonadmin unemployment-report restriction', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    const { pool } = installPool('demo');
+    const { app } = await import('../../src/server.js');
+    expect((await route(app, 'get', '/api/reports/unemployment', { role: 'guest' })).code).toBe(403);
+    expect(pool.query).not.toHaveBeenCalled();
+    stubEnv('production', { RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture' });
+    vi.resetModules();
+    installPool('production');
+    const production = (await import('../../src/server.js')).app;
+    for (const path of ['/api/companies/details', '/api/reports/unemployment']) {
+      expect((await route(production, 'get', path, undefined)).code).toBe(401);
+    }
+  });
+});
+
 describe('CSV export privacy', () => {
   const fields = [
     'id', 'date_contacted', 'recruiter_name', 'company',
@@ -166,7 +387,7 @@ describe('CSV export privacy', () => {
     stubEnv(environmentName, {
       RAILWAY_PROJECT_ID: 'fixture-project',
       RAILWAY_ENVIRONMENT_ID: 'fixture-environment',
-      SESSION_SECRET: 'fixture-secret'
+      SESSION_SECRET: 'fixture-secret-synthetic-only-0123456789-ABCDEF'
     });
 
     const { pool } = installPool(environmentName);
@@ -221,7 +442,7 @@ describe('DEMO administrator read-only enforcement', () => {
     stubEnv('demo', {
       DB_HOST: 'mock-deployment',
       DB_PORT: '3306',
-      SESSION_SECRET: 'demo-fixture-secret',
+      SESSION_SECRET: 'demo-fixture-secret-synthetic-only-0123456789-ABCDEF',
       RAILWAY_PROJECT_ID: 'fixture-project',
       RAILWAY_ENVIRONMENT_ID: 'fixture-environment'
     });
@@ -317,7 +538,7 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
     stubEnv('production', {
       RAILWAY_PROJECT_ID: 'fixture-project',
       RAILWAY_ENVIRONMENT_ID: 'fixture-environment',
-      SESSION_SECRET: 'fixture-session-secret',
+      SESSION_SECRET: 'fixture-session-secret-synthetic-only-0123456789-ABCDEF',
       DEMO_SYNC_ENABLED: 'true',
       DEMO_DB_HOST: 'mock-demo-host',
       DEMO_DB_USER: 'demo-fixture',
@@ -409,7 +630,7 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
       'Public Recruiter',
       'Public Employer',
       null,
-      null
+      'Yes'
     ]);
 
     expect(originalContact.notes).toBe('PRIVATE recruiter notes');
@@ -434,7 +655,7 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
     const sha = 'b'.repeat(40);
     stubEnv('qa', {
       CI: 'true', RAILWAY_PROJECT_ID: 'fixture', RAILWAY_ENVIRONMENT_ID: 'fixture',
-      DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: sha
+      DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret-synthetic-only-0123456789-ABCDEF', BUILD_COMMIT_SHA: sha
     });
     const { pool } = installPool('qa');
     const { app } = await import('../../src/server.js');

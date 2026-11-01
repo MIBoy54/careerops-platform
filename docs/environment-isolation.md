@@ -1,112 +1,99 @@
-# CareerOps environment isolation (DEV implementation)
+# Environment isolation
 
-No credentials, environment files, schemas, or deployments were changed.
+Reviewed 2026-10-31 against `7fc0fa9`. Source: src/environment.js,
+src/devGrantValidation.js, src/adminAccess.js, src/server.js, and DEV scripts.
 
-## Selection contract
+## Runtime selection
 
-`APP_ENV` must explicitly be one of `dev`, `qa`, `demo`, `production`, or `test`.
-Git branches and browser labels do not select databases. `DB_NAME`, if supplied,
-must exactly match the mapping:
+APP_ENV must explicitly be dev, qa, demo, production, or test. Branch and browser
+labels do not select databases. DB_NAME, when supplied, must exactly match:
 
 | APP_ENV | Database |
 | --- | --- |
 | dev | careerops_dev |
 | qa | careerops_qa |
 | demo | careerops_demo |
-| production | careerops |
-| test | No database connections |
+| production | railway |
+| test | No database connection |
 
-An omitted DB_NAME derives only from this validated mapping; no production fallback
-exists. Missing or invalid APP_ENV, unsafe overrides, incomplete connection
-configuration, and malformed ports fail before pool creation.
+Explicit process variables take precedence over dotenv. Inherited APP_ENV=demo
+selects .env.demo; otherwise .env is used. Test mode skips dotenv and rejects
+nonempty DB_*, DEMO_DB_*, MYSQL*, DATABASE_URL, and RAILWAY_* bindings.
+NODE_ENV=test or VITEST=true requires APP_ENV=test. CI=true alone is permitted,
+including in Railway QA, and never activates in-memory behavior by itself.
 
-Inherited environment variables retain precedence over dotenv. `.env.demo` is
-selected when inherited APP_ENV is demo; otherwise `.env` is selected. Test mode
-never loads an environment file and rejects nonempty database/deployment bindings.
-NODE_ENV=test (case/whitespace normalized) or VITEST=true requires APP_ENV=test.
-CI=true alone is permitted for a deployed runtime, including Railway QA; it never
-activates test shortcuts unless APP_ENV=test. All test DB calls fail
-locally without creating a connection; the existing in-memory contacts/login path
-remains available. Tests requiring SQL must use separate opt-in isolated fixtures.
+Missing/invalid selection, unsafe overrides, malformed ports, or missing bindings
+fail before runtime initialization. Before traffic, connected database identity
+must match the selected environment. Pools are closed on startup failure.
 
-## Local DEV prerequisites (configure only after separate authorization)
+## Local DEV
 
-Use APP_ENV=dev, DB_NAME=careerops_dev, a literal DB_HOST of 127.0.0.1 or ::1,
-the verified local DB_PORT, and a dedicated local DEV account. DB_USER must be
-explicit and DB_PASSWORD must be present (empty passwords remain permitted for
-local accounts). No DEMO_DB_*, RAILWAY_*, MYSQL*, or DATABASE_URL binding may be
-nonempty in DEV. Broad root accounts are deliberately rejected: direct grants must
-be limited to SELECT/INSERT/UPDATE/DELETE in the exact careerops_dev schema plus
-global USAGE, without grant option, role grants, or cross-schema/global privileges.
-Schema, table, and column grants are supported. Unrecognized grant formats fail closed.
+Use APP_ENV=dev, literal DB_HOST=127.0.0.1 or ::1, and a dedicated account on
+careerops_dev. No nonempty DEMO_DB_*, RAILWAY_*, MYSQL*, or DATABASE_URL bindings
+are allowed. npm run start:dev sets DEV before loading dotenv and binds to
+loopback; it does not hide an unsafe DB_NAME override.
 
-Startup reads MySQL's global partial_revokes setting without changing it. With
-pattern matching enabled (partial_revokes=OFF), a schema-level grant must escape
-the underscore: `careerops\_dev`.*. Unescaped `_` and `%` are rejected as wildcards.
-With partial_revokes=ON, schema names are literal and `careerops_dev`.* is accepted.
-Table/column grant schemas are literal independently of that setting. Unknown or
-unavailable server semantics fail startup; no global settings are changed.
+Startup permits only reviewed DML grants in that exact schema plus global USAGE;
+roles, grant options, global/cross-schema privileges, and unknown formats fail.
+With partial_revokes=OFF, schema-level grants must escape the underscore as
+`careerops\_dev`.*. With ON, the schema name is literal. Table/column schemas are
+literal independently of that setting. Unknown semantics fail startup.
 
-`npm run start:dev` forces DEV before dotenv loading, but does not silently replace
-an unsafe DB_NAME. Thus the previously reported `.env` DB_NAME=careerops will
-prevent startup until an approved configuration correction is made. Generic
-`npm start` with local APP_ENV=production also fails because deployed environments
-require Railway project and environment IDs. No real .env was altered here.
+The fresh bootstrap is stricter than generic runtime configuration: it requires
+explicit DB_NAME, DEV_INSTANCE_ID server UUID, DEV_DB_ACCOUNT_HOST loopback,
+a non-root account name, a non-placeholder app password, distinct provisioning
+credentials, and schema/instance confirmation. It refuses existing schema/account
+state and leaves partial DDL resources intact on failure. See
+[bootstrap instructions](database/README.md).
 
-The DEV listener binds to loopback. DEMO synchronization is unavailable and no secondary pool is created.
-The DEV 9a543bb baseline contains no synchronization implementation; the guarded
-manual endpoint explicitly denies refresh rather than importing that later feature.
+DEV login accepts stored roles admin/user/guest and rejects unknown roles while
+clearing the session user. The DEV account CLI creates only synthetic
+@example.invalid administrators, bcrypt cost 12, and refuses duplicate emails.
+The existing public registration route is separate and is not the documented
+administrator bootstrap procedure. Hidden input disables terminal echo before
+publishing the prompt; real Linux PTY tests cover input, cancellation, and cleanup.
 
-## Deployed compatibility and startup
+DEV runtime may accept an empty DB password, but the guarded bootstrap does not.
+Supply a generated SESSION_SECRET even where a nonproduction fallback exists.
 
-QA, DEMO, and production require RAILWAY_PROJECT_ID and RAILWAY_ENVIRONMENT_ID.
-Their exact database mappings are enforced. Before serving, startup performs a
-read-only selected-database identity check; DEV additionally checks current-account
-grants. Failure rejects startup and closes the primary pool. Existing deployed TLS
-options are retained; local DEV uses a normal local connection without requiring
-TLS. The server-wide handlers that previously swallowed uncaught exceptions were
-removed so initialization failures terminate the process.
+## Deployed environments
 
-No environment creates a secondary destination pool in this DEV-based integration.
-The unrelated synchronization feature from the newer cloud history is excluded.
-DEMO retains guest access/read-only behavior. QA preserves the f85f726 requirements:
-explicit nonempty DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/SESSION_SECRET, strictly decimal
-DB_PORT in 1..65535, no DEMO_MODE or actual test runtime, and a full 40-character Git
-SHA in RAILWAY_GIT_COMMIT_SHA (preferred) or BUILD_COMMIT_SHA. CI=true is compatible
-with QA and does not enable in-memory test authentication. /version returns the
-validated environment and build SHA. Railway IDs and exact database identity are
-also required. All deployed verification uses mocks, never Railway databases.
+QA/DEMO/production require Railway project/environment markers and separate DB
+bindings. QA additionally requires nonempty credentials/port/session secret and
+full build SHA; it rejects DEMO_MODE=true and actual test runtime. Production
+requires a strong configured session secret, Secure/HttpOnly cookies, and trusts
+only the immediate proxy hop. Deployed login retains owner-email admin assignment;
+stored-role authentication is currently DEV-only.
 
-## Administrative routes
+DEMO requireAuth can create a guest session. requireAdmin never accepts that
+fallback as an administrator. Business write guards reject contact/report and
+validation writes in DEMO; public telemetry can still record activity.
 
-/setup-db is permanently disabled (HTTP 410 after administrator authorization).
-/db-ping, /debug-src, /env-check, /api/analytics/ping, manual DEMO refresh, and
-validation-run start/complete require a real authenticated administrator; DEMO
-guest fallback cannot satisfy this middleware. /env-check returns only environment,
-database name, and synchronization policy, not credential/connection bindings.
-The earlier unauthenticated duplicate validation-history route was removed, leaving
-its authenticated equivalent. /health remains public without connection details.
+Production synchronization is implemented. A secondary DEMO pool exists only
+with production and DEMO_SYNC_ENABLED=true, required destination bindings, and
+verified careerops_demo identity. Manual refresh and report-triggered refresh are
+unavailable in DEV/QA. No-secondary-pool statements from older snapshots no longer
+apply. Sync is not a comprehensive anonymization guarantee; review copied fields.
 
-Playwright starts and stops a fresh APP_ENV=test server instead of a Windows-specific
-QA command, and refuses reuse of an unknown running server. CI delegates ownership
-to Playwright; its separate background server startup/wait step was removed. Sequential
-smoke and E2E invocations each own and clean up their server. Optional CHROMIUM_PATH
-selects an installed local browser without changing deployment configuration.
+## Administrative and test boundaries
 
-## Validation and limits
+/setup-db remains disabled (410 after admin middleware). /db-ping, /debug-src,
+/env-check, /api/analytics/ping, validation start/complete, and manual refresh
+require admin; refresh also requires enabled production sync. /env-check exposes
+runtime/database/policy, not connection credentials. See [API reference](api.md).
 
-`npm test` covers offline environment selection, pool initialization with mocked
-connections/grants, actual Express route chains with mocks, and existing unit tests.
-The session-trend browser suite remains separately available.
+Playwright owns a fresh loopback APP_ENV=test server and refuses reuse. Tests
+use synthetic in-memory contact/login behavior and cannot establish real database
+persistence. MySQL regression/runtime checks use isolated opt-in fixtures.
 
-Loopback addresses and Railway markers are safeguards, not proof of physical
-server identity. An intentionally configured local tunnel or fabricated deployment
-markers can defeat endpoint provenance checks; DEV restricted grants still prevent
-cross-schema application access. External credential management and network policy
-must also keep deployed credentials/tunnels out of DEV. No claim is made that
-application code can prevent deliberate modification of these safeguards.
+## Limits and verified evidence
 
-Restricted privilege checks intentionally reject role-based grants, grant options,
-and privileges beyond approved DML; use an explicitly reviewed DEV account. MySQL grant syntax and Railway
-markers were validated with fixtures and need review against real configuration
-before any separately authorized promotion. No deployed DB access was used.
+Loopback and Railway markers are safeguards, not proof against deliberate local
+tunnels or fabricated bindings. External credential/network controls must keep
+production access out of DEV. No role checks replace database account isolation.
+In-memory sessions are lost on restart and do not support shared replica sessions.
+
+The reviewed baseline passed mocked route/configuration tests, real ON/OFF MySQL
+bootstrap/grant/login/report/restart checks, state-preserving refusal checks, and
+two-clean-clone reproducibility. Live QA/DEMO binding/privilege parity and full
+production workflow behavior remain separate stage checks. See [run history](run-history.md).

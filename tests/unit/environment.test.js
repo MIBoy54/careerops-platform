@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAMES, resolveEnvironment, loadEnvironment, createDatabaseRuntime, assertDemoSyncAllowed } from '../../src/environment.js';
 const dev = (extra = {}) => ({ APP_ENV: 'dev', DB_HOST: '127.0.0.1', DB_USER: 'dev_fixture', DB_PASSWORD: 'fixture', ...extra });
 const deployed = (name, extra = {}) => dev({ APP_ENV: name, DB_HOST: 'mock-deployment',
-  DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret', BUILD_COMMIT_SHA: 'a'.repeat(40),
+  DB_PORT: '3306', SESSION_SECRET: 'isolated-fixture-secret-synthetic-only-0123456789-ABCDEF', BUILD_COMMIT_SHA: 'a'.repeat(40),
   RAILWAY_PROJECT_ID: 'fixture-project', RAILWAY_ENVIRONMENT_ID: 'fixture-environment', ...extra });
 const demo = { DEMO_DB_HOST: 'mock-demo', DEMO_DB_USER: 'fixture', DEMO_DB_PASSWORD: 'fixture', DEMO_DB_NAME: 'careerops_demo' };
 const mockMysql = (database = 'careerops_dev', grants = [
@@ -19,6 +19,19 @@ const mockMysql = (database = 'careerops_dev', grants = [
 };
 
 describe('environment selection and offline validation', () => {
+  it.each([undefined, '', ' ', 'careerops-secret', 'short-secret', 'x'.repeat(64)])('rejects missing or weak production SESSION_SECRET %#', secret => {
+    expect(() => resolveEnvironment(deployed('production', { SESSION_SECRET: secret }))).toThrow('SESSION_SECRET');
+  });
+  it('maps production explicitly to the verified LIVE schema', () => {
+    expect(resolveEnvironment(deployed('production', { DB_NAME: 'railway' })).primary.database).toBe('railway');
+  });
+  it.each(['careerops', 'careerops_dev', 'careerops_qa', 'careerops_demo', 'other'])('rejects production DB_NAME=%s', name => {
+    expect(() => resolveEnvironment(deployed('production', { DB_NAME: name }))).toThrow('DB_NAME');
+  });
+  it.each(['dev', 'qa', 'demo'])('rejects the LIVE schema in %s', name => {
+    const env = name === 'dev' ? dev({ DB_NAME: 'railway' }) : deployed(name, { DB_NAME: 'railway' });
+    expect(() => resolveEnvironment(env)).toThrow('DB_NAME');
+  });
   it.each([undefined, '', 'invalid', 'develop', 'prod', 'DEV'])('rejects unsupported APP_ENV %s', value => {
     expect(() => resolveEnvironment(dev({ APP_ENV: value }))).toThrow('APP_ENV');
   });
@@ -40,7 +53,7 @@ describe('environment selection and offline validation', () => {
     expect(() => resolveEnvironment(dev(change))).toThrow();
   });
   it.each(['qa', 'demo', 'production'])('rejects local use of deployed environment %s', name => {
-    expect(() => resolveEnvironment(dev({ APP_ENV: name, DB_NAME: DATABASE_NAMES[name] }))).toThrow('Railway');
+    expect(() => resolveEnvironment(dev({ APP_ENV: name, DB_NAME: DATABASE_NAMES[name], SESSION_SECRET: 'synthetic-only-secret-0123456789-ABCDEF' }))).toThrow('Railway');
   });
   it.each(['qa', 'demo', 'production'])('preserves explicit deployed mapping for %s', name => {
     expect(resolveEnvironment(deployed(name)).database).toBe(DATABASE_NAMES[name]);
@@ -107,6 +120,13 @@ describe('environment selection and offline validation', () => {
 });
 
 describe('database initialization fail-fast checks (mocked only)', () => {
+  it.each(['careerops', 'careerops_dev', 'careerops_qa', 'careerops_demo', 'other'])('rejects production connected to %s before creating a secondary pool', async name => {
+    const mysql = mockMysql(name);
+    const config = resolveEnvironment(deployed('production', { DB_NAME: 'railway', ...demo, DEMO_SYNC_ENABLED: 'true' }));
+    await expect(createDatabaseRuntime(mysql, config)).rejects.toThrow('identity');
+    expect(mysql.createPool).toHaveBeenCalledTimes(1);
+    expect(mysql.pool.end).toHaveBeenCalledOnce();
+  });
   it('creates only one pool in DEV and checks identity and restricted privileges before returning', async () => {
     const mysql = mockMysql();
     const runtime = await createDatabaseRuntime(mysql, resolveEnvironment(dev()));
@@ -124,6 +144,7 @@ describe('database initialization fail-fast checks (mocked only)', () => {
   it.each([
     ["GRANT ALL PRIVILEGES ON *.* TO 'fixture'@'localhost'"],
     ["GRANT SELECT ON `careerops`.* TO 'fixture'@'localhost'"],
+    ["GRANT SELECT ON `railway`.* TO 'fixture'@'localhost'"],
     ["GRANT SELECT ON `careerops_demo`.* TO 'fixture'@'localhost'"],
     ["GRANT `role` TO 'fixture'@'localhost'"],
     ["GRANT ALL PRIVILEGES ON `careerops_dev`.* TO 'fixture'@'localhost' WITH GRANT OPTION"], []
@@ -165,7 +186,7 @@ describe('database initialization fail-fast checks (mocked only)', () => {
   });
   it('creates and verifies a secondary pool only for authorized PROD', async () => {
     const config = resolveEnvironment(deployed('production', { ...demo, DEMO_SYNC_ENABLED: 'true' }));
-    const primary = mockMysql('careerops');
+    const primary = mockMysql('railway');
     const secondary = mockMysql('careerops_demo');
     const mysql = {
       createPool: vi.fn()
@@ -184,7 +205,7 @@ describe('database initialization fail-fast checks (mocked only)', () => {
 
   it('rejects an incorrect actual DEMO database and closes both pools', async () => {
     const config = resolveEnvironment(deployed('production', { ...demo, DEMO_SYNC_ENABLED: 'true' }));
-    const primary = mockMysql('careerops');
+    const primary = mockMysql('railway');
     const secondary = mockMysql('careerops');
     const mysql = {
       createPool: vi.fn()
@@ -199,7 +220,7 @@ describe('database initialization fail-fast checks (mocked only)', () => {
 
   it('closes both pools when the DEMO connection is unavailable', async () => {
     const config = resolveEnvironment(deployed('production', { ...demo, DEMO_SYNC_ENABLED: 'true' }));
-    const primary = mockMysql('careerops');
+    const primary = mockMysql('railway');
     const secondary = mockMysql('careerops_demo');
     secondary.pool.getConnection.mockRejectedValue(new Error('DEMO unavailable'));
     const mysql = {

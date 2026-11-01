@@ -65,6 +65,9 @@ const ACTIVE_THRESHOLD_MINUTES = 1;
 const STALE_THRESHOLD_MINUTES = 5;
 
 const app = express();
+// Railway's HTTPS edge is the immediate proxy. Never trust an arbitrary chain.
+// Production ingress must reach this listener through that edge only.
+if (APP_ENV === "production") app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
@@ -145,27 +148,34 @@ app.use((req, res, next) => {
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "careerops-secret",
+    secret: APP_ENV === "production"
+      ? process.env.SESSION_SECRET
+      : process.env.SESSION_SECRET || "careerops-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // IMPORTANT for Railway (no HTTPS termination in Node)
+      secure: APP_ENV === "production",
       httpOnly: true
     }
   })
 );
 
 function rejectDemoWrite(res, action = "This action") {
-    if (APP_ENV === "test" || (!IS_SANDBOX && !DEMO_MODE)) {
-        return false;
-    }
+  // CI test runs use isolated in-memory data and must be allowed to seed fixtures.
+  if (isCIMode()) {
+    return false;
+  }
 
-    res.status(403).json({
-        success: false,
-        error: `${action} is disabled in the CareerOps Demo.`
-    });
+  if (!IS_SANDBOX && !DEMO_MODE) {
+    return false;
+  }
 
-    return true;
+  res.status(403).json({
+    success: false,
+    error: `${action} is disabled in the CareerOps Demo.`
+  });
+
+  return true;
 }
 function requireAuth(req, res, next) {
   console.log("requireAuth session user:", req.session.user);
@@ -190,6 +200,12 @@ function requireAuth(req, res, next) {
 }
 
 app.post("/api/auth/register", async (req, res) => {
+  // LIVE uses its existing owner account; public account creation is disabled.
+  if (APP_ENV === "production") {
+    return res.status(403).json({ error: "Registration is disabled in production." });
+  }
+  if (rejectDemoWrite(res, "Registration")) return;
+
   try {
     const { email, password, full_name } = req.body;
 
@@ -265,7 +281,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const [users] = await pool.query(
       `
-      SELECT id, email, full_name, password_hash
+      SELECT id, email, full_name, password_hash${APP_ENV === "dev" ? ", role" : ""}
       FROM users
       WHERE email = ?
       `,
@@ -284,6 +300,11 @@ app.post("/api/auth/login", async (req, res) => {
   return res.status(401).json({ error: "Invalid email or password." });
     }
 
+    if (APP_ENV === "dev" && !["admin", "user", "guest"].includes(user.role)) {
+      delete req.session.user;
+      return res.status(403).json({ error: "Invalid DEV account role." });
+    }
+
     await pool.query(
       `
       UPDATE users
@@ -297,7 +318,8 @@ app.post("/api/auth/login", async (req, res) => {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.email === "b.r.lewis@outlook.com" ? "admin" : "guest"
+      role: APP_ENV === "dev" ? user.role
+        : user.email === "b.r.lewis@outlook.com" ? "admin" : "guest"
     };
 
     const acceptsHtml = (req.headers.accept || "").includes("text/html");
@@ -323,7 +345,7 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "Failed to log out." });
     }
 
-    res.clearCookie("connect.sid");
+    res.clearCookie("connect.sid", { secure: APP_ENV === "production", httpOnly: true });
     res.json({ message: "Logout successful." });
   });
 });
@@ -422,7 +444,7 @@ app.get("/api/contacts", requireAuth, async (req, res) => {
 
 try {
   if (isCIMode()) {
-    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length, inMemoryContacts);
+    console.log("CI GET /api/contacts RETURNING:", inMemoryContacts.length);
     return res.json(inMemoryContacts);
   }
 
@@ -452,7 +474,7 @@ try {
 
     console.log("GET /api/contacts ROW COUNT:", rows.length);
     const visibleRows = IS_SANDBOX
-      ? rows.map(({ notes, reported_unemployment, ...contact }) => contact)
+      ? rows.map(({ notes, ...contact }) => contact)
       : rows;
 
     return res.json(visibleRows);
@@ -549,7 +571,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
       try {
         const isAdmin = req.session?.user?.role === "admin";
 
-        if (isDemoSandbox && !isAdmin) {
+        if (IS_SANDBOX && !isAdmin) {
           return res.status(403).json({ error: "Read-only mode." });
         }
 
@@ -586,7 +608,7 @@ app.get("/api/github/actions-summary", async (req, res) => {
           report_start: start,
           report_end: end,
           total_jobs_reported: rows.length,
-          jobs: rows
+          jobs: IS_SANDBOX ? rows.map(({ notes, ...contact }) => contact) : rows
         });
       } catch (error) {
         console.error("Unemployment report failed:", error);
@@ -698,7 +720,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         );
 
         const visibleEmployers = IS_SANDBOX
-          ? employerRows.map(({ notes, reported_to_unemployment, ...employer }) => employer)
+          ? employerRows.map(({ notes, ...employer }) => employer)
           : employerRows;
 
         res.json({
@@ -785,40 +807,34 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         }
       });
 
-app.post("/api/contacts", requireAuth, async (req, res) => { 
-  console.log("POST /api/contacts BODY:", req.body);
-  try {
-    const isDemoSandbox = IS_SANDBOX;
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-      return APP_ENV === "test";
-    }
+app.post("/api/contacts", requireAuth, async (req, res) => {
+  if (rejectDemoWrite(res)) return;
 
-    // DEMO is read-only, including for administrators.
-    if (APP_ENV === "demo") {
-      return res.status(403).json({
-        error: "Save Contact is disabled in the CareerOps Demo."
+  try {
+
+    // CI shortcut (no database)
+    if (isCIMode()) {
+      console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
+
+      const newContact = {
+        id: inMemoryContactId++,
+        ...req.body
+      };
+
+      inMemoryContacts.push(newContact);
+
+      console.log(
+        "CI POST /api/contacts AFTER:",
+        inMemoryContacts.length
+      );
+
+      return res.status(201).json({
+        message: "Contact created successfully",
+        id: newContact.id
       });
     }
 
-    // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
-if (isCIMode()) {
-  console.log("CI POST /api/contacts BEFORE:", inMemoryContacts.length);
-
-  const newContact = {
-    id: inMemoryContactId++,
-    ...req.body
-  };
-
-  inMemoryContacts.push(newContact);
-
-  console.log("CI POST /api/contacts AFTER:", inMemoryContacts.length, newContact);
-
-  return res.status(201).json({
-    message: "Contact created successfully",
-    id: newContact.id
-  });
-}
+    // Existing production database logic continues here...
 
     const {
       date_contacted,
@@ -839,7 +855,6 @@ if (isCIMode()) {
       notes
     } = req.body;
 
-    console.log("POST /api/contacts payload:", req.body);
 
     const [result] = await pool.query(
       `
@@ -971,13 +986,9 @@ app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
     });
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
-  try {
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-  return APP_ENV === "test";
-}
+  if (rejectDemoWrite(res)) return;
 
-    if (rejectDemoWrite(res)) return;
+  try {
 
     // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) { 
@@ -1122,13 +1133,10 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
     });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
-  try {
-    const isAdmin = req.session?.user?.role === "admin";
-    function isCIMode() {
-  return APP_ENV === "test";
-}
+  if (rejectDemoWrite(res)) return;
 
-    if (rejectDemoWrite(res)) return;
+  try {
+
 
     // ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° CI shortcut (no DB)
     if (isCIMode()) {
@@ -1348,8 +1356,7 @@ async function syncLiveToDemo() {
     // Copy parent/business data first.
     const demoContacts = contacts.map((contact) => ({
       ...contact,
-      notes: null,
-      reported_to_unemployment: null
+      notes: null
     }));
 
     const contactsInsert =
@@ -1856,9 +1863,8 @@ if (APP_ENV === "production" && environment.demoSyncEnabled && demoPool) {
           return res.status(404).json({ error: "No company record found." });
         }
 
-        console.log("Company details returned:", rows[0]);
-
-        res.json(rows[0]);
+        const { notes, ...publicContact } = rows[0];
+        res.json(IS_SANDBOX ? publicContact : rows[0]);
       } catch (error) {
         console.error("GET /api/companies/details failed:", error);
         res.status(500).json({ error: "Failed to fetch company details." });

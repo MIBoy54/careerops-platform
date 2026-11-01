@@ -82,7 +82,7 @@ CREATE TABLE `users` (
   `full_name` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `password_hash` varchar(255) DEFAULT NULL,
-  `role` varchar(50) DEFAULT 'user',
+  `role` varchar(50) NOT NULL DEFAULT 'user',
   `last_login` timestamp NULL DEFAULT NULL,
   `last_login_at` date DEFAULT NULL,
   PRIMARY KEY (`id`),

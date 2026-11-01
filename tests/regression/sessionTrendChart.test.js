@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 let browser;
 let page;
 const code = readFileSync(new URL('../../src/sessionTrendChart.js', import.meta.url), 'utf8').replaceAll('export function', 'function');
-const css = readFileSync(new URL('../../src/styles/app.css', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
 const report = counts => ({
   window_start: '2026-10-08T15:30:00Z', window_end: '2026-10-09T15:30:00Z',
   buckets: Array.from({ length: 12 }, (_, i) => ({

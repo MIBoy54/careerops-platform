@@ -15,6 +15,7 @@ on:
       - qa
       - demo
       - main
+      - transfer/careerops-reviewed-bcd81cc
 
 jobs:
   quality-gate:
@@ -38,28 +39,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mysql_image='mysql@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7'
           docker run -d \
             --name careerops-trend-dev-test \
             --network none \
             --tmpfs /var/lib/mysql \
             -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
-            mysql:8.4
+            "$mysql_image"
 
           trap 'docker rm -f careerops-trend-dev-test >/dev/null 2>&1 || true' EXIT
 
-          ready=0
-          for attempt in {1..60}; do
-            if docker exec careerops-trend-dev-test mysqladmin ping -uroot --silent >/dev/null 2>&1; then
-              ready=1
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$ready" -ne 1 ]; then
-            echo "Disposable MySQL container did not become ready"
-            exit 1
-          fi
+          bash .github/scripts/wait-for-mysql-final-server.sh \
+            careerops-trend-dev-test 8.4.13 120
 
           SESSION_TREND_TEST_MYSQL=1 npx vitest run --config tests/sessionTrend.config.js tests/regression/sessionTrendSql.test.js
 
@@ -78,8 +69,9 @@ jobs:
         run: npx playwright test tests/e2e/smoke --workers=1
 
       - name: Run E2E Tests (DEMO/LIVE Gate)
-        if: github.ref_name == 'demo' || github.ref_name == 'main'
+        if: github.ref_name == 'demo' || github.ref_name == 'main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
         env:
           TEST_EMAIL: test@careerops.local
           TEST_PASSWORD: test-password
+        # Existing weekly-report-history exclusion retained; review before release.
         run: npx playwright test tests/e2e --workers=1 --grep-invert "Generated weekly report appears in Weekly Report History"
