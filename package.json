@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "start:dev": "node scripts/start-dev.js",
+    "dev:bootstrap": "node scripts/dev-bootstrap.js",
+    "dev:create-user": "node scripts/dev-create-user.js",
     "test": "vitest run",
     "api": "node src/server.js",
     "test:session-trend": "vitest run --config tests/sessionTrend.config.js"

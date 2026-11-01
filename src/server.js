@@ -281,7 +281,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const [users] = await pool.query(
       `
-      SELECT id, email, full_name, password_hash
+      SELECT id, email, full_name, password_hash${APP_ENV === "dev" ? ", role" : ""}
       FROM users
       WHERE email = ?
       `,
@@ -300,6 +300,11 @@ app.post("/api/auth/login", async (req, res) => {
   return res.status(401).json({ error: "Invalid email or password." });
     }
 
+    if (APP_ENV === "dev" && !["admin", "user", "guest"].includes(user.role)) {
+      delete req.session.user;
+      return res.status(403).json({ error: "Invalid DEV account role." });
+    }
+
     await pool.query(
       `
       UPDATE users
@@ -313,7 +318,8 @@ app.post("/api/auth/login", async (req, res) => {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.email === "b.r.lewis@outlook.com" ? "admin" : "guest"
+      role: APP_ENV === "dev" ? user.role
+        : user.email === "b.r.lewis@outlook.com" ? "admin" : "guest"
     };
 
     const acceptsHtml = (req.headers.accept || "").includes("text/html");
