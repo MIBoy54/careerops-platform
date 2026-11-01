@@ -1,4 +1,6 @@
-# Session Activity Trend (DEV)
+# Session activity trend
+
+Reviewed 2026-10-31 against `7fc0fa9`; implemented in the shared application.
 
 This report counts unique session IDs at their earliest recorded `first_seen` across
 `visitor_analytics`. Repeated rows do not create new session starts. Recording,
@@ -12,7 +14,7 @@ own IANA timezone and displays dates, zone names, counts, and the endpoint insta
 “Now” means the reporting instant of the latest successful response, not a browser
 clock reading. The existing sixty-second refresh is retained.
 
-## Required DEV configuration
+## Required runtime configuration
 
 Set `SESSION_TREND_SOURCE_TIME_ZONE` to the **verified timezone used to record
 historical `first_seen` DATETIME values**. It has no default: missing configuration
@@ -40,11 +42,15 @@ changes are included.
 - `npm run test:session-trend`: API and Chromium rendering tests. Requires Chromium
   at `/usr/bin/chromium`, or set `CHROMIUM_PATH` to an installed executable.
 - SQL checks are opt-in via `SESSION_TREND_TEST_MYSQL=1 npm run test:session-trend`.
-  They require a disposable MySQL 8 container named `careerops-trend-dev-test` on
-  the local Docker socket. Tests inject synthetic records as CTEs, create no tables,
-  and never connect to a CareerOps database. Run it with network disabled:
-  `docker run --detach --rm --name careerops-trend-dev-test --network none -e MYSQL_ALLOW_EMPTY_PASSWORD=yes mysql:8.4`.
-  Stop the disposable container after testing.
+  They require the isolated MySQL fixture, pinned image, and final-server readiness
+  check in [testing instructions](testing.md#sql-fixture-readiness). A ping-only
+  probe is insufficient because the initialization server can answer it. The SQL
+  tests use synthetic CTEs, create no tables, and never connect to a CareerOps DB.
+
+ON/OFF runtime validation and two-clean-clone checks are recorded in
+[run history](run-history.md). The separate chart regression is available locally
+but is not selected by the primary CI workflow. Timestamp conventions and query
+performance still require environment-specific verification.
 
 The API response changed from sparse `{hour, sessions}` rows to an object containing
 `metric`, `time_zone`, `source_time_zone`, `window_start`, `window_end`,
