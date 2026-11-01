@@ -1,3 +1,4 @@
+import { snapshotConfig, createReadOnlySnapshotPool, createSnapshotSource, fetchSnapshot, createGuestSnapshots, snapshotBusinessRead } from './demoSnapshot.js';
 import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
 import { requireAdmin } from "./adminAccess.js";
 import { createSessionTrendHandler } from "./sessionTrend.js";
@@ -26,6 +27,7 @@ const APP_ENV = environment.appEnv;
 const DB_NAME = environment.database;
 const COMMIT_SHA = environment.buildCommitSha;
 const IS_SANDBOX = APP_ENV === "demo";
+const entrySnapshotConfig = snapshotConfig(process.env, APP_ENV);
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 const DEMO_MODE = String(process.env.DEMO_MODE).trim().toLowerCase() === "true";
@@ -67,7 +69,7 @@ const STALE_THRESHOLD_MINUTES = 5;
 const app = express();
 // Railway's HTTPS edge is the immediate proxy. Never trust an arbitrary chain.
 // Production ingress must reach this listener through that edge only.
-if (APP_ENV === "production") app.set("trust proxy", 1);
+if (APP_ENV === "production" || (IS_SANDBOX && entrySnapshotConfig)) app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
@@ -154,11 +156,60 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: APP_ENV === "production",
+      secure: APP_ENV === "production" ? true : (IS_SANDBOX && entrySnapshotConfig ? "auto" : false),
+      sameSite: "lax",
+      ...(IS_SANDBOX && entrySnapshotConfig ? { maxAge: 60 * 60 * 1000 } : {}),
       httpOnly: true
     }
   })
 );
+
+const guestSnapshots = IS_SANDBOX && entrySnapshotConfig
+  ? createGuestSnapshots({ load: () => fetchSnapshot(entrySnapshotConfig) }) : null;
+
+if (APP_ENV === 'production' && entrySnapshotConfig) {
+  const snapshotPool = await createReadOnlySnapshotPool(mysql, environment.primary, entrySnapshotConfig);
+  app.get('/internal/demo-snapshot', createSnapshotSource({ pool: snapshotPool, token: entrySnapshotConfig.token }));
+}
+if (guestSnapshots) {
+  let entryCredits = 10;
+  let lastEntryRefill = Date.now();
+  app.post('/api/demo-snapshot/session', async (req, res) => {
+    if (req.headers.origin && req.headers.origin !== req.protocol + '://' + req.get('host')) {
+      return res.status(403).json({ error: 'Same-origin entry required.' });
+    }
+    const now = Date.now();
+    entryCredits = Math.min(10, entryCredits + (now - lastEntryRefill) / 1000);
+    lastEntryRefill = now;
+    if (entryCredits < 1) return res.status(429).json({ error: 'Please wait before starting another view.' });
+    entryCredits--;
+    const oldId = req.sessionID;
+    try {
+      await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()));
+      guestSnapshots.drop(oldId);
+      const snapshot = await guestSnapshots.enter(req.sessionID);
+      req.session.user = { id: 0, email: 'guest@careerops.com', full_name: 'Guest', role: 'guest' };
+      req.session.demoSnapshotExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({ user: req.session.user, app_env: APP_ENV, snapshot: { capturedAt: snapshot.capturedAt } });
+    } catch {
+      return res.status(503).json({ error: 'A fresh LIVE view is unavailable. Please try again.' });
+    }
+  });
+  app.use((req, res, next) => {
+    const apiPath = req.path.toLowerCase().replace(/\/$/, '');
+    if (!/^\/api(?:\/|$)/i.test(req.path) || apiPath === '/api/auth/logout') return next();
+    res.setHeader('Cache-Control', 'no-store');
+    const snapshot = guestSnapshots.get(req.sessionID);
+    if (!snapshot) return res.status(401).json({ error: 'Your DEMO snapshot has ended. Continue as Guest to start a new view.' });
+    if (!['GET', 'HEAD'].includes(req.method) &&
+        !['/api/analytics/start', '/api/analytics/heartbeat'].includes(apiPath)) {
+      return res.status(403).json({ error: 'Business changes are disabled in DEMO.' });
+    }
+    req.demoSnapshot = snapshot;
+    return snapshotBusinessRead(req, res, next);
+  });
+}
 
 function rejectDemoWrite(res, action = "This action") {
   // CI test runs use isolated in-memory data and must be allowed to seed fixtures.
@@ -339,19 +390,23 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
+  guestSnapshots?.drop(req.sessionID);
   req.session.destroy((err) => {
     if (err) {
       console.error("Logout failed:", err);
       return res.status(500).json({ error: "Failed to log out." });
     }
 
-    res.clearCookie("connect.sid", { secure: APP_ENV === "production", httpOnly: true });
+    res.clearCookie("connect.sid", { secure: APP_ENV === "production" ? true : (IS_SANDBOX && entrySnapshotConfig ? "auto" : false),
+      sameSite: "lax",
+      ...(IS_SANDBOX && entrySnapshotConfig ? { maxAge: 60 * 60 * 1000 } : {}), httpOnly: true });
     res.json({ message: "Logout successful." });
   });
 });
 
 app.get("/version", (_req, res) => {
-  res.json({ app: "careerops-platform", environment: APP_ENV, commit: COMMIT_SHA });
+  res.json({ app: "careerops-platform", environment: APP_ENV, commit: COMMIT_SHA,
+    ...(guestSnapshots ? { demoEntrySnapshots: true } : {}) });
 });
 
 app.get("/health", (req, res) => {

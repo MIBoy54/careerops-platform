@@ -76,7 +76,7 @@ console.log("IS DEMO:", isDemo, "HOST:", window.location.hostname);
 
   if (isDemo) {
     banner.style.display = "block";
-    banner.textContent = "CAREEROPS PLATFORM • SANDBOX • SAMPLE DATA";
+    banner.textContent = "CAREEROPS PLATFORM • DEMO • PROTECTED PROD VIEW";
     document.body.style.paddingTop = "40px";
   } else {
     banner.style.display = "none";
@@ -670,6 +670,12 @@ async function loadDemoRefreshStatus() {
     }
 
     const data = await response.json();
+    if (data.snapshot?.capturedAt) {
+      document.getElementById("dashboardDemoRefreshLabel").textContent = "Your DEMO snapshot:";
+      timeEl.textContent = new Date(data.snapshot.capturedAt).toLocaleString(undefined, { timeZoneName: "short" });
+      detailsEl.textContent = " · Protected LIVE data at your time of entry";
+      return;
+    }
     const refresh = data.refresh;
 
     if (!refresh || !refresh.completed_at) {

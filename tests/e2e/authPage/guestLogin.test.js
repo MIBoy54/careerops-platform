@@ -51,3 +51,36 @@ test('mobile navigation leaves full-width content below the sidebar', async ({ p
   expect(main.x).toBeLessThanOrEqual(20);
   expect(main.y).toBeGreaterThanOrEqual(sidebar.y+sidebar.height-1);
 });
+
+test('entry snapshot uses explicit POST and reports capture failure without entering', async ({page}) => {
+  await page.route('**/version', route=>route.fulfill({json:{environment:'demo',demoEntrySnapshots:true}}));
+  let attempts=0;
+  await page.route('**/api/demo-snapshot/session', route=>{
+    expect(route.request().method()).toBe('POST');attempts++;
+    return route.fulfill({status:503,json:{error:'unavailable'}});
+  });
+  await page.goto('/login.html');
+  await page.locator('#guestLogin').click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page).toHaveURL(/login.html$/);
+  await expect(page.locator('#guestLogin')).toBeEnabled();
+  expect(attempts).toBe(1);
+});
+
+test('snapshot entry displays a visitor timestamp distinct from dashboard creation', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.route('**/version',route=>route.fulfill({json:{environment:'demo',demoEntrySnapshots:true}}));
+  await page.route('**/api/demo-snapshot/session',route=>route.fulfill({json:{app_env:'demo',user:{role:'guest'}}}));
+  await page.route('**/api/auth/me',route=>route.fulfill({json:{app_env:'demo',user:{id:0,role:'guest'}}}));
+  await page.route('**/api/contacts',route=>route.fulfill({json:[]}));
+  await page.route('**/api/reports',route=>route.fulfill({json:[]}));
+  await page.route('**/api/demo-refresh/latest',route=>route.fulfill({json:{snapshot:{capturedAt:'2026-11-01T22:00:00.000Z'},refresh:null}}));
+  await page.goto('/login.html');
+  await page.locator('#guestLogin').click();
+  await expect(page.locator('#dashboardDemoRefreshLabel')).toHaveText('Your DEMO snapshot:');
+  await expect(page.locator('#dashboardDemoRefreshDetails')).toContainText('Protected LIVE data at your time of entry');
+  await expect(page.locator('#environmentBanner')).toContainText('PROTECTED PROD VIEW');
+  await expect(page.locator('#dashboardDemoRefreshTime')).not.toHaveText('Loading...');
+  await page.reload();
+  await expect(page.locator('#dashboardDemoRefreshLabel')).toHaveText('Your DEMO snapshot:');
+});

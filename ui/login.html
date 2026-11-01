@@ -38,9 +38,14 @@
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       let isDemo = false;
+      let entrySnapshots = false;
       try {
         const response = await fetch("/version", { cache: "no-store" });
-        if (response.ok) isDemo = (await response.json()).environment === "demo";
+        if (response.ok) {
+          const identity = await response.json();
+          isDemo = identity.environment === "demo";
+          entrySnapshots = identity.demoEntrySnapshots === true;
+        }
       } catch { /* Keep ordinary login if runtime identity is unavailable. */ }
 
       const loginBtn = document.getElementById("loginBtn");
@@ -62,7 +67,9 @@
         guestBtn.textContent = "Logging in...";
 
         try {
-          const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+          const res = await fetch(entrySnapshots ? "/api/demo-snapshot/session" : "/api/auth/me", {
+            method: entrySnapshots ? "POST" : "GET", credentials: "same-origin"
+          });
           if (!res.ok) throw new Error("Guest session request failed");
           const data = await res.json();
           if (data.app_env !== "demo" || data.user?.role !== "guest") {

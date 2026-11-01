@@ -691,3 +691,55 @@ describe('actual administrative route wiring, with mocked infrastructure', () =>
     expect(mocks.createPool).not.toHaveBeenCalled();
   });
 });
+
+describe('entry-time DEMO snapshot HTTP wiring', () => {
+  it('keeps A fixed across reload, gives B fresh protected data, and blocks writes', async () => {
+    stubEnv('demo', { RAILWAY_PROJECT_ID:'fixture', RAILWAY_ENVIRONMENT_ID:'fixture',
+      DEMO_ENTRY_SNAPSHOT_ENABLED:'true',DEMO_SNAPSHOT_TOKEN:'synthetic-snapshot-token-0123456789-ABCDEFG',
+      DEMO_SNAPSHOT_SOURCE_URL:'https://snapshot.example.invalid/internal/demo-snapshot' });
+    const {pool}=installPool('demo');
+    let company='Entry A',captures=0;
+    const networkFetch=globalThis.fetch;
+    vi.stubGlobal('fetch', async (url,options) => {
+      if(String(url).startsWith('https://snapshot.example.invalid/')) {
+        captures++;
+        return new Response(JSON.stringify({schemaVersion:1,capturedAt:new Date().toISOString(),
+          contacts:[{id:1,company,notes:'PRIVATE',email:'PRIVATE'}],reports:[],links:[]}));
+      }
+      return networkFetch(url,options);
+    });
+    const {app}=await import('../../src/server.js');
+    const server=app.listen(0,'127.0.0.1');
+    await new Promise(resolve=>server.once('listening',resolve));
+    const base='http://127.0.0.1:'+server.address().port;
+    const request=(path,cookie,method='GET')=>networkFetch(base+path,{method,headers:cookie?{Cookie:cookie}:{}});
+    try {
+      expect((await request('/api/contacts')).status).toBe(401);
+      const a=await request('/api/demo-snapshot/session',null,'POST');
+      expect(a.status).toBe(200);
+      const cookieA=a.headers.get('set-cookie').split(';')[0];
+      expect(JSON.stringify(await (await request('/api/contacts',cookieA)).json())).not.toContain('PRIVATE');
+      const stampA=await (await request('/api/demo-snapshot',cookieA)).json();
+      company='Entry B';
+      expect((await (await request('/api/contacts',cookieA)).json())[0].company).toBe('Entry A');
+      expect(await (await request('/api/demo-snapshot',cookieA)).json()).toEqual(stampA);
+      const b=await request('/api/demo-snapshot/session',null,'POST');
+      const cookieB=b.headers.get('set-cookie').split(';')[0];
+      expect((await (await request('/api/contacts',cookieB)).json())[0].company).toBe('Entry B');
+      expect((await request('/api/contacts',cookieA,'POST')).status).toBe(403);
+      expect((await request('/api/demo-refresh',cookieA,'POST')).status).toBe(403);
+      expect((await request('/db-ping',cookieA)).status).toBe(403);
+      expect((await (await request('/API/Contacts/',cookieA)).json())[0].company).toBe('Entry A');
+      expect((await request('/API/Contacts/',cookieA,'HEAD')).status).toBe(200);
+      expect((await request('/api/auth/login',cookieA,'POST')).status).toBe(403);
+      expect(captures).toBe(2);
+      // No business query touches the shared DEMO database in this mode.
+      expect(pool.query).not.toHaveBeenCalled();
+      expect((await request('/api/auth/logout',cookieA,'POST')).status).toBe(200);
+      expect((await request('/api/contacts',cookieA)).status).toBe(401);
+    } finally {
+      vi.unstubAllGlobals();
+      await new Promise(resolve=>server.close(resolve));
+    }
+  });
+});
