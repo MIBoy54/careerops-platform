@@ -3,6 +3,12 @@ import { timingSafeEqual } from 'node:crypto';
 const CONTACT_FIELDS = ['id','date_contacted','company','role_level','role_type','location',
   'comp_range','status','relationship_status','reported_to_unemployment','follow_up_date','industry'];
 const REPORT_FIELDS = ['id','week_start','week_end','submitted','submitted_at'];
+export const SNAPSHOT_LINKS_SQL = `SELECT links.report_id, links.recruiter_tracker_id
+FROM report_job_contacts AS links
+INNER JOIN recruiter_tracker AS contacts ON contacts.id = links.recruiter_tracker_id
+INNER JOIN weekly_reports AS reports ON reports.id = links.report_id
+LIMIT 50001`;
+
 const MAX_BYTES = 8 * 1024 * 1024;
 const TTL = 60 * 60 * 1000;
 const pick = (row, fields) => Object.fromEntries(fields.map(key => [key, row[key] ?? null]));
@@ -83,7 +89,7 @@ export async function captureSnapshot(pool, now = () => new Date()) {
       'SELECT ' + CONTACT_FIELDS.join(', ') + ' FROM recruiter_tracker ORDER BY id DESC LIMIT 50001');
     const [reports] = await connection.query(
       'SELECT ' + REPORT_FIELDS.join(', ') + ' FROM weekly_reports ORDER BY week_start DESC, id DESC LIMIT 50001');
-    const [links] = await connection.query('SELECT report_id, recruiter_tracker_id FROM report_job_contacts LIMIT 50001');
+    const [links] = await connection.query(SNAPSHOT_LINKS_SQL);
     if ([contacts, reports, links].some(rows => rows.length > 50000)) throw new Error('Snapshot row limit exceeded');
     const snapshot = protectSnapshot({ capturedAt, contacts, reports, links });
     if (Buffer.byteLength(JSON.stringify(snapshot)) > MAX_BYTES) throw new Error('Snapshot exceeds limit');
