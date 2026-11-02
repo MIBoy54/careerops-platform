@@ -131,3 +131,17 @@ describe('session ownership, expiry and atomic publication', () => {
     expect(request('/api/contacts/99').next).not.toHaveBeenCalled();
   });
 });
+
+describe('snapshot lifecycle acceptance', () => {
+  it('does not publish a capture after its session has been dropped', async () => {
+    let finish, calls=0;
+    const store=createGuestSnapshots({load:()=>++calls===1?new Promise(resolve=>{finish=resolve;}):Promise.resolve(raw()),maxSessions:1});
+    const capture=store.enter('A');
+    store.drop('A');
+    await expect(store.enter('B')).rejects.toThrow('capacity');
+    finish(raw());
+    await expect(capture).rejects.toThrow();
+    expect(store.get('A')).toBeUndefined();
+    await expect(store.enter('B')).resolves.toBeDefined();
+  });
+});

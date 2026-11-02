@@ -142,6 +142,8 @@ export function createGuestSnapshots({ load, now = Date.now, ttl = TTL, maxBytes
   const pending = new Map();
   let bytes = 0;
   const drop = id => {
+    const capture = pending.get(id);
+    if (capture) capture.cancelled = true;
     const entry = entries.get(id);
     if (entry) { bytes -= entry.size; entries.delete(id); }
   };
@@ -153,17 +155,21 @@ export function createGuestSnapshots({ load, now = Date.now, ttl = TTL, maxBytes
     async enter(id) {
       sweep();
       if (entries.has(id)) return entries.get(id).data;
-      if (pending.has(id)) return pending.get(id);
+      if (pending.has(id)) return pending.get(id).task;
       if (entries.size + pending.size >= maxSessions) throw new Error('Snapshot capacity reached');
+      const capture = { cancelled: false };
       const task = (async () => {
-        const data = JSON.parse(JSON.stringify(await load()));
+        const loaded = await load();
+        if (capture.cancelled) throw new Error('Snapshot session ended during capture');
+        const data = JSON.parse(JSON.stringify(loaded));
         const size = Buffer.byteLength(JSON.stringify(data));
         sweep();
         if (size > MAX_BYTES || bytes + size > maxBytes) throw new Error('Snapshot capacity reached');
         entries.set(id, { data, size, expiresAt: now() + ttl }); bytes += size;
         return data;
       })();
-      pending.set(id, task);
+      capture.task = task;
+      pending.set(id, capture);
       try { return await task; } finally { pending.delete(id); }
     },
     get(id) {

@@ -61,6 +61,12 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         run: npx playwright install --with-deps
 
+      - name: Run Enabled Snapshot Browser Acceptance
+        if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
+        env:
+          SNAPSHOT_BROWSER_ACCEPTANCE: '1'
+        run: npx vitest run tests/unit/environmentRoutes.test.js -t "serves enabled snapshot browser flow"
+
       - name: Run Smoke Tests (QA Gate)
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         env:
