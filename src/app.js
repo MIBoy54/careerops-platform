@@ -41,7 +41,9 @@ function applyRoleBasedAccess() {
   );
 
   formFields.forEach((el) => {
-    el.disabled = !admin;
+    const searchControl = el.id === "company" || el.id === "resetButton" ||
+      el.closest("#companySuggestions");
+    el.disabled = !admin && !searchControl;
   });
 
   if (generateReportBtn) {
@@ -1119,6 +1121,9 @@ console.log("DASHBOARD UPDATE COMPLETE");
 console.log("DASHBOARD CONTACTS:", contacts.length);
 
 savedContacts = [...contacts];
+if (companyInput && document.activeElement === companyInput) {
+  companyInput.dispatchEvent(new Event("input"));
+}
 
 renderTable();
 
@@ -1984,87 +1989,84 @@ viewButton = document.getElementById("viewButton");
 
 function wireCompanyAutocomplete() {
   if (!companyInput || !companySuggestions) return;
-
-  companyInput.addEventListener("input", () => {
-    const searchText = companyInput.value.trim().toLowerCase();
-
-    companySuggestions.innerHTML = "";
-
-    if (searchText.length < 3) {
-      companySuggestions.style.display = "none";
-      return;
-    }
-
-    const matches = contacts
-      .filter((c) =>
-        String(c.company || "").toLowerCase().includes(searchText)
-      )
-      .map((c) => c.company)
-      .filter(Boolean);
-
-    const uniqueMatches = [...new Set(matches)].slice(0, 10);
-
-    if (!uniqueMatches.length) {
-      companySuggestions.style.display = "none";
-      return;
-    }
-
-    companySuggestions.innerHTML = uniqueMatches
-      .map((company) => `
-        <div class="suggestion-item" data-company="${escapeHtml(company)}">
-          ${escapeHtml(company)}
-        </div>
-      `)
-      .join("");
-
-    companySuggestions.style.display = "block";
-  });
-
-companySuggestions.addEventListener("mousedown", (e) => {
-  e.preventDefault();
-
-  const item = e.target.closest(".suggestion-item");
-  if (!item) return;
-
-  const selectedCompany = item.dataset.company;
-
-  companyInput.value = selectedCompany;
-  companySuggestions.innerHTML = "";
-  companySuggestions.style.display = "none";
-
-  const contact = contacts.find(
-    (c) =>
-      String(c.company || "").trim().toLowerCase() ===
-      String(selectedCompany || "").trim().toLowerCase()
-  );
-
-  if (!contact || !form || !form.elements) return;
-
-  editId = contact.id;
-
-  Object.keys(contact).forEach((key) => {
-    const field = form.elements[key];
-
-    if (field) {
-      field.value =
-        key === "date_contacted" || key === "next_follow_up_date"
-          ? formatDate(contact[key])
-          : contact[key] || "";
-    }
-  });
-
-  renderMessage(
-    messageDiv,
-    "Existing contact loaded. Update fields and click Save Contact."
-  );
-});
-
-companyInput.addEventListener("blur", () => {
-  setTimeout(() => {
-    companySuggestions.innerHTML = "";
+  const status = document.getElementById("companySearchStatus");
+  let matches = [];
+  let activeIndex = -1;
+  let blurTimer;
+  const close = () => {
+    clearTimeout(blurTimer);
+    companySuggestions.replaceChildren();
     companySuggestions.style.display = "none";
-  }, 150);
-});
+    companyInput.setAttribute("aria-expanded", "false");
+    companyInput.removeAttribute("aria-activedescendant");
+    activeIndex = -1;
+  };
+  const render = () => {
+    close();
+    const query = companyInput.value.trim().toLowerCase();
+    if (query.length < 2) {
+      matches = [];
+      if (status) status.textContent = "";
+      return;
+    }
+    matches = contacts.filter(contact =>
+      String(contact.company || "").trim().toLowerCase().includes(query)
+    ).sort((a,b) => formatDate(b.date_contacted).localeCompare(formatDate(a.date_contacted)) ||
+      Number(b.id) - Number(a.id));
+    if (status) status.textContent = matches.length
+      ? matches.length + " matching contacts. Use Up/Down and Enter to select."
+      : "No matching contacts.";
+    if (!matches.length) return;
+    companySuggestions.innerHTML = '<div class="suggestion-heading" role="presentation"><span>Date</span><span>Company/Agency</span><span>Role</span></div>' +
+      matches.map((contact,index) => `
+        <button type="button" role="option" aria-selected="false" tabindex="-1"
+          id="company-option-${index}" class="suggestion-item" data-contact-id="${escapeHtml(String(contact.id))}">
+          <span>${escapeHtml(formatDate(contact.date_contacted) || "—")}</span>
+          <span>${escapeHtml(contact.company || "")}</span>
+          <span>${escapeHtml(contact.role_level || "—")}</span>
+        </button>`).join("");
+    companySuggestions.style.display = "block";
+    companyInput.setAttribute("aria-expanded", "true");
+  };
+  const select = contact => {
+    if (!contact || !form) return;
+    close();
+    form.reset();
+    editId = contact.id;
+    for (const [key,value] of Object.entries(contact)) {
+      const field = form.elements[key];
+      if (field) field.value = key === "date_contacted" || key === "next_follow_up_date"
+        ? formatDate(value) : value ?? "";
+    }
+    if (status) status.textContent = "Selected " + (contact.company || "contact") + ".";
+    renderMessage(messageDiv, canWriteDatabase()
+      ? "Existing contact loaded. Update fields and click Save Contact."
+      : "Contact loaded for viewing. Changes are disabled.");
+    applyRoleBasedAccess();
+  };
+  companyInput.addEventListener("input", render);
+  companyInput.addEventListener("focus", render);
+  companyInput.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.preventDefault();close();if(status)status.textContent="";return; }
+    if (!matches.length || companySuggestions.style.display === "none") return;
+    if (event.key === "Enter") { event.preventDefault();select(matches[activeIndex < 0 ? 0 : activeIndex]);return; }
+    if (!["ArrowDown","ArrowUp"].includes(event.key)) return;
+    event.preventDefault();
+    activeIndex = event.key === "ArrowDown" ? (activeIndex+1)%matches.length
+      : (activeIndex<=0?matches.length:activeIndex)-1;
+    const options = [...companySuggestions.querySelectorAll('[role="option"]')];
+    options.forEach((option,index) => option.setAttribute("aria-selected",String(index===activeIndex)));
+    const active = options[activeIndex];
+    companyInput.setAttribute("aria-activedescendant",active.id);
+    active.scrollIntoView({block:"nearest"});
+  });
+  companySuggestions.addEventListener("mousedown", event => event.preventDefault());
+  companySuggestions.addEventListener("click", event => {
+    const item = event.target.closest(".suggestion-item");
+    if (item) select(matches.find(contact => String(contact.id) === item.dataset.contactId));
+  });
+  companyInput.addEventListener("blur", () => { blurTimer = setTimeout(close,150); });
+  form.addEventListener("reset", () => {close();matches=[];if(status)status.textContent="";});
 }
 
 wireCompanyAutocomplete();
@@ -2173,6 +2175,10 @@ activeUsersInterval = setInterval(
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!canWriteDatabase()) {
+        renderMessage(messageDiv, "Contact changes are disabled for this user.", "error");
+        return;
+      }
 
       const formData = new FormData(form);
       const contact = Object.fromEntries(formData.entries());
