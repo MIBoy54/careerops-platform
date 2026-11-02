@@ -336,10 +336,10 @@ async function loadQualityGateSummary() {
   const container = document.getElementById("validationRunsTable");
   if (!container) return;
 
-  container.innerHTML = `<div class="quality-empty">Loading quality gates...</div>`;
+  if (!container.children.length) container.innerHTML = `<div class="quality-empty">Loading quality gates...</div>`;
 
   try {
-    const response = await fetch("/api/github/actions-summary");
+    const response = await fetch("/api/github/actions-summary", {cache:"no-store"});
 
     if (!response.ok) {
       throw new Error("Failed API response");
@@ -348,23 +348,22 @@ async function loadQualityGateSummary() {
     const gates = await response.json();
 
     console.log("QUALITY GATES:", gates);
+    const checked = document.getElementById("qualityGateCheckedAt");
+    if (checked) checked.textContent = gates[0]?.checkedAt
+      ? "Checked: " + new Date(gates[0].checkedAt).toLocaleString()
+      : "";
 
     container.innerHTML = gates
       .map((gate) => {
-        let statusClass = "quality-running";
-
-        if (gate.status === "success") {
-          statusClass = "quality-success";
-        } else if (gate.status === "failed") {
-          statusClass = "quality-failed";
-        }
-
-        const icon =
-          gate.status === "success"
-            ? "✓"
-            : gate.status === "failed"
-              ? "✕"
-              : "…";
+        const failed = ['failure','failed','timed_out','action_required','startup_failure'].includes(gate.status);
+        const running = ['queued','in_progress','waiting','pending','requested'].includes(gate.status);
+        const statusClass = gate.status === 'success' ? 'quality-success'
+          : failed ? 'quality-failed' : running ? 'quality-running' : 'quality-neutral';
+        const icon = gate.status === 'success' ? '✓' : failed ? '✕' : running ? '…' : '—';
+        const label = ({success:'Passed',failure:'Failed',failed:'Failed',timed_out:'Timed out',
+          action_required:'Action required',startup_failure:'Startup failed',queued:'Queued',
+          in_progress:'Running',waiting:'Waiting',pending:'Pending',requested:'Requested',
+          cancelled:'Cancelled',skipped:'Skipped',unknown:'No run',unavailable:'Unavailable'})[gate.status] || 'Unknown';
 
         const completedAt = gate.completedAt
           ? new Date(gate.completedAt).toLocaleString()
@@ -375,14 +374,14 @@ async function loadQualityGateSummary() {
             <div class="quality-gate-icon">${icon}</div>
 
             <div class="quality-card-content">
-              <div class="quality-run-title">${gate.environment} Quality Gate</div>
+              <div class="quality-run-title">${escapeHtml(gate.environment)} Quality Gate</div>
 
               <div class="quality-run-meta">
-                CareerOps CI #${gate.runNumber} · ${gate.workflow}
+                ${escapeHtml(label)} · CareerOps CI #${escapeHtml(String(gate.runNumber ?? "—"))} · ${escapeHtml(gate.workflow || "")}
               </div>
 
               <div class="quality-run-meta">
-                Branch ${gate.branch} · Commit ${gate.commit}
+                Branch ${escapeHtml(gate.branch || "")} · Commit ${escapeHtml(gate.commit || "")}
               </div>
 
               <div class="quality-run-details">
@@ -393,12 +392,12 @@ async function loadQualityGateSummary() {
 
                 <div>
                   <span class="quality-label">Duration</span>
-                  ${gate.duration || "Not available"}
+                  ${escapeHtml(gate.duration || "Not available")}
                 </div>
               </div>
             </div>
 
-            <div class="quality-gate-branch">${gate.environment}</div>
+            <div class="quality-gate-branch">${escapeHtml(gate.environment)}</div>
           </article>
         `;
       })
@@ -2135,6 +2134,10 @@ try {
   initialContactsLoaded = true;
 
   await loadQualityGateSummary();
+  setInterval(() => { if (!document.hidden) loadQualityGateSummary(); }, 60000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) loadQualityGateSummary();
+  });
 
   await loadWeeklyReportHistory();
 

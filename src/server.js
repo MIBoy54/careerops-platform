@@ -1,3 +1,4 @@
+import { latestQualityGates, createQualityGateLoader } from './qualityGates.js';
 import { snapshotConfig, createReadOnlySnapshotPool, createSnapshotSource, fetchSnapshot, createGuestSnapshots, snapshotBusinessRead } from './demoSnapshot.js';
 import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
 import { requireAdmin } from "./adminAccess.js";
@@ -539,46 +540,13 @@ try {
   }
 });
 
+const getLatestGates=createQualityGateLoader(octokit,{cacheMs:process.env.GITHUB_TOKEN?60000:300000});
 app.get("/api/github/actions-summary", async (req, res) => {
   try {
-    const response =
-      await octokit.actions.listWorkflowRunsForRepo({
-        owner: "MIBoy54",
-        repo: "careerops-platform"
-      });
-
-    const latestByEnvironment = {};
-
-    for (const run of response.data.workflow_runs) {
-      const environment = mapBranchToEnvironment(run.head_branch);
-
-      if (!latestByEnvironment[environment]) {
-        latestByEnvironment[environment] = run;
-      }
-    }
-
-    const workflowRuns = Object.values(latestByEnvironment);
-
-    const formattedRuns = workflowRuns.map((run) => {
-      const started = new Date(run.run_started_at);
-      const completed = new Date(run.updated_at);
-
-      const durationMs = completed.getTime() - started.getTime();
-      const seconds = Math.floor(durationMs / 1000);
-
-      return {
-        environment: mapBranchToEnvironment(run.head_branch),
-        status: run.conclusion || "running",
-        workflow: run.display_title || run.name,
-        runNumber: run.run_number,
-        branch: run.head_branch,
-        commit: run.head_sha.substring(0, 7),
-        completedAt: run.updated_at,
-        duration: `${seconds}s`
-      };
-    });
-
-    res.json(formattedRuns);
+    res.setHeader('Cache-Control','no-store');
+    res.json(isCIMode()
+      ? await latestQualityGates({actions:{listWorkflowRuns:async()=>({data:{workflow_runs:[]}})}})
+      : await getLatestGates());
   } catch (error) {
     console.error("GitHub Actions Summary Failed:", {
       message: error.message,

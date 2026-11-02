@@ -1073,3 +1073,5 @@ h2 {
 }
 #companySuggestions .suggestion-item span { overflow-wrap: anywhere; }
 .company-search-status { font-size: .8rem; margin-top: .3rem; color: #374151; }
+
+.quality-card.quality-neutral { border-left-color: #94a3b8; }
