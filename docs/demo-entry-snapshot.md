@@ -90,3 +90,21 @@ and disconnection checks, and protected-field content review. Text accidentally
 entered in allowed company/location/status fields is not automatically anonymized.
 The 64 MiB limit measures retained JSON, not total process memory including
 pending fetches, parsing and serialization. Load testing remains required.
+
+## November 2 local acceptance
+
+Added real HTTP checks for expiry without recapture, independent simultaneous
+visitors completing out of order, restart requiring explicit re-entry, and
+source disconnect/timeout/invalid-payload/unavailable responses. Source-failure
+cases inject failures at the fetch boundary; they do not constitute a deployed
+network timeout test. Shared business tables are never used as a fallback.
+
+A dropped in-flight session now cancels publication. Its pending capacity stays
+reserved until the bounded source request settles, then becomes available again.
+
+Run the enabled desktop/mobile browser acceptance against the actual Express
+application (synthetic source and mocked database infrastructure) with
+SNAPSHOT_BROWSER_ACCEPTANCE=1 and tests/unit/environmentRoutes.test.js. This is
+local integration acceptance; deployed TLS/source handshake, real read-only
+grants, protected free-text review and deployment capacity checks remain rollout
+requirements.

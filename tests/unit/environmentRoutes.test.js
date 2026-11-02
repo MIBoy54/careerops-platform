@@ -743,3 +743,130 @@ describe('entry-time DEMO snapshot HTTP wiring', () => {
     }
   });
 });
+
+describe('enabled snapshot lifecycle HTTP acceptance', () => {
+  async function fixture(check) {
+    stubEnv('demo', {RAILWAY_PROJECT_ID:'fixture',RAILWAY_ENVIRONMENT_ID:'fixture',
+      DEMO_ENTRY_SNAPSHOT_ENABLED:'true',DEMO_SNAPSHOT_TOKEN:'synthetic-snapshot-token-0123456789-ABCDEFG',
+      DEMO_SNAPSHOT_SOURCE_URL:'https://snapshot.example.invalid/internal/demo-snapshot'});
+    const {pool}=installPool('demo');
+    const networkFetch=globalThis.fetch;
+    let captures=0;
+    let source=async()=>new Response(JSON.stringify({schemaVersion:1,capturedAt:new Date().toISOString(),
+      contacts:[{id:1,company:'Synthetic employer',notes:'PRIVATE',email:'PRIVATE'}],reports:[],links:[]}));
+    vi.stubGlobal('fetch',async(url,options)=>{
+      if(String(url).startsWith('https://snapshot.example.invalid/')) {captures++;return source(url,options);}
+      return networkFetch(url,options);
+    });
+    const servers=[];
+    async function start(app) {
+      const server=app.listen(0,'127.0.0.1');
+      await new Promise(resolve=>server.once('listening',resolve));servers.push(server);
+      const base='http://127.0.0.1:'+server.address().port;
+      return Object.assign((path,cookie,method='GET')=>networkFetch(base+path,{method,headers:cookie?{Cookie:cookie}:{}}),{baseURL:base});
+    }
+    const {app}=await import('../../src/server.js');
+    const request=await start(app);
+    const enter=async(cookie)=>{
+      const result=await request('/api/demo-snapshot/session',cookie,'POST');
+      return {result,cookie:result.headers.get('set-cookie')?.split(';')[0]};
+    };
+    try {await check({request,enter,pool,start,setSource:fn=>{source=fn;},captures:()=>captures});}
+    finally {vi.unstubAllGlobals();for(const server of servers)await new Promise(resolve=>server.close(resolve));}
+  }
+  it('expires HTTP access without recapturing or querying shared business data',async()=>{
+    await fixture(async({enter,request,captures,pool})=>{
+      const a=await enter();expect(a.result.status).toBe(200);
+      const clock=Date.now();
+      const spy=vi.spyOn(Date,'now').mockReturnValue(clock+60*60*1000+1);
+      try {expect((await request('/api/contacts',a.cookie)).status).toBe(401);}
+      finally {spy.mockRestore();}
+      expect(captures()).toBe(1);expect(pool.query).not.toHaveBeenCalled();
+      expect((await enter()).result.status).toBe(200);
+      expect(captures()).toBe(2);
+    });
+  });
+  it.each(['disconnect','timeout','invalid JSON','unavailable'])('fails closed on source %s and permits explicit retry',async(mode)=>{
+    await fixture(async({enter,request,setSource,pool,captures})=>{
+      setSource(async()=>{
+        if(mode==='disconnect')throw new TypeError('PRIVATE network failure');
+        if(mode==='timeout')throw new DOMException('PRIVATE timeout','TimeoutError');
+        if(mode==='invalid JSON')return new Response('PRIVATE invalid payload');
+        return new Response('PRIVATE',{status:503});
+      });
+      const failed=await enter();expect(failed.result.status).toBe(503);
+      expect(JSON.stringify(await failed.result.json())).not.toContain('PRIVATE');
+      expect((await request('/api/contacts',failed.cookie)).status).toBe(401);
+      expect(pool.query).not.toHaveBeenCalled();expect(captures()).toBe(1);
+      setSource(async()=>new Response(JSON.stringify({schemaVersion:1,capturedAt:new Date().toISOString(),contacts:[],reports:[],links:[]})));
+      expect((await enter(failed.cookie)).result.status).toBe(200);
+      expect(captures()).toBe(2);
+    });
+  });
+  it('keeps simultaneous visitors independent while captures complete out of order',async()=>{
+    await fixture(async({enter,request,setSource,captures,pool})=>{
+      const pending=[];
+      setSource(()=>new Promise(resolve=>pending.push(resolve)));
+      const first=enter();
+      await vi.waitFor(()=>expect(pending).toHaveLength(1));
+      const second=enter();
+      await vi.waitFor(()=>expect(pending).toHaveLength(2));
+      const payload=company=>new Response(JSON.stringify({schemaVersion:1,capturedAt:new Date().toISOString(),
+        contacts:[{id:1,company}],reports:[],links:[]}));
+      pending[1](payload('Second visitor'));const b=await second;
+      pending[0](payload('First visitor'));const a=await first;
+      expect(a.result.status).toBe(200);expect(b.result.status).toBe(200);
+      expect(a.cookie).not.toBe(b.cookie);
+      expect((await(await request('/api/contacts',a.cookie)).json())[0].company).toBe('First visitor');
+      expect((await(await request('/api/contacts',b.cookie)).json())[0].company).toBe('Second visitor');
+      expect(captures()).toBe(2);expect(pool.query).not.toHaveBeenCalled();
+    });
+  });
+  it('requires explicit re-entry after an application restart',async()=>{
+    await fixture(async({enter,start,pool,captures})=>{
+      const a=await enter();expect(a.result.status).toBe(200);
+      vi.resetModules();
+      const {app}=await import('../../src/server.js');
+      const restarted=await start(app);
+      expect((await restarted('/api/contacts',a.cookie)).status).toBe(401);
+      expect(captures()).toBe(1);
+      const reentered=await restarted('/api/demo-snapshot/session',a.cookie,'POST');
+      expect(reentered.status).toBe(200);expect(captures()).toBe(2);
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+  });
+
+  if(process.env.SNAPSHOT_BROWSER_ACCEPTANCE==='1') {
+    for(const width of [1280,390]) it('serves enabled snapshot browser flow at '+width+'px',async()=>{
+      const {chromium}=await import('playwright');
+      const browser=await chromium.launch();
+      try {
+        await fixture(async({request,setSource,pool})=>{
+          let company='Visitor A synthetic employer';
+          setSource(async()=>new Response(JSON.stringify({schemaVersion:1,capturedAt:new Date().toISOString(),
+            contacts:[{id:1,company,date_contacted:'2026-11-02',notes:'PRIVATE',email:'PRIVATE'}],reports:[],links:[]})));
+          const a=await browser.newContext({viewport:{width,height:844}});
+          const page=await a.newPage();
+          await page.goto(request.baseURL+'/login.html');
+          await page.locator('#guestLogin').click();
+          await page.waitForURL(request.baseURL+'/');
+          await vi.waitFor(async()=>expect(await page.locator('#dashboardDemoRefreshLabel').textContent()).toBe('Your DEMO snapshot:'));
+          expect(JSON.stringify(await(await a.request.get(request.baseURL+'/api/contacts')).json())).not.toContain('PRIVATE');
+          company='Visitor B synthetic employer';
+          await page.reload();
+          expect((await(await a.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor A synthetic employer');
+          const b=await browser.newContext({viewport:{width,height:844}});
+          const second=await b.newPage();
+          await second.goto(request.baseURL+'/login.html');await second.locator('#guestLogin').click();
+          await second.waitForURL(request.baseURL+'/');
+          expect((await(await b.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor B synthetic employer');
+          expect((await a.request.post(request.baseURL+'/api/contacts',{data:{company:'forbidden'}})).status()).toBe(403);
+          expect((await a.request.get(request.baseURL+'/api/contacts/export')).status()).toBe(200);
+          expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+          expect(pool.query.mock.calls.some(([sql])=>/FROM recruiter_tracker|FROM weekly_reports|FROM report_job_contacts/i.test(sql))).toBe(false);
+          await a.close();await b.close();
+        });
+      } finally {await browser.close();}
+    },30000);
+  }
+});
