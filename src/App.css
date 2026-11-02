@@ -1034,3 +1034,42 @@ h2 {
   table { display: block; max-width: 100%; overflow-x: auto; }
   .contact-card { overflow-wrap: anywhere; }
 }
+
+/* Contact lookup is available independently of business-data editing. */
+#companySuggestions {
+  display: none;
+  left: auto;
+  right: 0;
+  width: min(38rem, calc(100vw - 3rem));
+  min-width: 100%;
+  max-height: 18rem;
+}
+.suggestion-heading,
+#companySuggestions .suggestion-item {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: .5rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: .6rem;
+  text-align: left;
+}
+.suggestion-heading {
+  position: sticky;
+  top: 0;
+  font-size: .8rem;
+  font-weight: bold;
+  background: #e5e7eb;
+}
+#companySuggestions .suggestion-item:not(:disabled) {
+  border-radius: 0;
+  background: white;
+  color: #111827;
+}
+#companySuggestions .suggestion-item:hover,
+#companySuggestions .suggestion-item[aria-selected="true"]:not(:disabled) {
+  background: #dbeafe;
+  color: #111827;
+}
+#companySuggestions .suggestion-item span { overflow-wrap: anywhere; }
+.company-search-status { font-size: .8rem; margin-top: .3rem; color: #374151; }
