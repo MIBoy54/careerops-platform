@@ -167,10 +167,17 @@
       <p>Applied / Submitted: <span id="dashboardAppliedSubmitted">0</span></p>
       <p>Interviewing: <span id="dashboardInterviewing">0</span></p>
       <p>Rejected / Closed: <span id="dashboardRejectedClosed">0</span></p>
+<p>Hired: <span id="dashboardWorkflow-hired">0</span></p>
+<p>On-hold: <span id="dashboardWorkflow-onHold">0</span></p>
+<p>Awaiting decision: <span id="dashboardWorkflow-awaitingDecision">0</span></p>
+<p>Legacy offers / accepted: <span id="dashboardWorkflow-legacyOutcome">0</span></p>
+<p>Unclassified: <span id="dashboardWorkflow-unclassified">0</span></p>
       <hr />
       <p><strong>Total Opportunities: <span id="dashboardTotal">0</span></strong></p>
     </div>
 
+<div class="dashboard-card"><h2>Hiring Workflow</h2><p>Applied: <span id="dashboardStage-0">0</span></p><p>Recruiter Interview: <span id="dashboardStage-1">0</span></p><p>Submitted: <span id="dashboardStage-2">0</span></p><p>HR Interview: <span id="dashboardStage-3">0</span></p><p>Hiring Interview: <span id="dashboardStage-4">0</span></p><p>Unclassified stage: <span id="dashboardStage-unknown">0</span></p></div>
+    <div class="dashboard-card"><h2>Position Status</h2><p>Awaiting Decision: <span id="dashboardPosition-0">0</span></p><p>On-hold: <span id="dashboardPosition-1">0</span></p><p>Rejected: <span id="dashboardPosition-2">0</span></p><p>Closed: <span id="dashboardPosition-3">0</span></p><p>Hired: <span id="dashboardPosition-4">0</span></p><p>Unclassified position: <span id="dashboardPosition-unknown">0</span></p></div>
     <div class="dashboard-card">
       <h2>Reporting</h2>
       <p>Reported to Unemployment: <span id="dashboardReported">0</span></p>
@@ -239,7 +246,7 @@
         <p>LinkedIn Status: Active ✓</p>
         <p>Weekly Report: Current ✓</p>
         <p>Applications Reported: ✓</p>
-        <p>Open Interviews: 9</p>
+        <p>Open Interviews: <span id="dashboardOpenInterviews">0</span></p>
     </div>
 
     <div class="dashboard-card">
@@ -250,7 +257,7 @@
     <p>Interview Rate: <span id="dashboardFunnelInterviewRate">0%</span></p>
     <p>Offers: <span id="dashboardFunnelOffers">0</span></p>
     <p>Offer Rate: <span id="dashboardFunnelOfferRate">0%</span></p>
-    <p>Accepted: <span id="dashboardFunnelAccepted">0</span></p>
+    <p>Legacy accepted: <span id="dashboardFunnelAccepted">0</span></p>
 </div>
 
 <div class="dashboard-card">
@@ -311,15 +318,12 @@
           </div>
 
           <div class="field">
-            <label for="role_type">Role Type</label>
-            <select id="role_type" name="role_type">
-              <option value="">-- Select Role Type --</option>
+            <label for="role_category">Role Type</label>
+            <select id="role_category" name="role_category">
+              <option value="">-- Not classified --</option>
+              <option value="Consultant">Consultant</option>
+              <option value="Individual Contributor">Individual Contributor</option>
               <option value="Leadership">Leadership</option>
-              <option value="QE Transformation">QE Transformation</option>
-              <option value="QA Operations">QA Operations</option>
-              <option value="DevOps Platform">DevOps Platform</option>
-              <option value="Healthcare Tech">Healthcare Tech</option>
-              <option value="AI / Data Platforms">AI / Data Platforms</option>
             </select>
           </div>
 
@@ -334,18 +338,22 @@
           </div>
 
           <div class="field">
-            <label for="status">Status *</label>
-            <select id="status" name="status">
-              <option value="">-- Select Status --</option>
-              <option value="Applied">Applied</option>
-              <option value="Submitted">Submitted</option>
-              <option value="Interviewing">Interviewing</option>
-              <option value="Awaiting decision">Awaiting decision</option>
-              <option value="On hold">On hold</option>
-              <option value="Offer">Offer</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Closed">Closed</option>
-            </select>
+            <label for="hiring_stage">Hiring Workflow</label>
+            <select id="hiring_stage" name="hiring_stage">
+              <option value="">-- Not classified --</option><option value="Applied" selected>Applied</option>
+<option value="Recruiter Interview">Recruiter Interview</option>
+<option value="Submitted">Submitted</option>
+<option value="HR Interview">HR Interview</option>
+<option value="Hiring Interview">Hiring Interview</option></select>
+          </div>
+          <div class="field">
+            <label for="position_status">Position Status</label>
+            <select id="position_status" name="position_status">
+              <option value="">-- Not classified --</option><option value="Awaiting Decision" selected>Awaiting Decision</option>
+<option value="On-hold">On-hold</option>
+<option value="Rejected">Rejected</option>
+<option value="Closed">Closed</option>
+<option value="Hired">Hired</option></select>
           </div>
 
           <div class="field">
@@ -379,6 +387,7 @@
           </div>
         </div>
 
+        <p id="legacyWorkflowContext" class="workflow-legacy" role="note"></p>
         <div class="field full-width">
           <label for="notes">Notes</label>
           <textarea id="notes" name="notes" rows="5"></textarea>
@@ -405,6 +414,11 @@
         Applied/Submitted - <span id="appliedSubmittedTotal">0</span> |
         Interviewing - <span id="interviewingTotal">0</span> |
         Rejected/Closed - <span id="rejectedClosedTotal">0</span> |
+        Hired - <span id="statusWorkflow-hired">0</span> |
+        On-hold - <span id="statusWorkflow-onHold">0</span> |
+        Awaiting decision - <span id="statusWorkflow-awaitingDecision">0</span> |
+        Legacy offers / accepted - <span id="statusWorkflow-legacyOutcome">0</span> |
+        Unclassified - <span id="statusWorkflow-unclassified">0</span> |
         Reported - <span id="reportedTotal">0</span>
       </p>
 
@@ -416,6 +430,11 @@
           <option value="appliedSubmitted">Applied/Submitted</option>
           <option value="interviewing">Interviewing</option>
           <option value="rejectedClosed">Rejected/Closed</option>
+<option value="hired">Hired</option>
+<option value="onHold">On-hold</option>
+<option value="awaitingDecision">Awaiting decision</option>
+<option value="legacyOutcome">Legacy offers / accepted</option>
+<option value="unclassified">Unclassified</option>
       </select>
 
       <table id="contactsTable">

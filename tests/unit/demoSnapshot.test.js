@@ -145,3 +145,10 @@ describe('snapshot lifecycle acceptance', () => {
     await expect(store.enter('B')).resolves.toBeDefined();
   });
 });
+
+it('preserves approved workflow fields without transferring protected fields',()=>{
+ const value=raw();Object.assign(value.contacts[0],{role_category:'Leadership',hiring_stage:'Hiring Interview',position_status:'Hired',role_type:'QE Transformation',status:'Interviewing'});
+ const snapshot=protectSnapshot(value);
+ expect(snapshot.contacts[0]).toMatchObject({role_category:'Leadership',hiring_stage:'Hiring Interview',position_status:'Hired',role_type:'QE Transformation',status:'Interviewing'});
+ expect(JSON.stringify(snapshot)).not.toContain('PRIVATE');
+});

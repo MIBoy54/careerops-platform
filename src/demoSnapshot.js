@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 const CONTACT_FIELDS = ['id','date_contacted','company','role_level','role_type','location',
-  'comp_range','status','relationship_status','reported_to_unemployment','follow_up_date','industry'];
+  'comp_range','status','role_category','hiring_stage','position_status','relationship_status','reported_to_unemployment','follow_up_date','industry'];
 const REPORT_FIELDS = ['id','week_start','week_end','submitted','submitted_at'];
 export const SNAPSHOT_LINKS_SQL = `SELECT links.report_id, links.recruiter_tracker_id
 FROM report_job_contacts AS links
@@ -222,7 +222,7 @@ export function snapshotBusinessRead(req, res, next) {
   }
   if (path === '/api/contacts/export') {
     res.type('text/csv'); res.attachment('protected-demo-contacts.csv');
-    return res.send(csv(snapshot.contacts, ['id','date_contacted','recruiter_name','company','role_level','role_type','location','comp_range','status','relationship_status']));
+    return res.send(csv(snapshot.contacts, ['id','date_contacted','recruiter_name','company','role_level','role_type','location','comp_range','status','role_category','hiring_stage','position_status','relationship_status']));
   }
   if (path === '/api/companies/search') {
     const q = String(req.query.q || '').trim().toLowerCase();

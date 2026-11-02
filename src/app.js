@@ -1,3 +1,4 @@
+import { contactStatusBucket, contactWorkflowLabel, HIRING_STAGES, POSITION_STATUSES } from './contactWorkflow.js';
 import { createSessionTrendLoader } from "./sessionTrendChart.js";
 console.log("app.js loaded");
 let APP_ENV = "production";
@@ -699,6 +700,7 @@ async function loadDemoRefreshStatus() {
 
 function updateDashboard() {
   loadDemoRefreshStatus();
+  updateWorkflowTotals();
   const total = contacts.length;
 
   const appliedSubmitted = contacts.filter(
@@ -722,6 +724,7 @@ function updateDashboard() {
       : "0.0";
 
   setText("dashboardFunnelOfferRate", `${offerRate}%`);
+  setText("dashboardOpenInterviews", interviewing);
 
   const rejectedClosed = contacts.filter(
     c => getContactStatusBucket(c) === "rejectedClosed"
@@ -856,7 +859,7 @@ document.getElementById("dashboardRemote").textContent = remote;
 document.getElementById("dashboardHybrid").textContent = hybrid;
 document.getElementById("dashboardOnsite").textContent = onsite;
 
-const active = appliedSubmitted + interviewing;
+const active = appliedSubmitted + interviewing + contacts.filter(c=>contactStatusBucket(c)==="awaitingDecision").length;
 
 setText("dashboardFunnelOffers", offers);
 setText("dashboardFunnelAccepted", accepted);
@@ -962,7 +965,10 @@ function renderSelectedContacts(selected) {
         <p><strong>Date Contacted:</strong> ${formatDate(contact.date_contacted)}</p>
         <p><strong>Recruiter Name:</strong> ${escapeHtml(contact.recruiter_name || "")}</p>
         <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
-        <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
+        <p><strong>Role Type:</strong> ${escapeHtml(contact.role_category || "Unclassified")}</p>
+        <p><strong>Hiring Workflow:</strong> ${escapeHtml(contact.hiring_stage || "Unclassified")}</p>
+        <p><strong>Position Status:</strong> ${escapeHtml(contact.position_status || "Unclassified")}</p>
+        <p><strong>Previous Status:</strong> ${escapeHtml(contact.status || "")}</p>
         <p><strong>Reported to Unemployment:</strong> ${escapeHtml(contact.reported_unemployment || "No")}</p>
       </div>
     `).join("")}
@@ -1007,7 +1013,9 @@ function handleViewSelectedClick() {
   function getContactUniqueKey(contact) {
     return [
       normalizeKey(contact.company),
-      normalizeKey(contact.role_title)
+      normalizeKey(contact.role_title),
+      normalizeKey(contact.role_level), normalizeKey(contact.role_category),
+      normalizeKey(contact.hiring_stage), normalizeKey(contact.position_status)
     ].join("|");
   }
 
@@ -1032,6 +1040,7 @@ function suppressDuplicateContacts(contactList) {
         return "status-green";
       case "Interviewing":
         return "status-blue";
+      case "Hired":
       case "Offer":
         return "status-purple";
       case "Rejected":
@@ -1045,29 +1054,36 @@ function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
 }
 
-function getContactStatusBucket(contact) {
-  const status = normalizeStatus(contact.status);
+function getContactStatusBucket(contact) { return contactStatusBucket(contact); }
 
-  if (status === "interviewing") return "interviewing";
-
-  if (
-    status === "rejected" ||
-    status === "closed"
-  ) {
-    return "rejectedClosed";
+function showWorkflowContext(contact) {
+  if (!form?.elements) return;
+  for (const field of ['role_category','hiring_stage','position_status']) {
+    if (form.elements[field]) form.elements[field].value = contact[field] ?? "";
   }
-
-  if (
-    status === "applied" ||
-    status === "submitted"
-  ) {
-    return "appliedSubmitted";
+  const context = document.getElementById('legacyWorkflowContext');
+  if (context) {
+    const parts=[];
+    if (contact.role_type && (!contact.role_category || contact.role_type !== contact.role_category)) parts.push('Previous category: '+contact.role_type);
+    if (contact.status) parts.push('Previous status: '+contact.status);
+    context.textContent=parts.join(' · ');
   }
+}
 
-  return "appliedSubmitted";
+function updateWorkflowTotals() {
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  for (const bucket of ['hired','onHold','awaitingDecision','legacyOutcome','unclassified']) {
+    const count=contacts.filter(contact=>contactStatusBucket(contact)===bucket).length;
+    set('dashboardWorkflow-'+bucket,count);set('statusWorkflow-'+bucket,count);
+  }
+  HIRING_STAGES.forEach((stage,index)=>set('dashboardStage-'+index,contacts.filter(contact=>contact.hiring_stage===stage).length));
+  POSITION_STATUSES.forEach((status,index)=>set('dashboardPosition-'+index,contacts.filter(contact=>contact.position_status===status).length));
+  set('dashboardStage-unknown',contacts.filter(contact=>!contact.hiring_stage).length);
+  set('dashboardPosition-unknown',contacts.filter(contact=>!contact.position_status).length);
 }
 
 function updateContactStatusTotals() {
+  updateWorkflowTotals();
   const uniqueContacts = contacts;
 
   const appliedSubmitted = uniqueContacts.filter(
@@ -1333,7 +1349,10 @@ async function loadWeeklyReportDetail(reportId) {
             <p><strong>Company:</strong> ${escapeHtml(contact.company || "")}</p>
             <p><strong>Email:</strong> ${escapeHtml(contact.email || "")}</p>
             <p><strong>Phone:</strong> ${escapeHtml(contact.phone || "")}</p>
-            <p><strong>Status:</strong> ${escapeHtml(contact.status || "")}</p>
+            <p><strong>Role Type:</strong> ${escapeHtml(contact.role_category || "Unclassified")}</p>
+        <p><strong>Hiring Workflow:</strong> ${escapeHtml(contact.hiring_stage || "Unclassified")}</p>
+        <p><strong>Position Status:</strong> ${escapeHtml(contact.position_status || "Unclassified")}</p>
+        <p><strong>Previous Status:</strong> ${escapeHtml(contact.status || "")}</p>
             <p><strong>Relationship Status:</strong> ${escapeHtml(contact.relationship_status || "")}</p>
             <p><strong>Level:</strong> ${escapeHtml(contact.role_level || "")}</p>
             <p><strong>Location:</strong> ${escapeHtml(contact.location || "")}</p>
@@ -1538,6 +1557,7 @@ function wireEditButtons() {
       }
     });
 
+    showWorkflowContext(contact);
     if (form && form.elements && form.elements.website) {
       form.elements.website.value = contact.website || "";
     }
@@ -1641,7 +1661,7 @@ function renderTable() {
       </td>
       <td>${formatDate(c.date_contacted)}</td>
       <td>${escapeHtml(c.company || "")}</td>
-      <td class="${getStatusClass(c.status)}">${escapeHtml(c.status || "")}</td>
+      <td class="${getStatusClass(c.position_status || c.status)}">${escapeHtml(contactWorkflowLabel(c))}</td>
       <td>${escapeHtml(c.reported_unemployment || "No")}</td>
       <td>
       ${isAdminUser() ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>` : ""}
@@ -2037,6 +2057,7 @@ function wireCompanyAutocomplete() {
       if (field) field.value = key === "date_contacted" || key === "next_follow_up_date"
         ? formatDate(value) : value ?? "";
     }
+    showWorkflowContext(contact);
     if (status) status.textContent = "Selected " + (contact.company || "contact") + ".";
     renderMessage(messageDiv, canWriteDatabase()
       ? "Existing contact loaded. Update fields and click Save Contact."
@@ -2065,7 +2086,10 @@ function wireCompanyAutocomplete() {
     if (item) select(matches.find(contact => String(contact.id) === item.dataset.contactId));
   });
   companyInput.addEventListener("blur", () => { blurTimer = setTimeout(close,150); });
-  form.addEventListener("reset", () => {close();matches=[];if(status)status.textContent="";});
+  form.addEventListener("reset", () => {
+    close();matches=[];if(status)status.textContent="";
+    const context=document.getElementById("legacyWorkflowContext");if(context)context.textContent="";
+  });
 }
 
 wireCompanyAutocomplete();
@@ -2288,8 +2312,8 @@ activeUsersInterval = setInterval(
         document.getElementById("location").value = companyDetails.location || "";
         document.getElementById("comp_range").value = companyDetails.comp_range || "";
         document.getElementById("role_level").value = companyDetails.role_level || "";
-        document.getElementById("role_type").value = companyDetails.role_type || "";
-        document.getElementById("status").value = companyDetails.status || "";
+        document.getElementById("role_category").value = companyDetails.role_category || "";
+        showWorkflowContext(companyDetails);
         document.getElementById("relationship_status").value = companyDetails.relationship_status || "";
         document.getElementById("phone").value = companyDetails.phone || "";
         document.getElementById("email").value = companyDetails.email || "";

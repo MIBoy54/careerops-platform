@@ -375,7 +375,7 @@ describe('Additional recruiter response NOTES protection', () => {
 describe('CSV export privacy', () => {
   const fields = [
     'id', 'date_contacted', 'recruiter_name', 'company',
-    'role_level', 'role_type', 'location', 'comp_range',
+    'role_level', 'role_type', 'role_category', 'hiring_stage', 'position_status', 'location', 'comp_range',
     'status', 'relationship_status', 'phone', 'email',
     'address', 'website', 'notes'
   ];
@@ -398,6 +398,7 @@ describe('CSV export privacy', () => {
       company: 'Public Employer',
       role_level: 'Senior',
       role_type: 'Remote',
+      role_category: 'Individual Contributor', hiring_stage: 'HR Interview', position_status: 'Awaiting Decision',
       location: 'Nashville',
       comp_range: '120000',
       status: 'Applied',
@@ -427,7 +428,7 @@ describe('CSV export privacy', () => {
 
     expect(headers.includes('Notes')).toBe(includeNotes);
     expect(response.body.includes('PRIVATE recruiter notes')).toBe(includeNotes);
-    expect(headers.length).toBe(includeNotes ? 15 : 14);
+    expect(headers.length).toBe(includeNotes ? 18 : 17);
     expect(values.length).toBe(headers.length);
     expect(response.body).toContain('Public Employer');
     expect(contact.notes).toBe('PRIVATE recruiter notes');
@@ -869,4 +870,43 @@ describe('enabled snapshot lifecycle HTTP acceptance', () => {
       } finally {await browser.close();}
     },30000);
   }
+});
+
+describe('canonical workflow route round trips',()=>{
+ it('preserves legacy fields and reporting flags across canonical edits and omitted fields',async()=>{
+  stubEnv('test');const {app}=await import('../../src/server.js');const user={role:'admin'};
+  const created=await route(app,'post','/api/contacts',user,{company:'Workflow fixture',role_type:'QE Transformation',status:'Offer',
+    role_category:'Consultant',hiring_stage:'HR Interview',position_status:'Awaiting Decision',reported_unemployment:'Yes',date_reported:'2026-01-01'});
+  expect(created.code).toBe(201);const id=String(created.body.id);
+  expect((await route(app,'put','/api/contacts/:id',user,{hiring_stage:'Submitted',position_status:'On-hold'},id)).code).toBe(200);
+  let record=(await route(app,'get','/api/contacts',user)).body.find(row=>String(row.id)===id);
+  expect(record).toMatchObject({role_type:'QE Transformation',status:'Offer',role_category:'Consultant',hiring_stage:'Submitted',position_status:'On-hold',reported_unemployment:'Yes',date_reported:'2026-01-01'});
+  await route(app,'put','/api/contacts/:id',user,{company:'Edited fixture'},id);
+  record=(await route(app,'get','/api/contacts',user)).body.find(row=>String(row.id)===id);
+  expect(record.position_status).toBe('On-hold');
+  await route(app,'put','/api/contacts/:id',user,{hiring_stage:null},id);
+  record=(await route(app,'get','/api/contacts',user)).body.find(row=>String(row.id)===id);
+  expect(record.hiring_stage).toBeNull();expect(record.position_status).toBe('On-hold');
+ });
+ it('refuses invalid canonical choices before creating records',async()=>{
+  stubEnv('test');const {app}=await import('../../src/server.js');
+  expect((await route(app,'post','/api/contacts',{role:'admin'},{company:'Invalid',position_status:'Offer'})).code).toBe(400);
+  expect((await route(app,'get','/api/contacts',{role:'admin'})).body).toHaveLength(0);
+ });
+ it('does not mark a new canonical Submitted stage as reported to unemployment',async()=>{
+  stubEnv('test');const {app}=await import('../../src/server.js');const user={role:'admin'};
+  const created=await route(app,'post','/api/contacts',user,{company:'Unreported fixture',hiring_stage:'Applied',position_status:'Awaiting Decision',reported_unemployment:'No'});
+  await route(app,'put','/api/contacts/:id',user,{hiring_stage:'Submitted'},String(created.body.id));
+  const record=(await route(app,'get','/api/contacts',user)).body[0];
+  expect(record.reported_unemployment).toBe('No');
+ });
+});
+
+it('derives only explicit legacy facts when an older client creates a new contact',async()=>{
+ stubEnv('test');const {app}=await import('../../src/server.js');const user={role:'admin'};
+ await route(app,'post','/api/contacts',user,{company:'Known fixture',role_type:'Leadership',status:'Applied'});
+ await route(app,'post','/api/contacts',user,{company:'Ambiguous fixture',role_type:'QE Transformation',status:'Offer'});
+ const rows=(await route(app,'get','/api/contacts',user)).body;
+ expect(rows[0]).toMatchObject({role_category:'Leadership',hiring_stage:'Applied',position_status:null});
+ expect(rows[1]).toMatchObject({role_category:null,hiring_stage:null,position_status:null,role_type:'QE Transformation',status:'Offer'});
 });
