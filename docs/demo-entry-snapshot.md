@@ -108,3 +108,20 @@ SNAPSHOT_BROWSER_ACCEPTANCE=1 and tests/unit/environmentRoutes.test.js. This is
 local integration acceptance; deployed TLS/source handshake, real read-only
 grants, protected free-text review and deployment capacity checks remain rollout
 requirements.
+
+## Historical relationship projection
+
+PROD can retain historical report/contact links after their contact or report has
+been removed. Snapshot capture includes only links whose contact and report both
+still exist, using inner joins inside the same consistent read-only transaction.
+All surviving contacts and reports remain in the snapshot. Historical rows in
+PROD are preserved; capture performs no repair or deletion.
+
+The protected payload validator still rejects dangling links. The SQL projection
+handles known historical source references; malformed or inconsistent payloads
+continue to fail closed. Real MySQL CTE regression tests cover missing contacts,
+missing reports, both missing, null references and surviving relationships.
+
+The November 2 activation attempt stopped on 44 historical orphan links. Both
+feature flags were disabled again. Re-run promotion and live acceptance before
+declaring the new projection active.

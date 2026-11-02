@@ -34,7 +34,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Session Trend SQL Regression
+      - name: Run SQL Regression
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
@@ -53,6 +53,7 @@ jobs:
             careerops-trend-dev-test 8.4.13 120
 
           SESSION_TREND_TEST_MYSQL=1 npx vitest run --config tests/sessionTrend.config.js tests/regression/sessionTrendSql.test.js
+          SNAPSHOT_TEST_MYSQL=1 npx vitest run --config tests/snapshotSql.config.js
 
       - name: Run Unit Tests (DEV Gate)
         run: npx vitest run tests/unit
