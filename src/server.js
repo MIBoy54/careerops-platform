@@ -1,3 +1,4 @@
+import { normalizeWorkflowPatch, compatibilityStatusForCreate, legacyWorkflowDefaults } from './contactWorkflow.js';
 import { latestQualityGates, createQualityGateLoader } from './qualityGates.js';
 import { snapshotConfig, createReadOnlySnapshotPool, createSnapshotSource, fetchSnapshot, createGuestSnapshots, snapshotBusinessRead } from './demoSnapshot.js';
 import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
@@ -512,6 +513,9 @@ try {
         company,
         role_level,
         role_type,
+        role_category,
+        hiring_stage,
+        position_status,
         location,
         comp_range,
         status,
@@ -609,6 +613,9 @@ app.get("/api/github/actions-summary", async (req, res) => {
         company,
         role_level,
         role_type,
+        role_category,
+        hiring_stage,
+        position_status,
         location,
         comp_range,
         status,
@@ -650,6 +657,9 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         rt.company,
         rt.recruiter_name,
         rt.status,
+        rt.hiring_stage,
+        rt.position_status,
+        rt.role_category,
         rt.email,
         rt.phone
       FROM recruiter_tracker rt
@@ -660,7 +670,7 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
     );
 
     // Convert to CSV
-    const headers = ["Date", "Company", "Recruiter", "Status", "Email", "Phone"];
+    const headers = ["Date", "Company", "Recruiter", "Previous Status", "Hiring Workflow", "Position Status", "Role Type", "Email", "Phone"];
     const csvRows = [
       headers.join(","),
       ...rows.map(r =>
@@ -669,6 +679,9 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
           `"${r.company}"`,
           `"${r.recruiter_name}"`,
           r.status,
+          r.hiring_stage || "",
+          r.position_status || "",
+          r.role_category || "",
           r.email || "",
           r.phone || ""
         ].join(",")
@@ -723,6 +736,9 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
         rt.company,
         rt.role_level,
         rt.role_type,
+        rt.role_category,
+        rt.hiring_stage,
+        rt.position_status,
         rt.location,
         rt.comp_range,
         rt.status,
@@ -766,6 +782,9 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
           company,
           role_level,
           role_type,
+          role_category,
+          hiring_stage,
+          position_status,
           location,
           comp_range,
           status,
@@ -788,11 +807,14 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
             "Date Contacted",
             "Recruiter Name",
             "Company",
-            "Role Level",
+            "Role",
+            "Previous Role Category",
             "Role Type",
+            "Hiring Workflow",
+            "Position Status",
             "Location",
             "Comp Range",
-            "Status",
+            "Previous Status",
             "Relationship Status",
             "Phone",
             "Email",
@@ -832,6 +854,10 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
 
 app.post("/api/contacts", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
+  const workflow=normalizeWorkflowPatch(req.body);
+  if(!workflow.valid)return res.status(400).json({error:workflow.errors.join(' ')});
+  req.body={...req.body,...legacyWorkflowDefaults(req.body),...workflow.values};
+
 
   try {
 
@@ -841,7 +867,8 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
       const newContact = {
         id: inMemoryContactId++,
-        ...req.body
+        ...req.body,
+        status: compatibilityStatusForCreate(req.body)
       };
 
       inMemoryContacts.push(newContact);
@@ -865,6 +892,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       company,
       role_level,
       role_type,
+      role_category,
+      hiring_stage,
+      position_status,
       location,
       comp_range,
       status,
@@ -887,6 +917,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         company,
         role_level,
         role_type,
+        role_category,
+        hiring_stage,
+        position_status,
         location,
         comp_range,
         status,
@@ -898,7 +931,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         address,
         website,
         notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         date_contacted || null,
@@ -906,9 +939,12 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         company || null,
         role_level || null,
         role_type || null,
+        role_category || null,
+        hiring_stage || null,
+        position_status || null,
         location || null,
         comp_range || null,
-        status || null,
+        compatibilityStatusForCreate(req.body),
         relationship_status || null,
         reported_unemployment || "No",
         next_follow_up_date || null,
@@ -1010,6 +1046,10 @@ app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
+  const workflow=normalizeWorkflowPatch(req.body);
+  if(!workflow.valid)return res.status(400).json({error:workflow.errors.join(' ')});
+  req.body={...req.body,...workflow.values};
+
 
   try {
 
@@ -1022,8 +1062,8 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         return res.status(404).json({ error: "Contact not found" });
       }
 
-      let finalReportedUnemployment = req.body.reported_unemployment || "No";
-      let finalDateReported = req.body.date_reported || null;
+      let finalReportedUnemployment = req.body.reported_unemployment ?? inMemoryContacts[index].reported_unemployment ?? "No";
+      let finalDateReported = req.body.date_reported ?? inMemoryContacts[index].date_reported ?? null;
 
       if (String(req.body.status || "").trim().toLowerCase() === "submitted") {
         finalReportedUnemployment = "Yes";
@@ -1048,6 +1088,9 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       company,
       role_level,
       role_type,
+      role_category,
+      hiring_stage,
+      position_status,
       location,
       comp_range,
       status,
@@ -1074,12 +1117,15 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           recruiter_name = ?,
           company = ?,
           role_level = ?,
-          role_type = ?,
+          role_type = CASE WHEN ? THEN ? ELSE role_type END,
+          role_category = CASE WHEN ? THEN ? ELSE role_category END,
+          hiring_stage = CASE WHEN ? THEN ? ELSE hiring_stage END,
+          position_status = CASE WHEN ? THEN ? ELSE position_status END,
           location = ?,
           comp_range = ?,
-          status = ?,
+          status = CASE WHEN ? THEN ? ELSE status END,
           relationship_status = ?,
-          reported_to_unemployment = ?,
+          reported_to_unemployment = CASE WHEN ? THEN ? ELSE reported_to_unemployment END,
           follow_up_date = ?,
           phone = ?,
           email = ?,
@@ -1093,11 +1139,15 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         recruiter_name || null,
         company || null,
         role_level || null,
-        role_type || null,
+        Object.hasOwn(req.body,'role_type'), role_type || null,
+        Object.hasOwn(workflow.values,'role_category'), role_category ?? null,
+        Object.hasOwn(workflow.values,'hiring_stage'), hiring_stage ?? null,
+        Object.hasOwn(workflow.values,'position_status'), position_status ?? null,
         location || null,
         comp_range || null,
-        status || null,
+        Object.hasOwn(req.body,'status'), status || null,
         relationship_status || null,
+        Object.hasOwn(req.body,'reported_unemployment') || String(status||'').trim().toLowerCase()==='submitted',
         finalReportedUnemployment,
         next_follow_up_date || null,
         phone || null,
@@ -1865,6 +1915,9 @@ if (APP_ENV === "production" && environment.demoSyncEnabled && demoPool) {
         company,
         role_level,
         role_type,
+        role_category,
+        hiring_stage,
+        position_status,
         location,
         comp_range,
         status,

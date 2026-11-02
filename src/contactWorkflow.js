@@ -36,3 +36,35 @@ export function legacyWorkflowDefaults(record){
     position_status:record.position_status??position
   };
 }
+
+export function compatibilityStatusForCreate(input){
+  if(Object.hasOwn(input,'status'))return input.status||null;
+  const position=input.position_status,stage=input.hiring_stage;
+  if(['Hired','Rejected','Closed'].includes(position))return position;
+  if(position==='On-hold')return 'On hold';
+  if(stage==='Applied'||stage==='Submitted')return stage;
+  if(['Recruiter Interview','HR Interview','Hiring Interview'].includes(stage))return 'Interviewing';
+  return position==='Awaiting Decision'?'Awaiting decision':null;
+}
+export function contactStatusBucket(contact){
+  const position=key(contact.position_status),stage=key(contact.hiring_stage);
+  if(position==='hired')return 'hired';
+  if(position==='rejected'||position==='closed')return 'rejectedClosed';
+  if(position==='on-hold')return 'onHold';
+  if(['recruiter interview','hr interview','hiring interview'].includes(stage))return 'interviewing';
+  if(stage==='applied'||stage==='submitted')return 'appliedSubmitted';
+  if(position==='awaiting decision')return 'awaitingDecision';
+  const legacy=key(contact.status);
+  if(legacy==='hired')return 'hired';
+  if(legacy==='rejected'||legacy==='closed')return 'rejectedClosed';
+  if(legacy==='on hold'||legacy==='on-hold')return 'onHold';
+  if(legacy==='awaiting decision')return 'awaitingDecision';
+  if(legacy==='interviewing')return 'interviewing';
+  if(legacy==='applied'||legacy==='submitted')return 'appliedSubmitted';
+  if(legacy==='offer'||legacy==='accepted')return 'legacyOutcome';
+  return 'unclassified';
+}
+export function contactWorkflowLabel(contact){
+  return [contact.hiring_stage,contact.position_status].filter(Boolean).join(' · ')||
+    contact.status||'Unclassified';
+}

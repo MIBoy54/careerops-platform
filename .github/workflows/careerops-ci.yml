@@ -54,6 +54,7 @@ jobs:
 
           SESSION_TREND_TEST_MYSQL=1 npx vitest run --config tests/sessionTrend.config.js tests/regression/sessionTrendSql.test.js
           SNAPSHOT_TEST_MYSQL=1 npx vitest run --config tests/snapshotSql.config.js
+          bash scripts/test-workflow-migration.sh
 
       - name: Run Unit Tests (DEV Gate)
         run: npx vitest run tests/unit
@@ -67,6 +68,10 @@ jobs:
         env:
           SNAPSHOT_BROWSER_ACCEPTANCE: '1'
         run: npx vitest run tests/unit/environmentRoutes.test.js -t "serves enabled snapshot browser flow"
+
+      - name: Run Employer Workflow Browser Acceptance
+        if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
+        run: npx playwright test --config tests/workflow.playwright.config.js --workers=1
 
       - name: Run Smoke Tests (QA Gate)
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'

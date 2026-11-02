@@ -1075,3 +1075,6 @@ h2 {
 .company-search-status { font-size: .8rem; margin-top: .3rem; color: #374151; }
 
 .quality-card.quality-neutral { border-left-color: #94a3b8; }
+
+.workflow-legacy {color:#475569;font-size:.9rem;overflow-wrap:anywhere;}
+.workflow-legacy:empty {display:none;}

@@ -53,6 +53,9 @@ contact/report JSON suppresses notes where implemented; this is not a universal
 field-level privacy policy. Reporting supports recordkeeping, not certification
 of an agency's compliance requirements.
 
+See [Employer contact workflow](contact-workflow.md) for canonical field choices,
+omission/clear semantics, legacy preservation, and additive migration.
+
 ## Analytics, validation, and operations
 
 | Method | Route | Access / behavior |

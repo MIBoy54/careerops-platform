@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {ROLE_TYPES,HIRING_STAGES,POSITION_STATUSES,normalizeWorkflowPatch,legacyWorkflowDefaults} from '../../src/contactWorkflow.js';
+import {ROLE_TYPES,HIRING_STAGES,POSITION_STATUSES,normalizeWorkflowPatch,legacyWorkflowDefaults,contactStatusBucket,contactWorkflowLabel,compatibilityStatusForCreate} from '../../src/contactWorkflow.js';
 describe('approved contact workflow contract',()=>{
  it('accepts every approved role, hiring stage and independent position state',()=>{
   for(const role_category of ROLE_TYPES)for(const hiring_stage of HIRING_STAGES)for(const position_status of POSITION_STATUSES){
@@ -29,5 +29,26 @@ describe('approved contact workflow contract',()=>{
   expect(legacyWorkflowDefaults({status:'Rejected'}).position_status).toBe('Rejected');
   expect(legacyWorkflowDefaults({status:'Offer',role_category:'Consultant',hiring_stage:'HR Interview',position_status:'Hired'}))
    .toEqual({role_category:'Consultant',hiring_stage:'HR Interview',position_status:'Hired'});
+ });
+});
+
+describe('workflow counting and legacy compatibility',()=>{
+ it('keeps hired, paused and negative outcomes out of active application counts',()=>{
+  expect(contactStatusBucket({status:'Applied',hiring_stage:'Hiring Interview',position_status:'Hired'})).toBe('hired');
+  expect(contactStatusBucket({status:'Applied',hiring_stage:'HR Interview',position_status:'On-hold'})).toBe('onHold');
+  expect(contactStatusBucket({hiring_stage:'Recruiter Interview',position_status:'Rejected'})).toBe('rejectedClosed');
+  expect(contactStatusBucket({hiring_stage:'HR Interview',position_status:'Awaiting Decision'})).toBe('interviewing');
+ });
+ it('preserves coarse legacy facts without inferring Hired or a specific stage',()=>{
+  expect(contactStatusBucket({status:'Offer'})).toBe('legacyOutcome');
+  expect(contactStatusBucket({status:'Accepted'})).toBe('legacyOutcome');
+  expect(contactStatusBucket({status:'Interviewing'})).toBe('interviewing');
+  expect(contactStatusBucket({status:'other'})).toBe('unclassified');
+  expect(contactWorkflowLabel({status:'Offer'})).toBe('Offer');
+ });
+ it('derives compatibility status only for new records and honors explicit legacy input',()=>{
+  expect(compatibilityStatusForCreate({hiring_stage:'Submitted',position_status:'Awaiting Decision'})).toBe('Submitted');
+  expect(compatibilityStatusForCreate({hiring_stage:'Hiring Interview',position_status:'Hired'})).toBe('Hired');
+  expect(compatibilityStatusForCreate({status:'Offer',position_status:'Hired'})).toBe('Offer');
  });
 });

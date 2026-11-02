@@ -1,3 +1,4 @@
+import { normalizeWorkflowPatch } from './contactWorkflow.js';
 export function validateContact(contact) {
   const errors = [];
 
@@ -9,9 +10,11 @@ export function validateContact(contact) {
     errors.push("Company is required.");
   }
 
-  if (!contact.status?.trim()) {
+  if (!Object.hasOwn(contact,"hiring_stage") && !Object.hasOwn(contact,"position_status") && !contact.status?.trim()) {
     errors.push("Status is required.");
   }
+
+  errors.push(...normalizeWorkflowPatch(contact).errors);
 
   // Optional field format validations
   if (contact.email?.trim()) {
