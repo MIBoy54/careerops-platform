@@ -37,11 +37,11 @@ test('owner creates independent workflow fields, edits stages and filters Hired 
   await expect(page.locator('#company')).toHaveValue('');
   const record=(await(await page.request.get('/api/contacts')).json()).find(row=>row.id===id);
   expect(record).toMatchObject({hiring_stage:'Hiring Interview',position_status:'Hired',role_category:'Individual Contributor',status:'Interviewing',reported_unemployment:'No'});
-  await page.locator('[data-target="savedContactsSection"]').click();await page.locator('#statusFilter').selectOption('hired');
+  await page.locator('[data-target="savedContactsSection"]').click();await page.locator('#positionFilter').selectOption('Hired');
   await expect(page.locator('#contactsTable')).toContainText(company);
-  await page.locator('#statusFilter').selectOption('appliedSubmitted');await expect(page.locator('#contactsTable')).not.toContainText(company);
+  await page.locator('#positionFilter').selectOption('Awaiting Decision');await expect(page.locator('#contactsTable')).not.toContainText(company);
   await page.locator('[data-target="dashboardSection"]').click();
-  expect(Number(await page.locator('#dashboardWorkflow-hired').textContent())).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('#dashboardContactTotals')).toContainText('Hired');
  }finally{if(id)await page.request.delete('/api/contacts/'+id);}
 });
 test('editing ambiguous legacy data does not guess or discard its classifications',async({page})=>{

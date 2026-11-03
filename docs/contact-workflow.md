@@ -32,10 +32,21 @@ the canonical fields. DEMO snapshots include the new fields under the existing
 privacy allowlist and remain read-only. Snapshot source SELECT grants already
 cover these columns; no broader grants are required.
 
-Dashboard stage and position counts are separate distributions. The exclusive
-summary/filter buckets prioritize Hired, Rejected/Closed, and On-hold before
-active stages. Legacy Offer/Accepted remain explicitly legacy outcomes; neither
-is inferred to mean Hired. Unknown classifications remain visible.
+Dashboard and Contact Status use the same independent distributions: hiring stage,
+position status, and reporting. Each distribution sums to all saved records, including
+reported records and records with matching company/date values. Unknown or explicitly
+cleared fields are Unclassified; only absent canonical fields use unambiguous legacy
+mappings. Legacy Offer/Accepted remain historical details, never inferred as Hired.
+
+Contact Status defaults to All records. Stage, position and reporting filters combine;
+Showing X of Y reflects the filtered table while summary totals remain global.
+Reported records remain visible but cannot be selected for another weekly report.
+Sorting uses displayed dimensions, calendar dates, and deterministic company/ID ties.
+Only the active column displays a direction arrow; header buttons support keyboard use.
+
+Validation: npm test; npx playwright test --config tests/status-view/playwright.config.js.
+The focused browser check serves repository assets and mocked API responses, requiring
+no database, production access, or saved credentials.
 
 ## Additive database migration
 

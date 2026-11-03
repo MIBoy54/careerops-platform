@@ -12,7 +12,7 @@ test("generating a weekly report enables export history flow", async ({ page }) 
   await expect(rows.first()).toBeVisible();
 
   const checkboxes = page.locator(
-    '#contactsTable tbody input.select-checkbox'
+    '#contactsTable tbody input.select-checkbox:not(:disabled)'
   );
 
   // Select 4 contacts

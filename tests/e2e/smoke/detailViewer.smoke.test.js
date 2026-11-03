@@ -51,7 +51,7 @@ await expect(
     timeout: 10000
   }).toBeGreaterThan(0);
 
-  const checkboxes = page.locator('#contactsTable tbody input.select-checkbox');
+  const checkboxes = page.locator('#contactsTable tbody input.select-checkbox:not(:disabled)');
 
   await expect.poll(async () => await checkboxes.count(), {
     timeout: 10000
