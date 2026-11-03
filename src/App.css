@@ -1103,3 +1103,11 @@ h2 {
 .contact-badge.tone-slate { background: #e2e8f0; color: #334155; }
 .contact-badge.tone-red { background: #fee2e2; color: #991b1b; }
 .contact-badge.tone-green { background: #dcfce7; color: #166534; }
+
+/* Make sorting discoverable and clickable across each header cell. */
+#contactsTable th:has(.sort-button) { cursor: pointer; background: #f8fafc; }
+#contactsTable th:has(.sort-button):hover { background: #e2e8f0; }
+#contactsTable th[aria-sort="ascending"],
+#contactsTable th[aria-sort="descending"] { background: #dbeafe; }
+#contactsTable .sort-button:not(:disabled) { display: inline-flex; align-items: center; gap: .35rem; width: 100%; min-height: 32px; white-space: nowrap; }
+#contactsTable .sort-indicator { color: #475569; }

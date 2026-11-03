@@ -38,6 +38,21 @@ test('totals, filters, badges, keyboard sorting and selections agree',async({pag
  expect(await page.locator('#contactsTable tbody tr').first().locator('td').nth(2).textContent()).toBe('HCA');
  await page.locator('[data-sort="company"]').click();
  await expect(page.locator('#sortCompanyHeader')).toHaveAttribute('aria-sort','descending');
+ // Click header-cell padding as well as the keyboard-operable button.
+ const ids = () => page.locator('#contactsTable tbody .select-checkbox').evaluateAll(inputs => inputs.map(input => Number(input.dataset.id)));
+ for (const [field, expected] of [
+  ['company', [2,4,1,3]], ['stage', [1,2,3,4]], ['position', [2,1,3,4]]
+ ]) {
+  // Company is currently descending; new columns start ascending.
+  const header = page.locator('#contactsTable th').filter({has:page.locator('[data-sort="'+field+'"]')});
+  await header.click({position:{x:2,y:2}});
+  await expect(header).toHaveAttribute('aria-sort','ascending');
+  expect(await ids()).toEqual(expected);
+  await page.locator('[data-sort="'+field+'"]').focus();await page.keyboard.press('Enter');
+  await expect(header).toHaveAttribute('aria-sort','descending');
+  expect(await ids()).toEqual(field==='company' ? [1,3,4,2] : field==='stage' ? [4,3,2,1] : [4,3,2,1]);
+ }
+ await expect(page.locator('[data-id="1"].select-checkbox')).toBeChecked();
  await page.locator('#positionFilter').selectOption('Awaiting Decision');
  await expect(page.locator('#contactVisibleCount')).toHaveText('Showing 2 of 4 records');
  await page.locator('#reportingFilter').selectOption('Not Reported');

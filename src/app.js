@@ -1567,12 +1567,17 @@ function updateSortHeaders() {
   document.querySelectorAll('#contactsTable [data-sort]').forEach(button => {
     const active = button.dataset.sort === currentSortField;
     button.closest('th').setAttribute('aria-sort', active ? (currentSortDirection === 'asc' ? 'ascending' : 'descending') : 'none');
-    button.querySelector('.sort-indicator').textContent = active ? (currentSortDirection === 'asc' ? ' ↑' : ' ↓') : '';
+    button.querySelector('.sort-indicator').textContent = active ? (currentSortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕';
+    const label = button.dataset.sortLabel || button.textContent.replace(/[↑↓↕]/g, '').trim();
+    button.dataset.sortLabel = label;
+    const nextDirection = active && currentSortDirection === 'asc' ? 'descending' : (button.dataset.sort === 'date_contacted' && !active ? 'descending' : 'ascending');
+    button.setAttribute('aria-label', 'Sort ' + label + ' ' + nextDirection);
+    button.closest('th').title = 'Sort ' + label + ' ' + nextDirection;
   });
 }
 function wireSavedContactsSorting() {
   document.querySelectorAll('#contactsTable [data-sort]').forEach(button => {
-    button.addEventListener('click', () => {
+    button.closest('th').addEventListener('click', () => {
       const field = button.dataset.sort;
       currentSortDirection = currentSortField === field ? (currentSortDirection === 'asc' ? 'desc' : 'asc') : (field === 'date_contacted' ? 'desc' : 'asc');
       currentSortField = field;
