@@ -1,4 +1,6 @@
-import { contactStatusBucket, contactWorkflowLabel, HIRING_STAGES, POSITION_STATUSES } from './contactWorkflow.js';
+import { installDemoViewRefresh } from './demoViewRefresh.js';
+import { STAGES, POSITIONS, contactDimensions, summarizeContacts, filterContacts, sortContacts, badgeTone } from './contactStatusView.js';
+import { contactStatusBucket } from './contactWorkflow.js';
 import { createSessionTrendLoader } from "./sessionTrendChart.js";
 console.log("app.js loaded");
 let APP_ENV = "production";
@@ -120,7 +122,7 @@ let selectedReportRange = null;
 let activeUsersRefreshMs = 348000; // default 5m 48s
 let activeUsersInterval = null;
 
-let currentStatusFilter = "all";
+const contactFilters = { stage: "all", position: "all", reported: "all" };
 
 const sectionOrder = [
   "telemetrySection",
@@ -587,47 +589,6 @@ function renderValidationRunsTable() {
     return String(value).split("T")[0];
   }
 
-function sortSavedContacts(contacts, field, direction) {
-  return [...contacts].sort((a, b) => {
-    if (field === "date_contacted") {
-      const valueA = String(a.date_contacted || "").trim();
-      const valueB = String(b.date_contacted || "").trim();
-
-      return direction === "asc"
-        ? valueA.localeCompare(valueB)
-        : valueB.localeCompare(valueA);
-    }
-
-    if (field === "company") {
-      const valueA = String(a.company || "").trim();
-      const valueB = String(b.company || "").trim();
-
-      const companyCompare = valueA.localeCompare(valueB, undefined, {
-        sensitivity: "base",
-        numeric: true
-      });
-
-      if (companyCompare !== 0) {
-        return direction === "asc" ? companyCompare : -companyCompare;
-      }
-
-      const dateA = String(a.date_contacted || "").trim();
-      const dateB = String(b.date_contacted || "").trim();
-
-      return dateB.localeCompare(dateA);
-    }
-
-    const valueA = String(a[field] || "").trim();
-    const valueB = String(b[field] || "").trim();
-
-    const compare = valueA.localeCompare(valueB, undefined, {
-      sensitivity: "base",
-      numeric: true
-    });
-
-    return direction === "asc" ? compare : -compare;
-  });
-}
 
 function getCompAverage(compRange) {
 
@@ -731,9 +692,7 @@ function updateDashboard() {
   ).length;
 
   const reported = contacts.filter(c =>
-    String(c.reported_to_unemployment || c.reported_unemployment || "")
-      .trim()
-      .toLowerCase() === "yes"
+    contactDimensions(c).reported === "Reported"
   ).length;
 
   const notReported = total - reported;
@@ -742,12 +701,12 @@ function updateDashboard() {
     ? ((interviewing / total) * 100).toFixed(1)
     : "0.0";
 
-  document.getElementById("dashboardAppliedSubmitted").textContent = appliedSubmitted;
-  document.getElementById("dashboardInterviewing").textContent = interviewing;
-  document.getElementById("dashboardRejectedClosed").textContent = rejectedClosed;
-  document.getElementById("dashboardTotal").textContent = total;
-  document.getElementById("dashboardReported").textContent = reported;
-  document.getElementById("dashboardNotReported").textContent = notReported;
+  setText("dashboardAppliedSubmitted", appliedSubmitted);
+  setText("dashboardInterviewing", interviewing);
+  setText("dashboardRejectedClosed", rejectedClosed);
+  setText("dashboardTotal", total);
+  setText("dashboardReported", reported);
+  setText("dashboardNotReported", notReported);
   document.getElementById("dashboardInterviewRate").textContent = `${interviewRate}%`;
 
   // Funnel card
@@ -1019,36 +978,6 @@ function handleViewSelectedClick() {
     ].join("|");
   }
 
-function suppressDuplicateContacts(contactList) {
-  const seen = new Set();
-
-  return contactList.filter((contact) => {
-    const key = getContactUniqueKey(contact);
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-}
-
-  function getStatusClass(status) {
-    switch (status) {
-      case "Applied":
-        return "status-green";
-      case "Interviewing":
-        return "status-blue";
-      case "Hired":
-      case "Offer":
-        return "status-purple";
-      case "Rejected":
-        return "status-red";
-      default:
-        return "";
-    }
-}
 
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
@@ -1071,44 +1000,15 @@ function showWorkflowContext(contact) {
 }
 
 function updateWorkflowTotals() {
-  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
-  for (const bucket of ['hired','onHold','awaitingDecision','legacyOutcome','unclassified']) {
-    const count=contacts.filter(contact=>contactStatusBucket(contact)===bucket).length;
-    set('dashboardWorkflow-'+bucket,count);set('statusWorkflow-'+bucket,count);
+  const summary = summarizeContacts(contacts);
+  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).map(([label, count]) => '<div><dt>' + escapeHtml(label) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
+  const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">Each group counts all saved records independently. Filters change the table below.</p>';
+  for (const id of ['contactTotals', 'dashboardContactTotals']) {
+    const element = document.getElementById(id);
+    if (element) element.innerHTML = html;
   }
-  HIRING_STAGES.forEach((stage,index)=>set('dashboardStage-'+index,contacts.filter(contact=>contact.hiring_stage===stage).length));
-  POSITION_STATUSES.forEach((status,index)=>set('dashboardPosition-'+index,contacts.filter(contact=>contact.position_status===status).length));
-  set('dashboardStage-unknown',contacts.filter(contact=>!contact.hiring_stage).length);
-  set('dashboardPosition-unknown',contacts.filter(contact=>!contact.position_status).length);
 }
-
-function updateContactStatusTotals() {
-  updateWorkflowTotals();
-  const uniqueContacts = contacts;
-
-  const appliedSubmitted = uniqueContacts.filter(
-    c => getContactStatusBucket(c) === "appliedSubmitted"
-  ).length;
-
-  const interviewing = uniqueContacts.filter(
-    c => getContactStatusBucket(c) === "interviewing"
-  ).length;
-
-  const rejectedClosed = uniqueContacts.filter(
-    c => getContactStatusBucket(c) === "rejectedClosed"
-  ).length;
-
-    const reported = uniqueContacts.filter(c =>
-    String(c.reported_unemployment || "")
-      .trim()
-      .toLowerCase() === "yes"
-  ).length;
-
-  document.getElementById("appliedSubmittedTotal").textContent = appliedSubmitted;
-  document.getElementById("interviewingTotal").textContent = interviewing;
-  document.getElementById("rejectedClosedTotal").textContent = rejectedClosed;
-  document.getElementById("reportedTotal").textContent = reported;
-}
+function updateContactStatusTotals() { updateWorkflowTotals(); }
 
 async function loadContacts() {
   console.log("LOAD CONTACTS CALLED");
@@ -1126,6 +1026,7 @@ async function loadContacts() {
   }
 
 contacts = await response.json();
+selectedIds = new Set([...selectedIds].filter(id => contacts.some(contact => contact.id === id && contactDimensions(contact).reported === "Not Reported")));
 
 updateContactStatusTotals();
 updateDashboard();
@@ -1220,11 +1121,7 @@ function updateLeadSourceMix() {
 }
 
 function updateSelectionCount() {
-  const checkedBoxes = document.querySelectorAll(".select-checkbox:checked");
-
-  selectedIds = new Set(
-    Array.from(checkedBoxes).map((cb) => Number(cb.dataset.id))
-  );
+  // Selection is independent of the current filters and rendered rows.
 
   const count = selectedIds.size;
 
@@ -1631,38 +1528,26 @@ function renderTable() {
 
   tableBody.innerHTML = "";
 
-  let filteredContacts = contacts.filter((c) => {
-    const statusBucket = getContactStatusBucket(c);
-
-    if (currentStatusFilter === "all") return true;
-
-    return statusBucket === currentStatusFilter;
-  });
-
-  filteredContacts = filteredContacts.filter((c) => {
-    return String(c.reported_unemployment || "No").trim().toLowerCase() !== "yes";
-  });
-
-  if (currentStatusFilter !== "interviewing") {
-    filteredContacts = suppressDuplicateContacts(filteredContacts);
-  }
-  const sortedContacts = sortSavedContacts(
-    filteredContacts,
-    currentSortField,
-    currentSortDirection
-  );
+  const filteredContacts = filterContacts(contacts, contactFilters);
+  const sortedContacts = sortContacts(filteredContacts, currentSortField, currentSortDirection);
+  setText('contactVisibleCount', 'Showing ' + sortedContacts.length + ' of ' + contacts.length + ' records');
+  updateSortHeaders();
 
     sortedContacts.forEach((c) => {
     const row = document.createElement("tr");
+    const dimensions = contactDimensions(c);
+    const badge = value => '<span class="contact-badge tone-' + badgeTone(value) + '">' + escapeHtml(value) + '</span>';
+    const legacy = c.status ? '<small class="legacy-status">Previous status: ' + escapeHtml(c.status) + '</small>' : '';
 
     row.innerHTML = `
       <td>
-        <input type="checkbox" class="select-checkbox" data-id="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />
+        <input type="checkbox" class="select-checkbox" data-id="${c.id}" aria-label="Select ${escapeHtml(c.company || "contact")} for weekly report" ${dimensions.reported === "Reported" ? 'disabled title="Already reported"' : ""} ${selectedIds.has(c.id) ? "checked" : ""} />
       </td>
       <td>${formatDate(c.date_contacted)}</td>
       <td>${escapeHtml(c.company || "")}</td>
-      <td class="${getStatusClass(c.position_status || c.status)}">${escapeHtml(contactWorkflowLabel(c))}</td>
-      <td>${escapeHtml(c.reported_unemployment || "No")}</td>
+      <td>${badge(dimensions.stage)}</td>
+      <td>${badge(dimensions.position)}${legacy}</td>
+      <td>${badge(dimensions.reported)}</td>
       <td>
       ${isAdminUser() ? `<button type="button" class="edit-btn" data-id="${c.id}">Edit</button>` : ""}
       ${isAdminUser() ? `<button type="button" class="delete-btn" data-id="${c.id}">Delete</button>` : ""}
@@ -1679,52 +1564,28 @@ function renderTable() {
   applyRoleBasedAccess();
 }
 
+function updateSortHeaders() {
+  document.querySelectorAll('#contactsTable [data-sort]').forEach(button => {
+    const active = button.dataset.sort === currentSortField;
+    button.closest('th').setAttribute('aria-sort', active ? (currentSortDirection === 'asc' ? 'ascending' : 'descending') : 'none');
+    button.querySelector('.sort-indicator').textContent = active ? (currentSortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕';
+    const label = button.dataset.sortLabel || button.textContent.replace(/[↑↓↕]/g, '').trim();
+    button.dataset.sortLabel = label;
+    const nextDirection = active && currentSortDirection === 'asc' ? 'descending' : (button.dataset.sort === 'date_contacted' && !active ? 'descending' : 'ascending');
+    button.setAttribute('aria-label', 'Sort ' + label + ' ' + nextDirection);
+    button.closest('th').title = 'Sort ' + label + ' ' + nextDirection;
+  });
+}
 function wireSavedContactsSorting() {
-  const sortDateHeader = document.getElementById("sortDateHeader");
-  const sortCompanyHeader = document.getElementById("sortCompanyHeader");
-  const sortStatusHeader = document.getElementById("sortStatusHeader");
-
-  if (sortDateHeader) {
-    sortDateHeader.addEventListener("click", () => {
-      if (currentSortField === "date_contacted") {
-        currentSortDirection =
-          currentSortDirection === "asc" ? "desc" : "asc";
-      } else {
-        currentSortField = "date_contacted";
-        currentSortDirection = "desc";
-      }
-
+  document.querySelectorAll('#contactsTable [data-sort]').forEach(button => {
+    button.closest('th').addEventListener('click', () => {
+      const field = button.dataset.sort;
+      currentSortDirection = currentSortField === field ? (currentSortDirection === 'asc' ? 'desc' : 'asc') : (field === 'date_contacted' ? 'desc' : 'asc');
+      currentSortField = field;
       renderTable();
     });
-  }
-
-  if (sortCompanyHeader) {
-    sortCompanyHeader.addEventListener("click", () => {
-      if (currentSortField === "company") {
-        currentSortDirection =
-          currentSortDirection === "asc" ? "desc" : "asc";
-      } else {
-        currentSortField = "company";
-        currentSortDirection = "asc";
-      }
-
-      renderTable();
-    });
-  }
-
-  if (sortStatusHeader) {
-    sortStatusHeader.addEventListener("click", () => {
-      if (currentSortField === "status") {
-        currentSortDirection =
-          currentSortDirection === "asc" ? "desc" : "asc";
-      } else {
-        currentSortField = "status";
-        currentSortDirection = "asc";
-      }
-
-      renderTable();
-    });
-  }
+  });
+  updateSortHeaders();
 }
 
 function showSection(sectionId) {
@@ -1903,7 +1764,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyRoleBasedAccess();
 
-showSection("telemetrySection");
+const refreshSection = sessionStorage.getItem('prodViewReturnSection');
+sessionStorage.removeItem('prodViewReturnSection');
+showSection(sectionOrder.includes(refreshSection) ? refreshSection : 'telemetrySection');
+void installDemoViewRefresh({
+  environment: APP_ENV,
+  getSelectionCount: () => selectedIds.size,
+  onRefreshed: () => {
+    const activeSection = document.querySelector('.careerops-section.active-section')?.id;
+    if (sectionOrder.includes(activeSection)) sessionStorage.setItem('prodViewReturnSection', activeSection);
+    window.location.reload();
+  }
+});
 
       const mainMenuBtn = document.getElementById("mainMenuBtn");
       if (mainMenuBtn) {
@@ -2094,16 +1966,16 @@ function wireCompanyAutocomplete() {
 
 wireCompanyAutocomplete();
 
-    const statusFilter = document.getElementById("statusFilter");
-
-    if (statusFilter) {
-  statusFilter.value = currentStatusFilter;
-;
-  statusFilter.addEventListener("change", (e) => {
-    currentStatusFilter = e.target.value;
-    renderTable();
-  });
-}
+    for (const [key, id, choices] of [
+      ['stage', 'stageFilter', STAGES], ['position', 'positionFilter', POSITIONS],
+      ['reported', 'reportingFilter', ['Reported', 'Not Reported']]
+    ]) {
+      const filter = document.getElementById(id);
+      if (!filter) continue;
+      filter.innerHTML = '<option value="all">All</option>' + choices.map(value => '<option>' + escapeHtml(value) + '</option>').join('');
+      filter.value = contactFilters[key];
+      filter.addEventListener('change', () => { contactFilters[key] = filter.value; renderTable(); });
+    }
 
       wireSavedContactsSorting();
 
@@ -2364,7 +2236,7 @@ activeUsersInterval = setInterval(
           return;
         }
 
-        if (!confirm("This will mark selected companies as reported and remove them from the active list. Continue?")) {
+        if (!confirm("This will mark selected companies as reported. They will remain visible under All or Reported. Continue?")) {
           return;
         }
 

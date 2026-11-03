@@ -63,6 +63,10 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         run: npx playwright install --with-deps
 
+      - name: Run Contact Status and Refresh Controls
+        if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
+        run: npx playwright test --config tests/status-view/playwright.config.js
+
       - name: Run Enabled Snapshot Browser Acceptance
         if: github.event_name == 'pull_request' || github.ref_name == 'qa' || github.ref_name == 'demo' || github.ref_name == 'main'
         env:

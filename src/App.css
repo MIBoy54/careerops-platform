@@ -1078,3 +1078,41 @@ h2 {
 
 .workflow-legacy {color:#475569;font-size:.9rem;overflow-wrap:anywhere;}
 .workflow-legacy:empty {display:none;}
+
+/* Independent distributions and accessible status indicators. */
+.contact-summary-card { grid-column: 1 / -1; }
+.contact-totals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+.contact-totals-grid h3 { margin: 0 0 12px; }
+.contact-totals-grid dl { margin: 0; }
+.contact-totals-grid dl div { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
+.contact-totals-grid dd { margin: 0; font-weight: bold; }
+.summary-note, .legacy-status { color: #475569; font-size: .85rem; }
+.legacy-status { display: block; margin-top: 5px; }
+.contact-filters { display: flex; flex-wrap: wrap; gap: 16px; }
+.contact-filters label { display: block; }
+#contactsTable { width: 100%; border-collapse: collapse; }
+#contactsTable th, #contactsTable td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+#contactsTable .sort-button:not(:disabled) { background: transparent; color: #111827; border: 0; padding: 4px 0; font-weight: bold; text-align: left; }
+#contactsTable .sort-button:focus-visible { outline: 2px solid #2563eb; outline-offset: 4px; }
+.contact-badge { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: .85rem; font-weight: 700; }
+.contact-badge.tone-blue { background: #dbeafe; color: #1e40af; }
+.contact-badge.tone-teal { background: #ccfbf1; color: #115e59; }
+.contact-badge.tone-purple { background: #f3e8ff; color: #6b21a8; }
+.contact-badge.tone-amber { background: #fef3c7; color: #92400e; }
+.contact-badge.tone-gray { background: #f3f4f6; color: #374151; }
+.contact-badge.tone-slate { background: #e2e8f0; color: #334155; }
+.contact-badge.tone-red { background: #fee2e2; color: #991b1b; }
+.contact-badge.tone-green { background: #dcfce7; color: #166534; }
+
+/* Make sorting discoverable and clickable across each header cell. */
+#contactsTable th:has(.sort-button) { cursor: pointer; background: #f8fafc; }
+#contactsTable th:has(.sort-button):hover { background: #e2e8f0; }
+#contactsTable th[aria-sort="ascending"],
+#contactsTable th[aria-sort="descending"] { background: #dbeafe; }
+#contactsTable .sort-button:not(:disabled) { display: inline-flex; align-items: center; gap: .35rem; width: 100%; min-height: 32px; white-space: nowrap; }
+#contactsTable .sort-indicator { color: #475569; }
+
+.prod-view-controls[hidden] { display: none; }
+.prod-view-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%; padding: 16px; background: white; border: 1px solid #dbe2ea; border-radius: 10px; box-sizing: border-box; }
+.prod-view-controls time { font-weight: 700; }
+#prodViewMessage { flex-basis: 100%; margin: 0; color: #475569; font-size: .85rem; }

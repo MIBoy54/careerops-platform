@@ -32,7 +32,7 @@ continues to use DEMO's own database; operational analytics and GitHub CI status
 are live operational information, not frozen PROD business data. PROD business
 credentials are never supplied to the DEMO app or browser.
 
-## Opt-in activation plan (not yet applied)
+## Original opt-in activation plan
 
 The implementation is disabled by default. Existing shared refresh behavior
 remains until explicitly enabled. Do not label that legacy mode as entry-time.
@@ -125,3 +125,23 @@ missing reports, both missing, null references and surviving relationships.
 The November 2 activation attempt stopped on 44 historical orphan links. Both
 feature flags were disabled again. Re-run promotion and live acceptance before
 declaring the new projection active.
+
+## Explicit visitor refresh
+
+The DEMO toolbar shows the current capture time and a Refresh PROD VIEW button
+when entry snapshots are enabled. Refresh uses the same protected guest-entry
+endpoint, replacing only the requesting browser session. A successful capture
+reloads all business views together and returns to the active section; filters
+and selections reset. Selected records require confirmation before refresh.
+
+Expiry offers Load latest PROD view instead of automatically capturing. Failed
+captures show an explicit error and retry control; no shared database fallback
+is used. Ordinary reloads still reuse the same snapshot. The control is hidden
+in PROD and when DEMO entry snapshots are disabled.
+
+## November 3 deployed state
+
+Verified that deployed DEMO enables entry snapshots and reads the protected PROD
+source. A fresh guest capture included the current workflow cleanup, and repeated
+reads kept the same capture timestamp. DEMO source was bound to the demo branch;
+PROD source was bound to main. Data refresh and interface deployment are distinct.
