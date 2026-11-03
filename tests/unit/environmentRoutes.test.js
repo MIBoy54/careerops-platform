@@ -869,13 +869,14 @@ describe('enabled snapshot lifecycle HTTP acceptance', () => {
           await page.locator('#refreshProdView').click();
           expect((await(await a.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor A synthetic employer');
           page.once('dialog', dialog=>dialog.accept());
-          await page.locator('#refreshProdView').click();
+          await Promise.all([page.waitForEvent('load'), page.locator('#refreshProdView').click()]);
           await page.waitForFunction(()=>document.documentElement.dataset.careeropsReady==='true');
           await vi.waitFor(async()=>expect(await page.locator('#contactsTable').textContent()).toContain('Visitor B synthetic employer'));
           expect(await page.locator('#savedContactsSection').isVisible()).toBe(true);
           expect(await page.locator('.select-checkbox').isChecked()).toBe(false);
           company='Visitor C synthetic employer';
-          await page.locator('#refreshProdView').click();
+          await Promise.all([page.waitForEvent('load'), page.locator('#refreshProdView').click()]);
+          await page.waitForFunction(()=>document.documentElement.dataset.careeropsReady==='true');
           await vi.waitFor(async()=>expect((await(await a.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor C synthetic employer'));
           expect((await(await b.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor B synthetic employer');
           expect((await a.request.post(request.baseURL+'/api/contacts',{data:{company:'forbidden'}})).status()).toBe(403);
