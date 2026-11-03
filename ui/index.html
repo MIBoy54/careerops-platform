@@ -34,12 +34,17 @@
 
     <main class="main-content">
       <header class="topbar">
+        <div id="prodViewControls" class="prod-view-controls" hidden>
+          <div>PROD data captured: <time id="prodViewCapturedAt">Loading…</time></div>
+          <button id="refreshProdView" type="button">Refresh PROD VIEW</button>
+          <p id="prodViewMessage" role="status" aria-live="polite">Refresh loads the latest protected data and clears selections and filters.</p>
+        </div>
 
 
       </header>
 
 <script>console.log("MAIN HTML SCRIPT LOADED");</script>
-<script type="module" src="/src/app.js?v=11"></script>
+<script type="module" src="/src/app.js?v=12"></script>
 
 <section id="telemetrySection" class="careerops-section">
   <div class="page">

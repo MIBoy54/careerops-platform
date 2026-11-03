@@ -1,3 +1,4 @@
+import { installDemoViewRefresh } from './demoViewRefresh.js';
 import { STAGES, POSITIONS, contactDimensions, summarizeContacts, filterContacts, sortContacts, badgeTone } from './contactStatusView.js';
 import { contactStatusBucket } from './contactWorkflow.js';
 import { createSessionTrendLoader } from "./sessionTrendChart.js";
@@ -1763,7 +1764,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   applyRoleBasedAccess();
 
-showSection("telemetrySection");
+const refreshSection = sessionStorage.getItem('prodViewReturnSection');
+sessionStorage.removeItem('prodViewReturnSection');
+showSection(sectionOrder.includes(refreshSection) ? refreshSection : 'telemetrySection');
+void installDemoViewRefresh({
+  environment: APP_ENV,
+  getSelectionCount: () => selectedIds.size,
+  onRefreshed: () => {
+    const activeSection = document.querySelector('.careerops-section.active-section')?.id;
+    if (sectionOrder.includes(activeSection)) sessionStorage.setItem('prodViewReturnSection', activeSection);
+    window.location.reload();
+  }
+});
 
       const mainMenuBtn = document.getElementById("mainMenuBtn");
       if (mainMenuBtn) {

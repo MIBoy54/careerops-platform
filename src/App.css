@@ -1111,3 +1111,8 @@ h2 {
 #contactsTable th[aria-sort="descending"] { background: #dbeafe; }
 #contactsTable .sort-button:not(:disabled) { display: inline-flex; align-items: center; gap: .35rem; width: 100%; min-height: 32px; white-space: nowrap; }
 #contactsTable .sort-indicator { color: #475569; }
+
+.prod-view-controls[hidden] { display: none; }
+.prod-view-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%; padding: 16px; background: white; border: 1px solid #dbe2ea; border-radius: 10px; box-sizing: border-box; }
+.prod-view-controls time { font-weight: 700; }
+#prodViewMessage { flex-basis: 100%; margin: 0; color: #475569; font-size: .85rem; }
