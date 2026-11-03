@@ -869,13 +869,14 @@ describe('enabled snapshot lifecycle HTTP acceptance', () => {
           await page.locator('#refreshProdView').click();
           expect((await(await a.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor A synthetic employer');
           page.once('dialog', dialog=>dialog.accept());
-          await page.locator('#refreshProdView').click();
+          await Promise.all([page.waitForEvent('load'), page.locator('#refreshProdView').click()]);
           await page.waitForFunction(()=>document.documentElement.dataset.careeropsReady==='true');
           await vi.waitFor(async()=>expect(await page.locator('#contactsTable').textContent()).toContain('Visitor B synthetic employer'));
           expect(await page.locator('#savedContactsSection').isVisible()).toBe(true);
           expect(await page.locator('.select-checkbox').isChecked()).toBe(false);
           company='Visitor C synthetic employer';
-          await page.locator('#refreshProdView').click();
+          await Promise.all([page.waitForEvent('load'), page.locator('#refreshProdView').click()]);
+          await page.waitForFunction(()=>document.documentElement.dataset.careeropsReady==='true');
           await vi.waitFor(async()=>expect((await(await a.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor C synthetic employer'));
           expect((await(await b.request.get(request.baseURL+'/api/contacts')).json())[0].company).toBe('Visitor B synthetic employer');
           expect((await a.request.post(request.baseURL+'/api/contacts',{data:{company:'forbidden'}})).status()).toBe(403);
@@ -927,3 +928,18 @@ it('derives only explicit legacy facts when an older client creates a new contac
  expect(rows[0]).toMatchObject({role_category:'Leadership',hiring_stage:'Applied',position_status:null});
  expect(rows[1]).toMatchObject({role_category:null,hiring_stage:null,position_status:null,role_type:'QE Transformation',status:'Offer'});
 });
+
+ it('serves UI assets and HTML without retaining stale deployment content', async()=>{
+  stubEnv('test');const {app}=await import('../../src/server.js');
+  const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+  try{
+   const base='http://127.0.0.1:'+server.address().port;
+   for(const path of ['/src/App.css?v=13','/src/app.js?v=13','/src/contactStatusView.js','/src/validateContact.js','/login.html','/index.html']){
+    const response=await fetch(base+path);
+    expect(response.status,path).toBe(200);expect(response.headers.get('cache-control'),path).toBe('no-store');
+    if(path==='/index.html'){
+     const html=await response.text();expect(html).toContain('/src/App.css?v=13');expect(html).toContain('/src/app.js?v=13');
+    }
+   }
+  }finally{await new Promise(resolve=>server.close(resolve));}
+ });

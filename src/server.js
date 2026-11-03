@@ -123,6 +123,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// These asset URLs are not content-hashed. Never reuse stale UI code/styles.
+app.use('/src', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 app.get(/^\/src\/App\.js/, (req, res) => {
   res.type("application/javascript");
   res.sendFile(path.join(__dirname, "App.js"));
@@ -144,7 +150,11 @@ app.use(
   })
 );;
 
-app.use(express.static(path.join(__dirname, "../ui")));
+app.use(express.static(path.join(__dirname, "../ui"), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) res.setHeader('Cache-Control', 'no-store');
+  }
+}));
 app.use((req, res, next) => {
   console.log(`REQ ${req.method} ${req.url}`);
   next();
@@ -487,6 +497,7 @@ app.get("/", (req, res) => {
     }
 
     console.log("ROOT SENDFILE ->", indexPath);
+    res.setHeader('Cache-Control', 'no-store');
     return res.sendFile(indexPath);
   } catch (err) {
     console.error("Root route error:", err);
