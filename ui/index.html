@@ -162,26 +162,9 @@
 </div>
 <hr>
   <div class="dashboard-grid">
-    <div class="dashboard-card">
-      <h2>Pipeline</h2>
-      <p>Applied / Submitted: <span id="dashboardAppliedSubmitted">0</span></p>
-      <p>Interviewing: <span id="dashboardInterviewing">0</span></p>
-      <p>Rejected / Closed: <span id="dashboardRejectedClosed">0</span></p>
-<p>Hired: <span id="dashboardWorkflow-hired">0</span></p>
-<p>On-hold: <span id="dashboardWorkflow-onHold">0</span></p>
-<p>Awaiting decision: <span id="dashboardWorkflow-awaitingDecision">0</span></p>
-<p>Legacy offers / accepted: <span id="dashboardWorkflow-legacyOutcome">0</span></p>
-<p>Unclassified: <span id="dashboardWorkflow-unclassified">0</span></p>
-      <hr />
-      <p><strong>Total Opportunities: <span id="dashboardTotal">0</span></strong></p>
-    </div>
-
-<div class="dashboard-card"><h2>Hiring Workflow</h2><p>Applied: <span id="dashboardStage-0">0</span></p><p>Recruiter Interview: <span id="dashboardStage-1">0</span></p><p>Submitted: <span id="dashboardStage-2">0</span></p><p>HR Interview: <span id="dashboardStage-3">0</span></p><p>Hiring Interview: <span id="dashboardStage-4">0</span></p><p>Unclassified stage: <span id="dashboardStage-unknown">0</span></p></div>
-    <div class="dashboard-card"><h2>Position Status</h2><p>Awaiting Decision: <span id="dashboardPosition-0">0</span></p><p>On-hold: <span id="dashboardPosition-1">0</span></p><p>Rejected: <span id="dashboardPosition-2">0</span></p><p>Closed: <span id="dashboardPosition-3">0</span></p><p>Hired: <span id="dashboardPosition-4">0</span></p><p>Unclassified position: <span id="dashboardPosition-unknown">0</span></p></div>
-    <div class="dashboard-card">
-      <h2>Reporting</h2>
-      <p>Reported to Unemployment: <span id="dashboardReported">0</span></p>
-      <p>Not Reported: <span id="dashboardNotReported">0</span></p>
+    <div class="dashboard-card contact-summary-card">
+      <h2>All Contact Records</h2>
+      <div id="dashboardContactTotals"></div>
     </div>
 
     <div class="dashboard-card">
@@ -409,42 +392,23 @@
     <div class="card">
       <h2>Contact Status</h2>
 
-      <p>
-        Totals |
-        Applied/Submitted - <span id="appliedSubmittedTotal">0</span> |
-        Interviewing - <span id="interviewingTotal">0</span> |
-        Rejected/Closed - <span id="rejectedClosedTotal">0</span> |
-        Hired - <span id="statusWorkflow-hired">0</span> |
-        On-hold - <span id="statusWorkflow-onHold">0</span> |
-        Awaiting decision - <span id="statusWorkflow-awaitingDecision">0</span> |
-        Legacy offers / accepted - <span id="statusWorkflow-legacyOutcome">0</span> |
-        Unclassified - <span id="statusWorkflow-unclassified">0</span> |
-        Reported - <span id="reportedTotal">0</span>
-      </p>
-
+      <div id="contactTotals"></div>
       <p id="selectionCount">Selected for Weekly Report: 0 of 4</p>
-
-      <label for="statusFilter"><strong>Search by Status:</strong></label>
-      <select id="statusFilter">
-          <option value="all">All</option>
-          <option value="appliedSubmitted">Applied/Submitted</option>
-          <option value="interviewing">Interviewing</option>
-          <option value="rejectedClosed">Rejected/Closed</option>
-<option value="hired">Hired</option>
-<option value="onHold">On-hold</option>
-<option value="awaitingDecision">Awaiting decision</option>
-<option value="legacyOutcome">Legacy offers / accepted</option>
-<option value="unclassified">Unclassified</option>
-      </select>
-
+      <div class="contact-filters">
+        <div><label for="stageFilter">Hiring stage</label><select id="stageFilter"><option value="all">All</option></select></div>
+        <div><label for="positionFilter">Position status</label><select id="positionFilter"><option value="all">All</option></select></div>
+        <div><label for="reportingFilter">Reporting</label><select id="reportingFilter"><option value="all">All</option></select></div>
+      </div>
+      <p id="contactVisibleCount" role="status" aria-live="polite"></p>
       <table id="contactsTable">
         <thead>
           <tr>
             <th>Select</th>
-            <th id="sortDateHeader" style="cursor: pointer;">Date ↕</th>
-            <th id="sortCompanyHeader" style="cursor: pointer;">Company ↕</th>
-            <th id="sortStatusHeader" style="cursor: pointer;">Status ↕</th>
-            <th>Reported</th>
+            <th id="sortDateHeader" aria-sort="none"><button type="button" class="sort-button" data-sort="date_contacted">Date<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th id="sortCompanyHeader" aria-sort="none"><button type="button" class="sort-button" data-sort="company">Company<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th id="sortStageHeader" aria-sort="none"><button type="button" class="sort-button" data-sort="stage">Hiring Stage<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th id="sortPositionHeader" aria-sort="none"><button type="button" class="sort-button" data-sort="position">Position Status<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th id="sortReportedHeader" aria-sort="none"><button type="button" class="sort-button" data-sort="reported">Reported<span class="sort-indicator" aria-hidden="true"></span></button></th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -471,7 +435,7 @@
 
       <div class="report-actions">
         <div class="report-warning">
-          ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported and removed from the active list.
+          ⚠️ Once "Generate Weekly Report" is selected, selected companies will be marked as reported. Use the Reporting filter to view reported or unreported records.
         </div>
 
         <div class="report-button-row">
