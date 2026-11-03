@@ -15,6 +15,8 @@ test('totals, filters, badges, keyboard sorting and selections agree',async({pag
   if(path==='/api/contacts')return route.fulfill({json:records});
   if(path==='/api/reports')return route.fulfill({json:[]});
   if(path.startsWith('/api/'))return route.fulfill({status:500,json:{error:'Optional service unavailable in fixture'}});
+  // An existing browser may retain this previous stylesheet for four hours.
+  if(path==='/src/App.css' && !new URL(route.request().url()).search)return route.fulfill({contentType:'text/css',body:'button { background: green; }'});
   const file=path==='/'?'ui/index.html':path.slice(1);
   try {return route.fulfill({body:await readFile(resolve(file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});}
   catch{return route.fulfill({status:404,body:''});}
@@ -24,6 +26,10 @@ test('totals, filters, badges, keyboard sorting and selections agree',async({pag
  await page.getByTestId('saved-contacts-nav').click();
  await expect(page.locator('#contactVisibleCount')).toHaveText('Showing 4 of 4 records');
  await expect(page.locator('#contactsTable tbody tr')).toHaveCount(4);
+ await expect(page.locator('link[rel="stylesheet"]')).toHaveAttribute('href','/src/App.css?v=13');
+ expect(await page.locator('#contactTotals .contact-totals-grid').evaluate(el=>getComputedStyle(el).display)).toBe('grid');
+ expect(await page.locator('#contactsTable .tone-amber').first().evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgb(254, 243, 199)');
+ expect(await page.locator('[data-sort="company"]').evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
  expect(await page.locator('#contactTotals').innerHTML()).toBe(await page.locator('#dashboardContactTotals').innerHTML());
  await expect(page.locator('#contactTotals')).toContainText('All records: 4');
  await expect(page.locator('#contactsTable .tone-amber')).toHaveCount(2);
