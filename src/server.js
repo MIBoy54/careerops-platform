@@ -1,3 +1,4 @@
+import { normalizeIndustryPatch } from "./contactIndustry.js";
 import { normalizeWorkflowPatch, compatibilityStatusForCreate, legacyWorkflowDefaults } from './contactWorkflow.js';
 import { latestQualityGates, createQualityGateLoader } from './qualityGates.js';
 import { snapshotConfig, createReadOnlySnapshotPool, createSnapshotSource, fetchSnapshot, createGuestSnapshots, snapshotBusinessRead } from './demoSnapshot.js';
@@ -854,6 +855,9 @@ app.get("/api/reports/unemployment/export", requireAuth, async (req, res) => {
 
 app.post("/api/contacts", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
+  const industryPatch = normalizeIndustryPatch(req.body);
+  if (!industryPatch.valid) return res.status(400).json({ error: industryPatch.error });
+  req.body = { ...req.body, ...industryPatch.values };
   const workflow=normalizeWorkflowPatch(req.body);
   if(!workflow.valid)return res.status(400).json({error:workflow.errors.join(' ')});
   req.body={...req.body,...legacyWorkflowDefaults(req.body),...workflow.values};
@@ -905,6 +909,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
       email,
       address,
       website,
+      industry,
       notes
     } = req.body;
 
@@ -930,8 +935,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         email,
         address,
         website,
+        industry,
         notes
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         date_contacted || null,
@@ -952,6 +958,7 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         email || null,
         address || null,
         website || null,
+        industry || null,
         notes || null
       ]
     );
@@ -1046,6 +1053,9 @@ app.post("/api/validation-runs/start", requireAdmin, async (req, res) => {
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
+  const industryPatch = normalizeIndustryPatch(req.body);
+  if (!industryPatch.valid) return res.status(400).json({ error: industryPatch.error });
+  req.body = { ...req.body, ...industryPatch.values };
   const workflow=normalizeWorkflowPatch(req.body);
   if(!workflow.valid)return res.status(400).json({error:workflow.errors.join(' ')});
   req.body={...req.body,...workflow.values};
@@ -1101,6 +1111,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
       email,
       address,
       website,
+      industry,
       notes
     } = req.body;
     
@@ -1131,6 +1142,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           email = ?,
           address = ?,
           website = ?,
+          industry = CASE WHEN ? THEN ? ELSE industry END,
           notes = ?
         WHERE id = ?
       `,
@@ -1154,6 +1166,7 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         email || null,
         address || null,
         website || null,
+        Object.hasOwn(req.body, "industry"), industry || null,
         notes || null,
         id
       ]
@@ -1926,6 +1939,7 @@ if (APP_ENV === "production" && environment.demoSyncEnabled && demoPool) {
         email,
         address,
         website,
+        industry,
         notes
       FROM recruiter_tracker
       WHERE TRIM(company) = TRIM(?)

@@ -910,3 +910,45 @@ it('derives only explicit legacy facts when an older client creates a new contac
  expect(rows[0]).toMatchObject({role_category:'Leadership',hiring_stage:'Applied',position_status:null});
  expect(rows[1]).toMatchObject({role_category:null,hiring_stage:null,position_status:null,role_type:'QE Transformation',status:'Offer'});
 });
+
+describe("Industry persistence through production contact routes", () => {
+  it("inserts the normalized industry using the SQL column's parameter", async () => {
+    stubEnv("production", { RAILWAY_PROJECT_ID: "fixture", RAILWAY_ENVIRONMENT_ID: "fixture" });
+    const { pool } = installPool("production");
+    pool.query.mockResolvedValue([{ insertId: 42 }]);
+    const { app } = await import("../../src/server.js");
+    const response = await route(app, "post", "/api/contacts", { role: "admin" },
+      { company: "Industry fixture", industry: "  Cybersecurity  " });
+    expect(response.code).toBe(201);
+    const [sql, values] = pool.query.mock.calls.find(([sql]) => /INSERT INTO recruiter_tracker/.test(sql));
+    const columns = sql.match(/recruiter_tracker\s*\(([\s\S]*?)\)\s*VALUES/)[1]
+      .split(",").map(column => column.trim());
+    expect(values[columns.indexOf("industry")]).toBe("Cybersecurity");
+    expect(sql.match(/\?/g).length).toBe(values.length);
+  });
+  it.each([
+    [{ industry: " Healthcare " }, true, "Healthcare"],
+    [{ industry: "" }, true, null],
+    [{}, false, null]
+  ])("updates or preserves industry according to the supplied patch %j", async (body, supplied, value) => {
+    stubEnv("production", { RAILWAY_PROJECT_ID: "fixture", RAILWAY_ENVIRONMENT_ID: "fixture" });
+    const { pool } = installPool("production");
+    pool.query.mockResolvedValue([{ affectedRows: 1 }]);
+    const { app } = await import("../../src/server.js");
+    const response = await route(app, "put", "/api/contacts/:id", { role: "admin" }, body);
+    expect(response.code).toBe(200);
+    const [sql, values] = pool.query.mock.calls.find(([sql]) => /UPDATE recruiter_tracker/.test(sql));
+    expect(sql).toMatch(/industry = CASE WHEN \? THEN \? ELSE industry END/);
+    const beforeIndustry = sql.slice(0, sql.indexOf("industry =")).match(/\?/g).length;
+    expect(values.slice(beforeIndustry, beforeIndustry + 2)).toEqual([supplied, value]);
+    expect(sql.match(/\?/g).length).toBe(values.length);
+  });
+  it("rejects an invalid industry before writing to the database", async () => {
+    stubEnv("production", { RAILWAY_PROJECT_ID: "fixture", RAILWAY_ENVIRONMENT_ID: "fixture" });
+    const { pool } = installPool("production");
+    const { app } = await import("../../src/server.js");
+    const response = await route(app, "post", "/api/contacts", { role: "admin" }, { industry: {} });
+    expect(response.code).toBe(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});

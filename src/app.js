@@ -1,3 +1,4 @@
+import { INDUSTRIES, summarizeIndustries } from "./contactIndustry.js";
 import { STAGES, POSITIONS, contactDimensions, summarizeContacts, filterContacts, sortContacts, badgeTone } from './contactStatusView.js';
 import { contactStatusBucket } from './contactWorkflow.js';
 import { createSessionTrendLoader } from "./sessionTrendChart.js";
@@ -1049,30 +1050,15 @@ updateLeadSourceMix();
 }
 
 function updateIndustryMix() {
-  console.log("INDUSTRY MIX CALLED");
-
-  const normalizeIndustry = (value) =>
-    String(value || "").trim().toLowerCase();
-
-  const healthcare = contacts.filter(c => normalizeIndustry(c.industry) === "healthcare").length;
-  const financial = contacts.filter(c => normalizeIndustry(c.industry) === "financial").length;
-  const saas = contacts.filter(c => normalizeIndustry(c.industry) === "saas").length;
-  const government = contacts.filter(c => normalizeIndustry(c.industry) === "government").length;
-  const other = contacts.filter(c => normalizeIndustry(c.industry) === "other").length;
-
-  console.log("INDUSTRY MIX COUNTS:", {
-    healthcare,
-    financial,
-    saas,
-    government,
-    other
-  });
-
-  setText("dashboardHealthcare", healthcare);
-  setText("dashboardFinancial", financial);
-  setText("dashboardSaas", saas);
-  setText("dashboardGovernment", government);
-  setText("dashboardOther", other);
+  const list = document.getElementById("industryMixList");
+  if (!list) return;
+  const entries = summarizeIndustries(contacts);
+  list.replaceChildren(...entries.map(({ industry, count }) => {
+    const row = document.createElement("p");
+    row.textContent = industry + ": " + count;
+    return row;
+  }));
+  if (!entries.length) list.textContent = "No contacts yet.";
 }
 
 function updateLeadSourceMix() {
@@ -1437,6 +1423,7 @@ function wireEditButtons() {
 
       if (!contact) return;
 
+      form.reset();
       editId = id;
 
     Object.keys(contact).forEach((key) => {
@@ -1826,6 +1813,14 @@ if (logoutBtn) {
     window.currentUser = user;
     console.log("currentUser:", window.currentUser);
     form = document.getElementById("contactForm");
+    const industryOptions = document.getElementById("industryOptions");
+    if (industryOptions) {
+      industryOptions.replaceChildren(...INDUSTRIES.map(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        return option;
+      }));
+    }
     errorsDiv = document.getElementById("formErrors");
     messageDiv = document.getElementById("formMessage");
     resetButton = document.getElementById("resetButton");
@@ -2179,6 +2174,7 @@ activeUsersInterval = setInterval(
         document.getElementById("email").value = companyDetails.email || "";
         document.getElementById("address").value = companyDetails.address || "";
         document.getElementById("website").value = companyDetails.website || "";
+        document.getElementById("industry").value = companyDetails.industry || "";
         document.getElementById("notes").value = companyDetails.notes || "";
 
         if (companyDetails.date_contacted) {
