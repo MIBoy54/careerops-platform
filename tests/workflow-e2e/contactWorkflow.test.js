@@ -62,11 +62,14 @@ test('editing ambiguous legacy data does not guess or discard its classification
  }finally{if(id)await page.request.delete('/api/contacts/'+id);}
 });
 test('guest can view canonical fields but cannot change or save them',async({page})=>{
- const contact={id:99,company:'WF protected fixture',recruiter_name:'Protected contact',role_level:'Lead',role_category:'Leadership',hiring_stage:'HR Interview',position_status:'Awaiting Decision',role_type:'QE Transformation',status:'Interviewing'};
+ const contact={id:99,company:'WF protected fixture',recruiter_name:'Protected contact',role_level:'Lead',role_category:'Leadership',hiring_stage:'HR Interview',position_status:'Rejected',role_type:'QE Transformation',status:'Interviewing'};
  await page.route('**/api/auth/me',route=>route.fulfill({json:{app_env:'demo',user:{role:'guest'}}}));
  await page.route('**/api/contacts',route=>route.fulfill({json:[contact]}));
- await page.goto('/');await expect(page.locator('html')).toHaveAttribute('data-careerops-ready','true');await find(page,99);
- for(const [field,value] of [['role_category','Leadership'],['hiring_stage','HR Interview'],['position_status','Awaiting Decision']]){
+ await page.goto('/');await expect(page.locator('html')).toHaveAttribute('data-careerops-ready','true');await expect(page.locator('#dashboardKpiInterviews')).toHaveText('1');
+ await expect(page.locator('#dashboardKpiInterviewRate')).toHaveText('100.0%');
+ await expect(page.locator('#dashboardOpenInterviews')).toHaveText('0');
+ await find(page,99);
+ for(const [field,value] of [['role_category','Leadership'],['hiring_stage','HR Interview'],['position_status','Rejected']]){
   await expect(page.locator('#'+field)).toHaveValue(value);await expect(page.locator('#'+field)).toBeDisabled();
  }
  await expect(page.locator('#contactForm button[type="submit"]')).toBeDisabled();
