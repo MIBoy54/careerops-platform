@@ -215,11 +215,7 @@
     <div class="dashboard-card">
         <h3>Industry Mix</h3>
 
-        <p>Healthcare: <span id="dashboardHealthcare">0</span></p>
-        <p>Financial: <span id="dashboardFinancial">0</span></p>
-        <p>SaaS: <span id="dashboardSaas">0</span></p>
-        <p>Government: <span id="dashboardGovernment">0</span></p>
-        <p>Other: <span id="dashboardOther">0</span></p>
+        <div id="industryMixList"></div>
     </div>
 
     <div class="dashboard-card">
@@ -372,6 +368,12 @@
           <div class="field">
             <label for="website">Website</label>
             <input id="website" name="website" type="text" />
+          </div>
+          <div class="field">
+            <label for="industry">Industry</label>
+            <input id="industry" name="industry" type="text" list="industryOptions"
+              maxlength="100" placeholder="Select or enter an industry" />
+            <datalist id="industryOptions"></datalist>
           </div>
         </div>
 
