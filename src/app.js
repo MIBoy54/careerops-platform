@@ -1001,8 +1001,8 @@ function showWorkflowContext(contact) {
 
 function updateWorkflowTotals() {
   const summary = summarizeContacts(contacts);
-  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).map(([label, count]) => '<div><dt>' + escapeHtml(label) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
-  const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">Each group counts all saved records independently. Filters change the table below.</p>';
+  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + escapeHtml(label) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
+  const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">All records includes contacts without a hiring stage or position status. Filters change the table below.</p>';
   for (const id of ['contactTotals', 'dashboardContactTotals']) {
     const element = document.getElementById(id);
     if (element) element.innerHTML = html;
