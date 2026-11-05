@@ -4,7 +4,7 @@ import { protectSnapshot, snapshotConfig, captureSnapshot, createSnapshotSource,
 
 const raw = () => ({ schemaVersion:1, capturedAt:new Date().toISOString(),
   contacts:[{id:1,company:'Example employer',reported_to_unemployment:'Yes',notes:'PRIVATE',
-    recruiter_name:'PRIVATE',email:'PRIVATE',phone:'PRIVATE',address:'PRIVATE',website:'PRIVATE',unknown:'PRIVATE'}],
+    recruiter_name:'PRIVATE',email:'PRIVATE',phone:'PRIVATE',address:'100 Example Avenue',website:'https://example.com',unknown:'PRIVATE'}],
   reports:[{id:2,week_start:'2026-01-04',week_end:'2026-01-10',submitted:1,notes:'PRIVATE'}],
   links:[{report_id:2,recruiter_tracker_id:1,unknown:'PRIVATE'}] });
 const response = () => ({ code:200, headers:{}, status(n){this.code=n;return this;},
@@ -15,7 +15,10 @@ describe('protected LIVE snapshot', () => {
   it('removes protected and unknown fields before storage or serialization', () => {
     const result=protectSnapshot(raw());
     expect(JSON.stringify(result)).not.toContain('PRIVATE');
-    expect(result.contacts[0].recruiter_name).toBe('Protected contact');
+    expect(result.contacts[0]).toMatchObject({
+      recruiter_name: 'Protected contact', phone: 'Protected contact', email: 'Protected contact',
+      notes: 'Protected contact', address: '100 Example Avenue', website: 'https://example.com'
+    });
     expect(result.contacts[0].reported_unemployment).toBe('Yes');
   });
   it('refuses dangling report links rather than publishing partial data', () => {
