@@ -1,6 +1,6 @@
 export const ROLE_TYPES=Object.freeze(['Consultant','Individual Contributor','Leadership']);
-export const HIRING_STAGES=Object.freeze(['Applied','Recruiter Interview','Submitted','HR Interview','Hiring Interview']);
-export const POSITION_STATUSES=Object.freeze(['Awaiting Decision','On-hold','Rejected','Closed','Hired']);
+export const HIRING_STAGES=Object.freeze(['Applied','Recruiter Interview','Submitted','HR Interview','Hiring Interview','Offer Letter']);
+export const POSITION_STATUSES=Object.freeze(['Accepted','Awaiting Decision','Closed','Ghosted','Hired','On-hold','Rejected']);
 const fields={role_category:ROLE_TYPES,hiring_stage:HIRING_STAGES,position_status:POSITION_STATUSES};
 const labels={role_category:'Role Type',hiring_stage:'Hiring Workflow',position_status:'Position Status'};
 const key=value=>String(value??'').trim().toLowerCase();
