@@ -11,8 +11,8 @@ test('owner creates independent workflow fields, edits stages and filters Hired 
  try{
   await page.locator('[data-target="contactFormSection"]').click();
   expect(await page.locator('#role_category option').evaluateAll(options=>options.map(o=>o.value).filter(Boolean))).toEqual(['Consultant','Individual Contributor','Leadership']);
-  expect(await page.locator('#hiring_stage option').evaluateAll(options=>options.map(o=>o.value).filter(Boolean))).toEqual(['Applied','Recruiter Interview','Submitted','HR Interview','Hiring Interview']);
-  expect(await page.locator('#position_status option').evaluateAll(options=>options.map(o=>o.value).filter(Boolean))).toEqual(['Awaiting Decision','On-hold','Rejected','Closed','Hired']);
+  expect(await page.locator('#hiring_stage option').evaluateAll(options=>options.map(o=>o.value).filter(Boolean))).toEqual(['Applied','Recruiter Interview','Submitted','HR Interview','Hiring Interview','Offer Letter']);
+  expect(await page.locator('#position_status option').evaluateAll(options=>options.map(o=>o.value).filter(Boolean))).toEqual(['Accepted','Awaiting Decision','Closed','Ghosted','Hired','On-hold','Rejected']);
   const company='WF canonical '+Date.now();
   await page.locator('#recruiter_name').fill('Workflow fixture');
   await page.locator('#company').fill(company);
