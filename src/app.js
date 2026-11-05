@@ -697,8 +697,10 @@ function updateDashboard() {
 
   const notReported = total - reported;
 
+  const stages = summarizeContacts(contacts).stage;
+  const interviewCount = stages["Recruiter Interview"] + stages["HR Interview"] + stages["Hiring Interview"];
   const interviewRate = total > 0
-    ? ((interviewing / total) * 100).toFixed(1)
+    ? ((interviewCount / total) * 100).toFixed(1)
     : "0.0";
 
   setText("dashboardAppliedSubmitted", appliedSubmitted);
@@ -826,7 +828,7 @@ setText("dashboardFunnelOfferRate", `${offerRate}%`);;
 
 document.getElementById("dashboardKpiTotal").textContent = total;
 document.getElementById("dashboardKpiActive").textContent = active;
-document.getElementById("dashboardKpiInterviews").textContent = interviewing;
+document.getElementById("dashboardKpiInterviews").textContent = interviewCount;
 document.getElementById("dashboardKpiInterviewRate").textContent = `${interviewRate}%`;
 
 document.getElementById("dashboardFunnelTotal").textContent = total;
