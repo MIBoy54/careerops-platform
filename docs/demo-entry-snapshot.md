@@ -18,10 +18,11 @@ or fall back to the shared DEMO business tables.
 
 ## Data and permissions
 
-The source selects only allowlisted business columns. Notes, recruiter identity,
-phone, email, address, website and unknown fields are excluded before transfer
-and storage. Recruiter labels become Protected contact. Company/job/status/date
-fields and report links remain available. This is a conservative protection
+The source selects only allowlisted business columns, including the stored company
+address and website. Notes, recruiter identity, raw phone and email, and unknown
+fields are excluded before transfer and storage. Recruiter name, phone, email, and notes
+display as Protected contact. Company/job/status/date fields and report links
+remain available. This is a conservative protection
 policy; approve additional fields explicitly rather than broadening SELECT *.
 Contact exports use the same snapshot and protect CSV formula cells.
 Company search/details also use the same frozen data. Existing restricted
