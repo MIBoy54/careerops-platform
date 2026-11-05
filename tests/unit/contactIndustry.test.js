@@ -16,15 +16,17 @@ describe("contact industry", () => {
   });
   it("counts every contact once and reconciles legacy labels", () => {
     const contacts = ["Healthcare", " healthcare ", "Financial", "Financial Services",
-      "SaaS", "Software", null, "", "Other", "Aerospace Research", "aerospace research"]
+      "SaaS", "Software", null, "", " Other ", "UNKNOWN", "not reported", "Aerospace Research", "aerospace research"]
       .map(industry => ({ industry }));
     const rows = summarizeIndustries(contacts);
     expect(rows.reduce((sum, row) => sum + row.count, 0)).toBe(contacts.length);
-    expect(rows).toEqual(expect.arrayContaining([
-      { industry: "Healthcare", count: 2 }, { industry: "Financial Services", count: 2 },
-      { industry: "Software", count: 2 }, { industry: "Unknown", count: 2 },
-      { industry: "Other", count: 1 }, { industry: "Aerospace Research", count: 2 }
-    ]));
+    expect(rows).toEqual([
+      { industry: "Aerospace Research", count: 2 },
+      { industry: "Financial Services", count: 2 },
+      { industry: "Healthcare", count: 2 },
+      { industry: "Not Reported", count: 5 },
+      { industry: "Software", count: 2 }
+    ]);
   });
 });
 
