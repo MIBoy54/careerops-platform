@@ -24,7 +24,9 @@ export function summarizeIndustries(contacts) {
   const labels = new Map(INDUSTRIES.map(label => [label.toLowerCase(), label]));
   labels.set("financial", "Financial Services");
   labels.set("saas", "Software");
-  labels.set("unknown", "Unknown");
+  labels.set("unknown", "Not Reported");
+  labels.set("other", "Not Reported");
+  labels.set("not reported", "Not Reported");
   const counts = new Map();
   for (const contact of contacts) {
     const value = String(contact.industry || "").trim();
@@ -35,5 +37,5 @@ export function summarizeIndustries(contacts) {
     entry.count++;
     counts.set(normalized, entry);
   }
-  return [...counts.values()].sort((a, b) => b.count - a.count || a.industry.localeCompare(b.industry));
+  return [...counts.values()].sort((a, b) => a.industry.localeCompare(b.industry));
 }
