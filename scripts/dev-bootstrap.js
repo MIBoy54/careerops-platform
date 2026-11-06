@@ -41,6 +41,7 @@ export const freshSchema = {
     "`role_category` varchar(32) DEFAULT NULL",
     "`hiring_stage` varchar(40) DEFAULT NULL",
     "`position_status` varchar(40) DEFAULT NULL",
+    "`stage_entered_at` datetime DEFAULT NULL", "`interview_date` date DEFAULT NULL",
     "`location` varchar(255) DEFAULT NULL",
     "`comp_range` varchar(100) DEFAULT NULL",
     "`status` varchar(50) DEFAULT NULL",
