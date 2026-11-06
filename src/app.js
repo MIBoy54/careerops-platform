@@ -1054,6 +1054,74 @@ function loadContactForEditing(contact) {
   applyRoleBasedAccess();
 }
 
+const RESULTS_SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+let resultsSort = [
+  { key: "position_status", direction: "asc" },
+  { key: "relationship_status", direction: "asc" },
+  { key: "date", direction: "desc" },
+  { key: "company", direction: "asc" }
+];
+
+function configureResultsSortHeaders(dialog, interview) {
+  const available = new Set(interview
+    ? ["position_status", "date", "company"]
+    : ["position_status", "relationship_status", "date", "company"]);
+  for (const button of dialog.querySelectorAll("[data-results-sort]")) {
+    const key = button.dataset.resultsSort;
+    const visible = available.has(key);
+    button.closest("th").hidden = !visible;
+    const rank = resultsSort.findIndex(item => item.key === key);
+    const direction = rank < 0 ? "" : resultsSort[rank].direction === "asc" ? "↑" : "↓";
+    button.textContent = button.dataset.sortLabel + (rank < 0 ? "" : ` ${rank + 1} ${direction}`);
+    button.setAttribute("aria-label", button.dataset.sortLabel + (rank < 0 ? "" : `, sort priority ${rank + 1}, ${resultsSort[rank].direction === "asc" ? "ascending" : "descending"}`));
+    button.setAttribute("aria-pressed", rank === 0 ? "true" : "false");
+  }
+  if (dialog.dataset.sortBound) return;
+  dialog.dataset.sortBound = "true";
+  dialog.addEventListener("click", event => {
+    const button = event.target.closest("[data-results-sort]");
+    if (!button) return;
+    const key = button.dataset.resultsSort;
+    const item = resultsSort.find(entry => entry.key === key);
+    if (event.shiftKey) {
+      if (item) item.direction = item.direction === "asc" ? "desc" : "asc";
+      else resultsSort.push({ key, direction: key === "date" ? "desc" : "asc" });
+    } else if (resultsSort[0]?.key === key) {
+      resultsSort[0].direction = resultsSort[0].direction === "asc" ? "desc" : "asc";
+    } else {
+      resultsSort = [{ key, direction: key === "date" ? "desc" : "asc" }, ...resultsSort.filter(entry => entry.key !== key)];
+    }
+    const stage = dialog.querySelector("h2").textContent.replace(/ results$/, "");
+    showHiringResults(stage);
+  });
+}
+
+function sortHiringResults(contacts, { interview, cutoff, dateField }) {
+  const availableKeys = interview
+    ? ["position_status", "date", "company"]
+    : ["position_status", "relationship_status", "date", "company"];
+  const sortKeys = resultsSort.filter(item => availableKeys.includes(item.key));
+  for (const key of availableKeys) {
+    if (!sortKeys.some(item => item.key === key)) sortKeys.push({ key, direction: key === "date" ? "desc" : "asc" });
+  }
+  return [...contacts].sort((left, right) => {
+    for (const { key, direction } of sortKeys) {
+      const valueFor = contact => {
+        if (key === "date") return contact[dateField] ?? "";
+        if (key === "company") return contact.company ?? "";
+        if (key === "relationship_status") return contact.relationship_status ?? "";
+        const formattedDate = formatDate(contact[dateField]);
+        return !contact.position_status && cutoff && formattedDate >= cutoff
+          ? "Ghosted"
+          : contact.position_status ?? "";
+      };
+      const result = RESULTS_SORT_COLLATOR.compare(String(valueFor(left)).trim(), String(valueFor(right)).trim());
+      if (result) return direction === "asc" ? result : -result;
+    }
+    return 0;
+  });
+}
+
 function showHiringResults(stage) {
   const dialog = document.getElementById("interviewResults");
   const body = dialog.querySelector("tbody");
@@ -1066,26 +1134,25 @@ function showHiringResults(stage) {
   const interview = INTERVIEW_STAGES.includes(stage);
   const cutoff = GHOSTED_CUTOFFS[stage];
   const dateField = interview ? "interview_date" : "date_contacted";
-  dialog.querySelector("#resultsDateHeader").textContent = interview ? "Interview Date" : "Date Contacted";
+  dialog.querySelector("#resultsDateHeader button").dataset.sortLabel = interview ? "Interview Date" : "Date Contacted";
   dialog.querySelector("#resultsRelationshipHeader").hidden = interview;
+  configureResultsSortHeaders(dialog, interview);
   const matches = stageResultsContacts(stage);
-  const rows = sortContacts(interview
-    ? matches.map(contact => ({ ...contact, date_contacted: contact.interview_date }))
-    : matches);
+  const rows = sortHiringResults(matches, { interview, cutoff, dateField });
   if (!rows.length) message.textContent = "No contacts in this hiring stage.";
   for (const contact of rows) {
     const row = body.insertRow();
     const date = formatDate(contact[dateField]);
-    row.insertCell().textContent = date;
-    row.insertCell().textContent = contact.company ?? "";
-    if (!interview) row.insertCell().textContent = contact.relationship_status ?? "";
-    const cell = row.insertCell();
+    const positionCell = row.insertCell();
     const ghostedDefault = !contact.position_status && cutoff && date >= cutoff;
     if (interview) {
-      renderInterviewPositionStatus(cell, contact, stage, dialog, message);
+      renderInterviewPositionStatus(positionCell, contact, stage, dialog, message);
     } else {
-      cell.textContent = ghostedDefault ? "Ghosted" : contact.position_status ?? "";
+      positionCell.textContent = ghostedDefault ? "Ghosted" : contact.position_status ?? "";
     }
+    if (!interview) row.insertCell().textContent = contact.relationship_status ?? "";
+    row.insertCell().textContent = date;
+    row.insertCell().textContent = contact.company ?? "";
     if (editable) {
       const edit = document.createElement("button");
       edit.type = "button";
