@@ -1001,20 +1001,35 @@ function showWorkflowContext(contact) {
   }
 }
 
+const GHOSTED_CUTOFFS = Object.freeze({
+  Applied: "2026-08-31",
+  Submitted: "2026-09-30"
+});
+
+function stageResultsContacts(stage) {
+  if (Object.hasOwn(GHOSTED_CUTOFFS, stage)) {
+    return contacts.filter(contact => normalizeStatus(contact.status) === normalizeStatus(stage));
+  }
+  return filterContacts(contacts, { stage });
+}
+
 function updateWorkflowTotals() {
   const summary = summarizeContacts(contacts);
-  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + (title === 'Hiring stage' && INTERVIEW_STAGES.includes(label) ? '<button type="button" data-interview-stage="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>' : escapeHtml(label)) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
+  for (const stage of Object.keys(GHOSTED_CUTOFFS)) {
+    summary.stage[stage] = stageResultsContacts(stage).length;
+  }
+  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + (title === 'Hiring stage' && (INTERVIEW_STAGES.includes(label) || Object.hasOwn(GHOSTED_CUTOFFS, label) || label === "Offer Letter") ? '<button type="button" data-interview-stage="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>' : escapeHtml(label)) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
   const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">All records includes contacts without a hiring stage or position status. Filters change the table below.</p>';
   for (const id of ['contactTotals', 'dashboardContactTotals']) {
     const element = document.getElementById(id);
     if (!element) continue;
     element.innerHTML = html;
     for (const button of element.querySelectorAll('[data-interview-stage]')) {
-      button.addEventListener('click', () => showInterviewResults(button.dataset.interviewStage));
+      button.addEventListener('click', () => showHiringResults(button.dataset.interviewStage));
     }
   }
 }
-let interviewReturnStage = null;
+let hiringResultsReturnStage = null;
 
 function updateInterviewDateVisibility() {
   const stage = document.getElementById("hiring_stage").value;
@@ -1039,7 +1054,7 @@ function loadContactForEditing(contact) {
   applyRoleBasedAccess();
 }
 
-function showInterviewResults(stage) {
+function showHiringResults(stage) {
   const dialog = document.getElementById("interviewResults");
   const body = dialog.querySelector("tbody");
   dialog.querySelector("h2").textContent = stage + " results";
@@ -1048,51 +1063,29 @@ function showInterviewResults(stage) {
   body.replaceChildren();
   const editable = APP_ENV === "production" && canWriteDatabase();
   dialog.querySelector("#interviewEditHeader").hidden = !editable;
-  const rows = sortContacts(filterContacts(contacts, { stage }).map(contact => ({
-    ...contact, date_contacted: contact.interview_date
-  })));
-  if (!rows.length) message.textContent = "No contacts in this interview stage.";
+  const interview = INTERVIEW_STAGES.includes(stage);
+  const cutoff = GHOSTED_CUTOFFS[stage];
+  const dateField = interview ? "interview_date" : "date_contacted";
+  dialog.querySelector("#resultsDateHeader").textContent = interview ? "Interview Date" : "Date Contacted";
+  dialog.querySelector("#resultsRelationshipHeader").hidden = interview;
+  const matches = stageResultsContacts(stage);
+  const rows = sortContacts(interview
+    ? matches.map(contact => ({ ...contact, date_contacted: contact.interview_date }))
+    : matches);
+  if (!rows.length) message.textContent = "No contacts in this hiring stage.";
   for (const contact of rows) {
     const row = body.insertRow();
-    row.insertCell().textContent = formatDate(contact.interview_date);
+    const date = formatDate(contact[dateField]);
+    row.insertCell().textContent = date;
     row.insertCell().textContent = contact.company ?? "";
+    if (!interview) row.insertCell().textContent = contact.relationship_status ?? "";
     const cell = row.insertCell();
-    const previousStatus = contact.position_status ?? null;
-    if (APP_ENV === "demo" || !canWriteDatabase()) {
-      cell.textContent = previousStatus ?? "";
-      continue;
+    const ghostedDefault = cutoff && date >= cutoff;
+    if (interview) {
+      renderInterviewPositionStatus(cell, contact, stage, dialog, message);
+    } else {
+      cell.textContent = ghostedDefault ? "Ghosted" : contact.position_status ?? "";
     }
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", "Position status for " + (contact.company ?? "contact"));
-    if (!POSITION_STATUSES.includes(previousStatus)) {
-      const placeholder = new Option(previousStatus ?? "Select status", "");
-      placeholder.disabled = true;
-      select.add(placeholder);
-    }
-    for (const status of POSITION_STATUSES) select.add(new Option(status, status));
-    select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
-    select.addEventListener("change", async () => {
-      select.disabled = true;
-      message.textContent = "";
-      try {
-        const response = await fetch("/api/contacts/" + encodeURIComponent(contact.id) + "/interview-status", {
-          method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stage, previousStatus, status: select.value })
-        });
-        if (!response.ok) throw new Error((await response.json()).error || "Status update failed.");
-        await loadContacts();
-        if (dialog.open) {
-          showInterviewResults(stage);
-          message.textContent = "Position status saved.";
-        }
-      } catch (error) {
-        message.textContent = error.message;
-        select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
-      } finally {
-        select.disabled = false;
-      }
-    });
-    cell.append(select);
     if (editable) {
       const edit = document.createElement("button");
       edit.type = "button";
@@ -1102,13 +1095,53 @@ function showInterviewResults(stage) {
         dialog.close();
         showSection("contactFormSection");
         loadContactForEditing(contacts.find(record => record.id === contact.id));
-        interviewReturnStage = stage;
-        document.getElementById("interview_date").focus();
+        if (ghostedDefault) form.elements.position_status.value = "Ghosted";
+        hiringResultsReturnStage = stage;
+        form.elements[interview ? "interview_date" : "position_status"].focus();
       });
       row.insertCell().append(edit);
     }
   }
   if (!dialog.open) dialog.showModal();
+}
+
+function renderInterviewPositionStatus(cell, contact, stage, dialog, message) {
+  const previousStatus = contact.position_status ?? null;
+  if (APP_ENV === "demo" || !canWriteDatabase()) {
+    cell.textContent = previousStatus ?? "";
+    return;
+  }
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "Position status for " + (contact.company ?? "contact"));
+  if (!POSITION_STATUSES.includes(previousStatus)) {
+    const placeholder = new Option(previousStatus ?? "Select status", "");
+    placeholder.disabled = true;
+    select.add(placeholder);
+  }
+  for (const status of POSITION_STATUSES) select.add(new Option(status, status));
+  select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
+  select.addEventListener("change", async () => {
+    select.disabled = true;
+    message.textContent = "";
+    try {
+      const response = await fetch("/api/contacts/" + encodeURIComponent(contact.id) + "/interview-status", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage, previousStatus, status: select.value })
+      });
+      if (!response.ok) throw new Error((await response.json()).error || "Status update failed.");
+      await loadContacts();
+      if (dialog.open) {
+        showHiringResults(stage);
+        message.textContent = "Position status saved.";
+      }
+    } catch (error) {
+      message.textContent = error.message;
+      select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
+    } finally {
+      select.disabled = false;
+    }
+  });
+  cell.append(select);
 }
 
 function updateContactStatusTotals() { updateWorkflowTotals(); }
@@ -2014,7 +2047,7 @@ function wireCompanyAutocomplete() {
   const select = contact => {
     if (!contact || !form) return;
     close();
-    interviewReturnStage = null;
+    hiringResultsReturnStage = null;
     loadContactForEditing(contact);
   };
   companyInput.addEventListener("input", render);
@@ -2221,11 +2254,11 @@ activeUsersInterval = setInterval(
         if (dateInput) {
           dateInput.value = today;
         }
-        if (interviewReturnStage) {
-          const stage = interviewReturnStage;
-          interviewReturnStage = null;
+        if (hiringResultsReturnStage) {
+          const stage = hiringResultsReturnStage;
+          hiringResultsReturnStage = null;
           showSection("dashboardSection");
-          showInterviewResults(stage);
+          showHiringResults(stage);
         }
       } catch (error) {
         console.error("Save failed:", error);
@@ -2237,7 +2270,7 @@ activeUsersInterval = setInterval(
      resetButton.addEventListener("click", () => {
         form.reset();
         editId = null;
-        interviewReturnStage = null;
+        hiringResultsReturnStage = null;
 
         if (companySuggestions) {
           companySuggestions.innerHTML = "";
