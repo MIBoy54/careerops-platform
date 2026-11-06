@@ -1014,6 +1014,31 @@ function updateWorkflowTotals() {
     }
   }
 }
+let interviewReturnStage = null;
+
+function updateInterviewDateVisibility() {
+  const stage = document.getElementById("hiring_stage").value;
+  document.getElementById("interviewDateField").hidden = !INTERVIEW_STAGES.includes(stage);
+}
+
+function loadContactForEditing(contact) {
+  form.reset();
+  editId = contact.id;
+  for (const [key,value] of Object.entries(contact)) {
+    const field = form.elements[key];
+    if (field) field.value = key === "date_contacted" || key === "next_follow_up_date"
+      ? formatDate(value) : value ?? "";
+  }
+  showWorkflowContext(contact);
+  const status = document.getElementById("companySearchStatus");
+  if (status) status.textContent = "Selected " + (contact.company || "contact") + ".";
+  renderMessage(messageDiv, canWriteDatabase()
+    ? "Existing contact loaded. Update fields and click Save Contact."
+    : "Contact loaded for viewing. Changes are disabled.");
+  updateInterviewDateVisibility();
+  applyRoleBasedAccess();
+}
+
 function showInterviewResults(stage) {
   const dialog = document.getElementById("interviewResults");
   const body = dialog.querySelector("tbody");
@@ -1021,6 +1046,8 @@ function showInterviewResults(stage) {
   const message = dialog.querySelector("[role=status]");
   message.textContent = "";
   body.replaceChildren();
+  const editable = APP_ENV === "production" && canWriteDatabase();
+  dialog.querySelector("#interviewEditHeader").hidden = !editable;
   const rows = sortContacts(filterContacts(contacts, { stage }).map(contact => ({
     ...contact, date_contacted: contact.interview_date
   })));
@@ -1066,6 +1093,20 @@ function showInterviewResults(stage) {
       }
     });
     cell.append(select);
+    if (editable) {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit Contact";
+      edit.setAttribute("aria-label", "Edit Contact for " + (contact.company ?? "contact"));
+      edit.addEventListener("click", () => {
+        dialog.close();
+        showSection("contactFormSection");
+        loadContactForEditing(contacts.find(record => record.id === contact.id));
+        interviewReturnStage = stage;
+        document.getElementById("interview_date").focus();
+      });
+      row.insertCell().append(edit);
+    }
   }
   if (!dialog.open) dialog.showModal();
 }
@@ -1503,6 +1544,7 @@ function wireEditButtons() {
     });
 
     showWorkflowContext(contact);
+    updateInterviewDateVisibility();
     if (form && form.elements && form.elements.website) {
       form.elements.website.value = contact.website || "";
     }
@@ -1890,7 +1932,9 @@ if (logoutBtn) {
     dateInput = document.getElementById("date_contacted");
     document.getElementById("hiring_stage").addEventListener("change", () => {
       document.getElementById("interview_date").value = "";
+      updateInterviewDateVisibility();
     });
+    form.addEventListener("reset", () => queueMicrotask(updateInterviewDateVisibility));
     companyInput = document.getElementById("company");
     companySuggestions = document.getElementById("companySuggestions");
     selectionCountEl = document.getElementById("selectionCount");
@@ -1970,19 +2014,8 @@ function wireCompanyAutocomplete() {
   const select = contact => {
     if (!contact || !form) return;
     close();
-    form.reset();
-    editId = contact.id;
-    for (const [key,value] of Object.entries(contact)) {
-      const field = form.elements[key];
-      if (field) field.value = key === "date_contacted" || key === "next_follow_up_date"
-        ? formatDate(value) : value ?? "";
-    }
-    showWorkflowContext(contact);
-    if (status) status.textContent = "Selected " + (contact.company || "contact") + ".";
-    renderMessage(messageDiv, canWriteDatabase()
-      ? "Existing contact loaded. Update fields and click Save Contact."
-      : "Contact loaded for viewing. Changes are disabled.");
-    applyRoleBasedAccess();
+    interviewReturnStage = null;
+    loadContactForEditing(contact);
   };
   companyInput.addEventListener("input", render);
   companyInput.addEventListener("focus", render);
@@ -2188,6 +2221,12 @@ activeUsersInterval = setInterval(
         if (dateInput) {
           dateInput.value = today;
         }
+        if (interviewReturnStage) {
+          const stage = interviewReturnStage;
+          interviewReturnStage = null;
+          showSection("dashboardSection");
+          showInterviewResults(stage);
+        }
       } catch (error) {
         console.error("Save failed:", error);
         renderMessage(messageDiv, error.message || "Failed to save contact.", "error");
@@ -2198,6 +2237,7 @@ activeUsersInterval = setInterval(
      resetButton.addEventListener("click", () => {
         form.reset();
         editId = null;
+        interviewReturnStage = null;
 
         if (companySuggestions) {
           companySuggestions.innerHTML = "";
