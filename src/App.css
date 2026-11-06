@@ -1115,4 +1115,4 @@ h2 {
 #interviewResults { max-width: min(92vw, 48rem); max-height: 85vh; overflow: auto; }
 #interviewResults th, #interviewResults td { padding: 0.4rem; text-align: left; }
 
-#interviewDateField[hidden], #interviewEditHeader[hidden] { display: none; }
+#interviewDateField[hidden], #interviewEditHeader[hidden], #resultsRelationshipHeader[hidden] { display: none; }
