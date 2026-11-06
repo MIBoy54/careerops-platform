@@ -1080,7 +1080,7 @@ function showHiringResults(stage) {
     row.insertCell().textContent = contact.company ?? "";
     if (!interview) row.insertCell().textContent = contact.relationship_status ?? "";
     const cell = row.insertCell();
-    const ghostedDefault = cutoff && date >= cutoff;
+    const ghostedDefault = !contact.position_status && cutoff && date >= cutoff;
     if (interview) {
       renderInterviewPositionStatus(cell, contact, stage, dialog, message);
     } else {
