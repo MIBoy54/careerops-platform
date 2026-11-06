@@ -42,6 +42,12 @@ test('owner creates independent workflow fields, edits stages and filters Hired 
   await page.locator('#positionFilter').selectOption('Awaiting Decision');await expect(page.locator('#contactsTable')).not.toContainText(company);
   await page.locator('[data-target="dashboardSection"]').click();
   await expect(page.locator('#dashboardContactTotals')).toContainText('Hired');
+  await page.locator('#dashboardContactTotals [data-interview-stage="Hiring Interview"]').click();
+  const results=page.getByRole('dialog',{name:'Hiring Interview results'});
+  await results.getByRole('combobox',{name:'Position status for '+company}).selectOption('Accepted');
+  await expect(results.getByRole('status')).toHaveText('Position status saved.');
+  const updated=(await(await page.request.get('/api/contacts')).json()).find(row=>row.id===id);
+  expect(updated).toMatchObject({hiring_stage:'Hiring Interview',position_status:'Accepted',company,status:'Interviewing'});
  }finally{if(id)await page.request.delete('/api/contacts/'+id);}
 });
 test('editing ambiguous legacy data does not guess or discard its classifications',async({page})=>{
@@ -62,11 +68,20 @@ test('editing ambiguous legacy data does not guess or discard its classification
  }finally{if(id)await page.request.delete('/api/contacts/'+id);}
 });
 test('guest can view canonical fields but cannot change or save them',async({page})=>{
- const contact={id:99,company:'WF protected fixture',recruiter_name:'Protected contact',role_level:'Lead',role_category:'Leadership',hiring_stage:'HR Interview',position_status:'Awaiting Decision',role_type:'QE Transformation',status:'Interviewing'};
+ const contact={id:99,company:'WF protected fixture',recruiter_name:'Protected contact',role_level:'Lead',role_category:'Leadership',hiring_stage:'HR Interview',interview_date:'2026-11-05',position_status:'Rejected',role_type:'QE Transformation',status:'Interviewing'};
  await page.route('**/api/auth/me',route=>route.fulfill({json:{app_env:'demo',user:{role:'guest'}}}));
  await page.route('**/api/contacts',route=>route.fulfill({json:[contact]}));
- await page.goto('/');await expect(page.locator('html')).toHaveAttribute('data-careerops-ready','true');await find(page,99);
- for(const [field,value] of [['role_category','Leadership'],['hiring_stage','HR Interview'],['position_status','Awaiting Decision']]){
+ await page.goto('/');await expect(page.locator('html')).toHaveAttribute('data-careerops-ready','true');await expect(page.locator('#dashboardKpiInterviews')).toHaveText('1');
+ await expect(page.locator('#dashboardKpiInterviewRate')).toHaveText('100.0%');
+ await expect(page.locator('#dashboardOpenInterviews')).toHaveText('0');
+ await page.locator('[data-target="dashboardSection"]').click();
+ await page.locator('#dashboardContactTotals [data-interview-stage="HR Interview"]').click();
+ const results=page.getByRole('dialog',{name:'HR Interview results'});
+ await expect(results.locator('tbody td')).toHaveText(['2026-11-05','WF protected fixture','Rejected']);
+ await expect(results.locator('select')).toHaveCount(0);
+ await results.getByRole('button',{name:'Close'}).click();
+ await find(page,99);
+ for(const [field,value] of [['role_category','Leadership'],['hiring_stage','HR Interview'],['position_status','Rejected']]){
   await expect(page.locator('#'+field)).toHaveValue(value);await expect(page.locator('#'+field)).toBeDisabled();
  }
  await expect(page.locator('#contactForm button[type="submit"]')).toBeDisabled();

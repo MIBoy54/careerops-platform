@@ -1111,3 +1111,6 @@ h2 {
 #contactsTable th[aria-sort="descending"] { background: #dbeafe; }
 #contactsTable .sort-button:not(:disabled) { display: inline-flex; align-items: center; gap: .35rem; width: 100%; min-height: 32px; white-space: nowrap; }
 #contactsTable .sort-indicator { color: #475569; }
+.contact-totals-grid [data-interview-stage] { color: inherit; background: transparent; border: 0; padding: 0; font: inherit; text-decoration: underline; cursor: pointer; }
+#interviewResults { max-width: min(92vw, 48rem); max-height: 85vh; overflow: auto; }
+#interviewResults th, #interviewResults td { padding: 0.4rem; text-align: left; }

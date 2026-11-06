@@ -1,6 +1,6 @@
 import { INDUSTRIES, summarizeIndustries } from "./contactIndustry.js";
 import { STAGES, POSITIONS, contactDimensions, summarizeContacts, filterContacts, sortContacts, badgeTone } from './contactStatusView.js';
-import { contactStatusBucket } from './contactWorkflow.js';
+import { contactStatusBucket, INTERVIEW_STAGES, POSITION_STATUSES } from './contactWorkflow.js';
 import { createSessionTrendLoader } from "./sessionTrendChart.js";
 console.log("app.js loaded");
 let APP_ENV = "production";
@@ -1003,13 +1003,73 @@ function showWorkflowContext(contact) {
 
 function updateWorkflowTotals() {
   const summary = summarizeContacts(contacts);
-  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + escapeHtml(label) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
+  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + (title === 'Hiring stage' && INTERVIEW_STAGES.includes(label) ? '<button type="button" data-interview-stage="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>' : escapeHtml(label)) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
   const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">All records includes contacts without a hiring stage or position status. Filters change the table below.</p>';
   for (const id of ['contactTotals', 'dashboardContactTotals']) {
     const element = document.getElementById(id);
-    if (element) element.innerHTML = html;
+    if (!element) continue;
+    element.innerHTML = html;
+    for (const button of element.querySelectorAll('[data-interview-stage]')) {
+      button.addEventListener('click', () => showInterviewResults(button.dataset.interviewStage));
+    }
   }
 }
+function showInterviewResults(stage) {
+  const dialog = document.getElementById("interviewResults");
+  const body = dialog.querySelector("tbody");
+  dialog.querySelector("h2").textContent = stage + " results";
+  const message = dialog.querySelector("[role=status]");
+  message.textContent = "";
+  body.replaceChildren();
+  const rows = sortContacts(filterContacts(contacts, { stage }).map(contact => ({
+    ...contact, date_contacted: contact.interview_date
+  })));
+  if (!rows.length) message.textContent = "No contacts in this interview stage.";
+  for (const contact of rows) {
+    const row = body.insertRow();
+    row.insertCell().textContent = formatDate(contact.interview_date);
+    row.insertCell().textContent = contact.company ?? "";
+    const cell = row.insertCell();
+    const previousStatus = contact.position_status ?? null;
+    if (APP_ENV === "demo" || !canWriteDatabase()) {
+      cell.textContent = previousStatus ?? "";
+      continue;
+    }
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Position status for " + (contact.company ?? "contact"));
+    if (!POSITION_STATUSES.includes(previousStatus)) {
+      const placeholder = new Option(previousStatus ?? "Select status", "");
+      placeholder.disabled = true;
+      select.add(placeholder);
+    }
+    for (const status of POSITION_STATUSES) select.add(new Option(status, status));
+    select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
+    select.addEventListener("change", async () => {
+      select.disabled = true;
+      message.textContent = "";
+      try {
+        const response = await fetch("/api/contacts/" + encodeURIComponent(contact.id) + "/interview-status", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage, previousStatus, status: select.value })
+        });
+        if (!response.ok) throw new Error((await response.json()).error || "Status update failed.");
+        await loadContacts();
+        if (dialog.open) {
+          showInterviewResults(stage);
+          message.textContent = "Position status saved.";
+        }
+      } catch (error) {
+        message.textContent = error.message;
+        select.value = POSITION_STATUSES.includes(previousStatus) ? previousStatus : "";
+      } finally {
+        select.disabled = false;
+      }
+    });
+    cell.append(select);
+  }
+  if (!dialog.open) dialog.showModal();
+}
+
 function updateContactStatusTotals() { updateWorkflowTotals(); }
 
 async function loadContacts() {
@@ -1828,6 +1888,9 @@ if (logoutBtn) {
     resetButton = document.getElementById("resetButton");
     unemploymentForm = document.getElementById("unemploymentForm");
     dateInput = document.getElementById("date_contacted");
+    document.getElementById("hiring_stage").addEventListener("change", () => {
+      document.getElementById("interview_date").value = "";
+    });
     companyInput = document.getElementById("company");
     companySuggestions = document.getElementById("companySuggestions");
     selectionCountEl = document.getElementById("selectionCount");
