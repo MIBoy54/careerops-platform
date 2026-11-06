@@ -508,9 +508,10 @@
 </div>
   <dialog id="interviewResults" aria-labelledby="interviewResultsTitle">
     <h2 id="interviewResultsTitle"></h2>
+    <p id="resultsSortHelp">Click a heading to make it the primary sort. Shift-click to add or reverse a secondary sort.</p>
     <p role="status"></p>
     <table>
-      <thead><tr><th scope="col" id="resultsDateHeader">Interview Date</th><th scope="col">Company</th><th scope="col" id="resultsRelationshipHeader" hidden>Relationship Status</th><th scope="col">Position Status</th><th scope="col" id="interviewEditHeader" hidden>Contact</th></tr></thead>
+      <thead><tr><th scope="col" id="resultsPositionHeader"><button type="button" data-results-sort="position_status" data-sort-label="Position Status">Position Status</button></th><th scope="col" id="resultsRelationshipHeader" hidden><button type="button" data-results-sort="relationship_status" data-sort-label="Relationship Status">Relationship Status</button></th><th scope="col" id="resultsDateHeader"><button type="button" data-results-sort="date" data-sort-label="Date">Interview Date</button></th><th scope="col" id="resultsCompanyHeader"><button type="button" data-results-sort="company" data-sort-label="Company">Company</button></th><th scope="col" id="interviewEditHeader" hidden>Contact</th></tr></thead>
       <tbody></tbody>
     </table>
     <form method="dialog"><button type="submit">Close</button></form>

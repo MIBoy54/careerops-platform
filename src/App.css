@@ -1116,3 +1116,20 @@ h2 {
 #interviewResults th, #interviewResults td { padding: 0.4rem; text-align: left; }
 
 #interviewDateField[hidden], #interviewEditHeader[hidden], #resultsRelationshipHeader[hidden] { display: none; }
+
+#interviewResults th[hidden] { display: none; }
+#interviewResults .results-sort-button,
+#interviewResults th button[data-results-sort] {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.15rem;
+  text-align: left;
+  cursor: pointer;
+}
+#interviewResults th button[data-results-sort]:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

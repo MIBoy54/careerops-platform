@@ -91,7 +91,7 @@ test('guest can view canonical fields but cannot change or save them',async({pag
  await page.locator('[data-target="dashboardSection"]').click();
  await page.locator('#dashboardContactTotals [data-interview-stage="HR Interview"]').click();
  const results=page.getByRole('dialog',{name:'HR Interview results'});
- await expect(results.locator('tbody td')).toHaveText(['2026-11-05','WF protected fixture','Rejected']);
+ await expect(results.locator('tbody td')).toHaveText(['Rejected','2026-11-05','WF protected fixture']);
  await expect(results.locator('select')).toHaveCount(0);
  await expect(results.getByRole('button',{name:/Edit Contact/})).toHaveCount(0);
  await results.getByRole('button',{name:'Close'}).click();
