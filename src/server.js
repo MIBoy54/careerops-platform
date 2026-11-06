@@ -1,5 +1,6 @@
 import { normalizeIndustryPatch } from "./contactIndustry.js";
-import { normalizeWorkflowPatch, compatibilityStatusForCreate, legacyWorkflowDefaults } from './contactWorkflow.js';
+import { ageAwaitingContacts } from "./contactWorkflowAging.js";
+import { INTERVIEW_STAGES, POSITION_STATUSES, normalizeWorkflowPatch, compatibilityStatusForCreate, legacyWorkflowDefaults } from './contactWorkflow.js';
 import { latestQualityGates, createQualityGateLoader } from './qualityGates.js';
 import { snapshotConfig, createReadOnlySnapshotPool, createSnapshotSource, fetchSnapshot, createGuestSnapshots, snapshotBusinessRead } from './demoSnapshot.js';
 import { loadEnvironment, resolveEnvironment, createDatabaseRuntime } from "./environment.js";
@@ -528,6 +529,7 @@ try {
         role_category,
         hiring_stage,
         position_status,
+        DATE_FORMAT(interview_date, '%Y-%m-%d') AS interview_date,
         location,
         comp_range,
         status,
@@ -947,8 +949,10 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         address,
         website,
         industry,
-        notes
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        notes,
+        stage_entered_at,
+        interview_date
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, UTC_TIMESTAMP()), ?)
       `,
       [
         date_contacted || null,
@@ -970,7 +974,9 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
         address || null,
         website || null,
         industry || null,
-        notes || null
+        notes || null,
+        hiring_stage || null,
+        req.body.interview_date ?? null
       ]
     );
 
@@ -1141,6 +1147,8 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
           role_level = ?,
           role_type = CASE WHEN ? THEN ? ELSE role_type END,
           role_category = CASE WHEN ? THEN ? ELSE role_category END,
+          stage_entered_at = CASE WHEN ? AND NOT (hiring_stage <=> ?) THEN IF(? IS NULL, NULL, UTC_TIMESTAMP()) ELSE stage_entered_at END,
+          interview_date = CASE WHEN ? THEN ? WHEN ? AND NOT (hiring_stage <=> ?) THEN NULL ELSE interview_date END,
           hiring_stage = CASE WHEN ? THEN ? ELSE hiring_stage END,
           position_status = CASE WHEN ? THEN ? ELSE position_status END,
           location = ?,
@@ -1164,6 +1172,9 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         role_level || null,
         Object.hasOwn(req.body,'role_type'), role_type || null,
         Object.hasOwn(workflow.values,'role_category'), role_category ?? null,
+        Object.hasOwn(workflow.values,'hiring_stage'), hiring_stage ?? null, hiring_stage ?? null,
+        Object.hasOwn(workflow.values,'interview_date'), req.body.interview_date ?? null,
+        Object.hasOwn(workflow.values,'hiring_stage'), hiring_stage ?? null,
         Object.hasOwn(workflow.values,'hiring_stage'), hiring_stage ?? null,
         Object.hasOwn(workflow.values,'position_status'), position_status ?? null,
         location || null,
@@ -1228,6 +1239,32 @@ app.put("/api/contacts/:id", requireAuth, async (req, res) => {
         res.status(500).json({ error: "Heartbeat failed" });
       }
     });
+
+app.patch("/api/contacts/:id/interview-status", requireAdmin, async (req, res) => {
+  if (rejectDemoWrite(res)) return;
+  const { stage, previousStatus, status } = req.body;
+  if (!INTERVIEW_STAGES.includes(stage) || !POSITION_STATUSES.includes(status) ||
+      (previousStatus !== null && typeof previousStatus !== "string")) {
+    return res.status(400).json({ error: "Invalid interview status update" });
+  }
+  try {
+    if (isCIMode()) {
+      const contact = inMemoryContacts.find(row => row.id === Number(req.params.id));
+      if (contact?.hiring_stage === stage && (contact.position_status ?? null) === previousStatus) {
+        contact.position_status = status;
+        return res.sendStatus(204);
+      }
+    } else {
+      const [result] = await pool.query("UPDATE recruiter_tracker SET position_status = ? WHERE id = ? AND hiring_stage = ? AND position_status <=> ?",
+        [status, req.params.id, stage, previousStatus]);
+      if (result.affectedRows) return res.sendStatus(204);
+    }
+    return res.status(409).json({ error: "The contact changed. Reload and try again." });
+  } catch (error) {
+    console.error("Interview status update failed:", error.code);
+    return res.status(500).json({ error: "Could not update position status" });
+  }
+});
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   if (rejectDemoWrite(res)) return;
@@ -2014,5 +2051,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   const bindHost = APP_ENV === "dev" || APP_ENV === "test" ? "127.0.0.1" : "0.0.0.0";
   app.listen(PORT, bindHost, () => {
     console.log(`Server running on port ${PORT}`);
+    if (APP_ENV === "production" && process.env.CONTACT_GHOSTING_ENABLED === "true") {
+      const ageContacts = () => ageAwaitingContacts(pool)
+        .catch(error => console.error("Contact aging failed:", error.code));
+      void ageContacts();
+      setInterval(ageContacts, 60 * 60 * 1000).unref();
+    }
   });
 }

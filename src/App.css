@@ -1116,3 +1116,7 @@ h2 {
 .prod-view-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%; padding: 16px; background: white; border: 1px solid #dbe2ea; border-radius: 10px; box-sizing: border-box; }
 .prod-view-controls time { font-weight: 700; }
 #prodViewMessage { flex-basis: 100%; margin: 0; color: #475569; font-size: .85rem; }
+
+.contact-totals-grid [data-interview-stage] { color: inherit; background: transparent; border: 0; padding: 0; font: inherit; text-decoration: underline; cursor: pointer; }
+#interviewResults { max-width: min(92vw, 48rem); max-height: 85vh; overflow: auto; }
+#interviewResults th, #interviewResults td { padding: 0.4rem; text-align: left; }

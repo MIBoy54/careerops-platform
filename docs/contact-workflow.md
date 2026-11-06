@@ -97,3 +97,23 @@ checks owner create/edit/filter, ambiguous legacy preservation, and guest
 read-only behavior in a separate synthetic server. Unit/HTTP tests cover
 validation, omission, explicit clears, legacy compatibility, bucket counts,
 CSV privacy, and protected snapshot projection.
+
+## Interview dates and automatic aging
+
+Run the additive workflow date migration before deploying this revision to any
+environment with a contact database. On an operator-owned mysql2 connection,
+call the exported migrateWorkflowDates function in src/contactWorkflowDatesMigration.js
+with the verified database name and confirmation add-workflow-dates:<database>.
+It adds nullable stage_entered_at and interview_date columns with no backfill.
+For the protected DEMO snapshot, migrate the PROD source database before
+deploying the source. The consumer accepts snapshots from the previous source.
+
+The app records UTC stage entry on a new contact and when the stage changes.
+Existing contacts with unknown stage entry remain undated. Interview Date is
+entered separately. Interview results are newest first with undated rows last.
+An authenticated owner can update only Position Status from the results.
+DEMO guests can view the results.
+
+After validating the deployment, set CONTACT_GHOSTING_ENABLED=true in PROD to
+enable hourly aging. The update applies only to Awaiting Decision at 60 days
+in Applied or 45 days in Submitted. Null stage-entry dates are ineligible.

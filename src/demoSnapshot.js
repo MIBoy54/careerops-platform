@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 const CONTACT_FIELDS = ['id','date_contacted','company','role_level','role_type','location',
-  'comp_range','status','role_category','hiring_stage','position_status','relationship_status','reported_to_unemployment','follow_up_date','industry','address','website'];
+  'comp_range','status','role_category','hiring_stage','position_status','relationship_status','reported_to_unemployment','follow_up_date','industry','address','website','interview_date'];
 const REPORT_FIELDS = ['id','week_start','week_end','submitted','submitted_at'];
 export const SNAPSHOT_LINKS_SQL = `SELECT links.report_id, links.recruiter_tracker_id
 FROM report_job_contacts AS links
@@ -87,7 +87,7 @@ export async function captureSnapshot(pool, now = () => new Date()) {
     await connection.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY');
     const capturedAt = now().toISOString();
     const [contacts] = await connection.query(
-      'SELECT ' + CONTACT_FIELDS.join(', ') + ' FROM recruiter_tracker ORDER BY id DESC LIMIT 50001');
+      'SELECT ' + CONTACT_FIELDS.map(field => field === 'interview_date' ? "DATE_FORMAT(interview_date, '%Y-%m-%d') AS interview_date" : field).join(', ') + ' FROM recruiter_tracker ORDER BY id DESC LIMIT 50001');
     const [reports] = await connection.query(
       'SELECT ' + REPORT_FIELDS.join(', ') + ' FROM weekly_reports ORDER BY week_start DESC, id DESC LIMIT 50001');
     const [links] = await connection.query(SNAPSHOT_LINKS_SQL);
