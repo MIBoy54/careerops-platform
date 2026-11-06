@@ -1,6 +1,8 @@
 import {afterEach,beforeEach,describe,it,expect} from 'vitest';
 import mysql from 'mysql2/promise';
 import {migrateContactWorkflow} from '../../src/contactWorkflowMigration.js';
+import {migrateWorkflowDates} from '../../src/contactWorkflowDatesMigration.js';
+import {ageAwaitingContacts} from '../../src/contactWorkflowAging.js';
 const suite=process.env.WORKFLOW_TEST_MYSQL==='1'?describe:describe.skip;
 let admin,db,database,sequence=0;
 suite('isolated MySQL workflow migration',()=>{
@@ -35,6 +37,20 @@ suite('isolated MySQL workflow migration',()=>{
    {role_category:'Individual Contributor',hiring_stage:null,position_status:'Awaiting Decision'},
    {role_category:'Leadership',hiring_stage:null,position_status:'Hired'}
   ]);
+ });
+ it('ages only eligible records from their recorded stage entry dates',async()=>{
+  await apply();
+  const migrate=()=>migrateWorkflowDates(db,{expectedDatabase:database,confirmation:'add-workflow-dates:'+database});
+  expect((await migrate()).addedColumns).toEqual(['stage_entered_at','interview_date']);
+  expect((await migrate()).addedColumns).toEqual([]);
+  for (const [id,stage,status,days] of [[1,'Applied','Awaiting Decision',60],[2,'Submitted','Awaiting Decision',45],[3,'Applied','Awaiting Decision',59],[4,'Applied','Rejected',90],[5,'HR Interview','Awaiting Decision',90],[6,'Applied','Awaiting Decision',null]]) {
+   await db.query('UPDATE recruiter_tracker SET hiring_stage=?, position_status=?, stage_entered_at=UTC_TIMESTAMP()-INTERVAL ? DAY WHERE id=?',[stage,status,days,id]);
+  }
+  const [first]=await ageAwaitingContacts(db);expect(first.affectedRows).toBe(2);
+  const [second]=await ageAwaitingContacts(db);expect(second.affectedRows).toBe(0);
+  const [rows]=await db.query('SELECT hiring_stage,position_status FROM recruiter_tracker ORDER BY id');
+  expect(rows.map(row=>row.position_status)).toEqual(['Ghosted','Ghosted','Awaiting Decision','Rejected','Awaiting Decision','Awaiting Decision']);
+  expect(rows.map(row=>row.hiring_stage)).toEqual(['Applied','Submitted','Applied','Applied','HR Interview','Applied']);
  });
  it('does not reclassify existing values or explicit clears on rerun',async()=>{
   await apply();

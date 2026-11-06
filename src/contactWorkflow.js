@@ -1,6 +1,7 @@
 export const ROLE_TYPES=Object.freeze(['Consultant','Individual Contributor','Leadership']);
 export const HIRING_STAGES=Object.freeze(['Applied','Recruiter Interview','Submitted','HR Interview','Hiring Interview','Offer Letter']);
 export const POSITION_STATUSES=Object.freeze(['Accepted','Awaiting Decision','Closed','Ghosted','Hired','On-hold','Rejected']);
+export const INTERVIEW_STAGES=Object.freeze(['Recruiter Interview','HR Interview','Hiring Interview']);
 const fields={role_category:ROLE_TYPES,hiring_stage:HIRING_STAGES,position_status:POSITION_STATUSES};
 const labels={role_category:'Role Type',hiring_stage:'Hiring Workflow',position_status:'Position Status'};
 const key=value=>String(value??'').trim().toLowerCase();
@@ -18,6 +19,13 @@ export function normalizeWorkflowPatch(input){
     if(!value){values[field]=null;continue;}
     if(!choices.includes(value)){errors.push('Choose a valid '+labels[field]+'.');continue;}
     values[field]=value;
+  }
+  if (Object.hasOwn(input, 'interview_date')) {
+    const value = input.interview_date;
+    const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value + 'T00:00:00Z') : null;
+    if (value === null || value === '') values.interview_date = null;
+    else if (date && Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value && Number(value.slice(0, 4)) >= 1000) values.interview_date = value;
+    else errors.push('Choose a valid interview date.');
   }
   return {values,errors,valid:errors.length===0};
 }
