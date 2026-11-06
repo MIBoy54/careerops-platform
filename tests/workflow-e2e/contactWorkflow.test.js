@@ -7,6 +7,11 @@ async function find(page,id){
  await page.locator('[data-contact-id="'+id+'"]').click();
 }
 test('owner creates independent workflow fields, edits stages and filters Hired accurately',async({page})=>{
+ await page.route("**/api/auth/me", async route => {
+  const response=await route.fetch();
+  const data=await response.json();
+  await route.fulfill({response,json:{...data,app_env:"production"}});
+ });
  await login(page);let id;
  try{
   await page.locator('[data-target="contactFormSection"]').click();
@@ -18,7 +23,10 @@ test('owner creates independent workflow fields, edits stages and filters Hired 
   await page.locator('#company').fill(company);
   await page.locator('#role_level').fill('Quality Lead');
   await page.locator('#role_category').selectOption('Individual Contributor');
+  await expect(page.locator('#interview_date')).toBeHidden();
+  await page.locator('#date_contacted').fill('2026-11-01');
   await page.locator('#hiring_stage').selectOption('Recruiter Interview');
+  await expect(page.locator('#interview_date')).toBeVisible();
   await page.locator('#position_status').selectOption('Awaiting Decision');
   const created=page.waitForResponse(r=>r.url().endsWith('/api/contacts')&&r.request().method()==='POST');
   await page.locator('#contactForm button[type="submit"]').click();const response=await created;
@@ -48,6 +56,12 @@ test('owner creates independent workflow fields, edits stages and filters Hired 
   await expect(results.getByRole('status')).toHaveText('Position status saved.');
   const updated=(await(await page.request.get('/api/contacts')).json()).find(row=>row.id===id);
   expect(updated).toMatchObject({hiring_stage:'Hiring Interview',position_status:'Accepted',company,status:'Interviewing'});
+  await results.getByRole('button',{name:'Edit Contact for '+company}).click();
+  await expect(page.locator('#company')).toHaveValue(company);
+  await expect(page.locator('#date_contacted')).toHaveValue('2026-11-01');
+  await page.locator('#interview_date').fill('2026-11-05');
+  await page.locator('#contactForm button[type="submit"]').click();
+  await expect(results.getByRole('row').filter({hasText:company})).toContainText('2026-11-05');
  }finally{if(id)await page.request.delete('/api/contacts/'+id);}
 });
 test('editing ambiguous legacy data does not guess or discard its classifications',async({page})=>{
@@ -79,6 +93,7 @@ test('guest can view canonical fields but cannot change or save them',async({pag
  const results=page.getByRole('dialog',{name:'HR Interview results'});
  await expect(results.locator('tbody td')).toHaveText(['2026-11-05','WF protected fixture','Rejected']);
  await expect(results.locator('select')).toHaveCount(0);
+ await expect(results.getByRole('button',{name:/Edit Contact/})).toHaveCount(0);
  await results.getByRole('button',{name:'Close'}).click();
  await find(page,99);
  for(const [field,value] of [['role_category','Leadership'],['hiring_stage','HR Interview'],['position_status','Rejected']]){
