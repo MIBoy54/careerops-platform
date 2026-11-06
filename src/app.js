@@ -1019,14 +1019,14 @@ function updateWorkflowTotals() {
   for (const stage of Object.keys(GHOSTED_CUTOFFS)) {
     summary.stage[stage] = stageResultsContacts(stage).length;
   }
-  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + (title === 'Hiring stage' && (INTERVIEW_STAGES.includes(label) || Object.hasOwn(GHOSTED_CUTOFFS, label) || label === "Offer Letter") ? '<button type="button" data-results-stage="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>' : escapeHtml(label)) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
+  const group = (title, entries) => '<section><h3>' + title + '</h3><dl>' + Object.entries(entries).filter(([label]) => label !== 'Unclassified').map(([label, count]) => '<div><dt>' + (title === 'Hiring stage' && (INTERVIEW_STAGES.includes(label) || Object.hasOwn(GHOSTED_CUTOFFS, label) || label === "Offer Letter") ? '<button type="button" data-interview-stage="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>' : escapeHtml(label)) + '</dt><dd>' + count + '</dd></div>').join('') + '</dl></section>';
   const html = '<p><strong>All records: ' + summary.total + '</strong></p><div class="contact-totals-grid">' + group('Hiring stage', summary.stage) + group('Position status', summary.position) + group('Reporting', summary.reported) + '</div><p class="summary-note">All records includes contacts without a hiring stage or position status. Filters change the table below.</p>';
   for (const id of ['contactTotals', 'dashboardContactTotals']) {
     const element = document.getElementById(id);
     if (!element) continue;
     element.innerHTML = html;
-    for (const button of element.querySelectorAll('[data-results-stage]')) {
-      button.addEventListener('click', () => showHiringResults(button.dataset.resultsStage));
+    for (const button of element.querySelectorAll('[data-interview-stage]')) {
+      button.addEventListener('click', () => showHiringResults(button.dataset.interviewStage));
     }
   }
 }
